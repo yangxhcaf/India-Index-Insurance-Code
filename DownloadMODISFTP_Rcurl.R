@@ -33,13 +33,15 @@ multi_grep_character <- function(find, inthis){ #returns location of multiple "f
 # get list of all available modis products
 GetProducts()
 
+
 # Product Filters 
 products = c('MYD13Q1','MOD13Q1')
-tiles =  c('h24v05','h24v06')   #example c('h24v05','h24v06')
-dates = c('2015-01-01','2016-01-01') # example c('year-month-day',year-month-day')
 location = c(30.259,75.644) # Lat Lon of a location of interest within your tiles listed above
+tiles =  c('h24v05','h24v06')   #example c('h24v05','h24v06')
+dates = c('2002-07-04','2016-01-25') # example c('year-month-day',year-month-day')
 ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'
-out_dir = 'G:/Faculty/Mann/Projects/India Index Insurance/Data/FTP'
+out_dir = 'G:/Faculty/Mann/Projects/India Index Insurance/Data/MYD13Q1'
+strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
 
 # find all available dates for each product
 available_date_list = list()
@@ -85,3 +87,5 @@ junk= foreach(j = 1:length(urls),.packages = 'RCurl') %dopar% {
 }
 
  
+
+

@@ -3,7 +3,7 @@
 
 
 rm(list=ls())
-source('G:\\Faculty\\Mann\\Projects\\India Index Insurance\\India Index Insurance Code/ModisDownload.R')
+source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
 library(RCurl)
 library(raster)
 library(MODISTools)
@@ -19,13 +19,9 @@ library(doParallel)
 registerDoParallel(5)
 
 
-MAYBE SOMETHING WRONG  WITH available_date_list
-
 
 # Functions ---------------------------------------------------------------
   
-  # give path to Modis Reproduction Tool
-  MRT = 'G:\\Faculty\\Mann\\Projects\\India Index Insurance\\Data\\MRT\\bin'
   
   multi_grep_character <- function(find, inthis){ #returns location of multiple "find' elements in the vector 'inthis'
     if(class(inthis)!= "character"){break("Error: in this must be a character vector")}
@@ -41,6 +37,8 @@ MAYBE SOMETHING WRONG  WITH available_date_list
 
 # Download MODIS data -----------------------------------------------------
   
+  # give path to Modis Reproduction Tool
+  MRT = 'G:/Faculty/Mann/Projects/MRT/bin'
   
   # get list of all available modis products
   GetProducts()
@@ -51,7 +49,7 @@ MAYBE SOMETHING WRONG  WITH available_date_list
   tiles =  c('h24v05','h24v06')   #example c('h24v05','h24v06')
   dates = c('2002-07-04','2016-02-02') # example c('year-month-day',year-month-day')
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'
-  out_dir = 'G:/Faculty/Mann/Projects/India Index Insurance/Data/MYD13Q1'
+  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1'
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
    
   # find all available dates for each product
@@ -65,6 +63,8 @@ MAYBE SOMETHING WRONG  WITH available_date_list
   avail_files_df = data.frame(products=unlist(available_products_list),date=unlist(available_date_list),stringsAsFactors = F)
   avail_files_df$year = strftime(avail_files_df$date, format="%Y")
   avail_files_df$doy = strftime(avail_files_df$date, format="%j")
+  avail_files_df$yeardoy = strftime(avail_files_df$date, format="%Y%j")
+  
   head(avail_files_df)
   dim(avail_files_df)
   
@@ -76,15 +76,15 @@ MAYBE SOMETHING WRONG  WITH available_date_list
   
   # find all urls for download
   urls = paste(ftp, needed_files_df$products,'/',needed_files_df$year, "/", needed_files_df$doy, "/",sep='')
-  #junk= foreach(j = 1:length(urls),.packages = 'RCurl') %dopar% {
-  for(j in 211:length(urls)){
+  junk= foreach(j = 1:length(urls),.packages = 'RCurl') %dopar% {
+  #for(j in 437:length(urls)){
       url=urls[j]
       # get urls and limit to wanted tiles
       Sys.sleep(1)
       filenames_url = tryCatch({getURL(url, ftp.use.epsv = F, dirlistonly = T)}, error = function(err) {
                      # getURL fails if you make too many queries, slow down using system pause              
-                      print(paste("Your server is pathetic, pausing for 45 seconds: ",err))
-                      Sys.sleep(45)
+                      print(paste("Your server is pathetic, pausing for 60 seconds: ",err))
+                      Sys.sleep(60)
                         tryCatch({getURL(url, ftp.use.epsv = F, dirlistonly = T)}, error = function(err) {
                           # getURL fails if you make too many queries, slow down using system pause              
                           print(paste("Your server is really pathetic, pausing for 60 seconds: ",err))
@@ -111,15 +111,20 @@ MAYBE SOMETHING WRONG  WITH available_date_list
       }
   }
   
-  # Find any missing files and download
+  
+  
+  # Find any missing files and download -------------------------------------
+  
   
   # list all files
   files = data.frame(files=list.files(out_dir,pattern=".hdf", all.files=T, full.names=T),stringsAsFactors = F)
+  files$short_name =  list.files(out_dir,pattern=".hdf", all.files=T, full.names=F)
   
   # list dates of files downloaded 
-  files$dates = as.character(strptime(gsub("^.*A([0-9]+).*$", "\\1",files$files),'%Y%j'))  # Strip dates
-  files$products =  gsub(paste("^.*(",paste(products,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
-  files$tiles =  gsub(paste("^.*(",paste(tiles,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
+  files$dates    = as.character(strptime(gsub("^.*A([0-9]+).*$", "\\1",files$files),'%Y%j'))  # Strip dates
+  files$products = gsub(paste("^.*(",paste(products,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
+  files$tiles    = gsub(paste("^.*(",paste(tiles,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
+  files$yeardoy  = strftime(files$dates, format="%Y%j")
   
   # find files not listed 
   missing_dates =  outersect(paste(files$products,files$dates,files$tiles,sep=' '), apply(MARGIN=1,X=expand.grid(paste(needed_files_df$products,needed_files_df$date,sep=' '),tiles), FUN=function(x){paste(x,collapse=' ')} )  )
@@ -130,11 +135,23 @@ MAYBE SOMETHING WRONG  WITH available_date_list
 
 
 # Mosaic Data -------------------------------------------------------------
+  # requirements: Install MRT in local directory, avoid spaces in all paths, add environmental variable MRT_DATA_DIR ~\\MRT\\data path 
+  # mosaic adjacent tiles for each date
+  # only works if you set working directory
+  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1/')
   
-  files = data.frame(files=list.files(out_dir,pattern=".hdf", all.files=T, full.names=T),stringsAsFactors = F)
-  available_date_list = c(available_date_list,list(as.character(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],product)))   ))
-  print(length(files[grep(pattern=MOD_10_13[i],files)]))
-  mosaicHDF(files[grep(pattern=MOD_10_13[i],files)], filename=paste(x,'.',MOD_10_13[i],'.hdf',sep=''), 
-            MRTpath="G:/Graduate/EDolfi/Summer2014/MODIS/MRT/bin", delete=T)
+  # set up system evironment for MRT data
+  Sys.setenv(MRT_DATA_DIR = "G:\\Faculty\\Mann\\Projects\\MRT\\data")
   
-
+   
+  for (i in (1:length(avail_files_df$yeardoy))){
+    print(i)
+    print(paste("# of mosaiced tiles",length(files[grep(pattern=avail_files_df$yeardoy[i],files$yeardoy),'files']),' for date ',avail_files_df$yeardoy[i]))
+    mosaicHDF(hdfNames = files[grep(pattern=avail_files_df$yeardoy[i],files$yeardoy),'short_name'], 
+              filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.hdf',sep=''), 
+              MRTpath=MRT, delete=F)
+  }
+  
+  hdfNames = files[grep(pattern=avail_files_df$yeardoy[i],files$yeardoy),'files']
+  filename = paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.hdf',sep='')
+  MRTpath=MRT

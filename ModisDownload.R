@@ -14,7 +14,7 @@
 library(raster)
 
 modisProducts <- function() {
- # load(system.file("external/ModisLP.RData", package="rts"))
+  #load(system.file("external/ModisLP.RData", package="rts"))
   load('ModisLP.RData')
   return(.ModisLPxxx)
   rm(.ModisLPxxx)
@@ -114,6 +114,7 @@ modisProducts <- function() {
   }
   Modislist
 }
+
 #--------
 
 .downloadHTTP <- function(x,filename) {
@@ -173,10 +174,9 @@ if (!isGeneric("ModisDownload")) {
     standardGeneric("ModisDownload"))
 }
 
-setMethod("mosaicHDF", "character",
-          function(hdfNames,filename,MRTpath,bands_subset,delete=FALSE) {
-            if (missing(MRTpath)) stop("MRTpath argument should be specified...")
-            if (length(hdfNames) < 2) stop("mosaic cannot be called for ONE image!")
+mosaicHDF = function(hdfNames,filename,MRTpath,bands_subset,delete=FALSE){
+            if (missing(MRTpath)) stop("MRTpath argument should be specified...") 
+            if (length(hdfNames) < 2) stop("mosaic cannot be called for ONE image!") 
             if (missing(bands_subset))  bands_subset <- ''
             if (missing(delete)) delete <- FALSE
             
@@ -184,25 +184,27 @@ setMethod("mosaicHDF", "character",
             write(paste(getwd(),"/",hdfNames[1], sep=""), mosaicname)
             for (j in 2:length(hdfNames)) write(paste(getwd(),"/",hdfNames[j], sep=""),mosaicname,append=T)
             close(mosaicname)
+            
             # generate mosaic:
             
             if (bands_subset != '') {
               e <- system(paste(MRTpath, '/mrtmosaic -i ', MRTpath, '/TmpMosaic.prm -s "',bands_subset,'" -o ',getwd(), '/',filename, sep=""))
               if (e != 0) warning ("Mosaic failed! 'bands_subset' may has incorrect structure!")
             } else {
-              e <- system(paste(MRTpath, '/mrtmosaic -i ', MRTpath, '/TmpMosaic.prm -o ',getwd(), '/',filename, sep=""))
+              e <- tryCatch({system(paste(MRTpath, '/mrtmosaic -i ', MRTpath, '/TmpMosaic.prm -o ',getwd(), '/',filename, sep=""))},
+                            warning = function(war) {print(war)})
+              
               if (e != 0) warning ("Mosaic failed!")
             }
             if (delete & e == 0) for (ModisName in hdfNames) unlink(paste(getwd(), '/', ModisName, sep=""))
             if (e == 0) return (TRUE)
             else return (FALSE)
-          }
-)
+      }
 
 
-setMethod("reprojectHDF", "character",
-          function(hdfName,filename,MRTpath,UL="",LR="",resample_type='NEAREST_NEIGHBOR',proj_type='UTM',
-                   bands_subset='',proj_params='0 0 0 0 0 0 0 0 0 0 0 0',datum='WGS84',utm_zone=NA,pixel_size=1000) {
+
+reprojectHDF=function(hdfName,filename,MRTpath,UL="",LR="",resample_type='NEAREST_NEIGHBOR',proj_type='UTM',
+                   bands_subset='',proj_params='0 0 0 0 0 0 0 0 0 0 0 0',datum='WGS84',utm_zone=NA,pixel_size=1000){
             
             fname = file('tmp.prm', open="wt")
             write(paste('INPUT_FILENAME = ', getwd(), '/',hdfName, sep=""), fname) 
@@ -226,12 +228,10 @@ setMethod("reprojectHDF", "character",
             if (e == 0) return (TRUE)
             else return(FALSE)
           }
-          
-)
 
 
-setMethod("getMODIS", "character",
-          function(x,h,v,dates,version='005') {
+
+getMODIS = function(x,h,v,dates,version='005'){
             xx <- .modisHTTP(x,v=version)
             Modislist <- .getModisList(xx,h=h,v=v,dates=dates)
             if (length(Modislist) == 0) stop("There is NO available images for the specified product!")
@@ -258,11 +258,10 @@ setMethod("getMODIS", "character",
             } else cat('Download is failed!')
             
           }
-)
 
 
-setMethod("getMODIS", "numeric",
-          function(x,h,v,dates,version='005') {
+
+getMODIS=function(x,h,v,dates,version='005') {
             xx <- .modisHTTP(x,v=version)
             Modislist <- .getModisList(xx,h=h,v=v,dates=dates)
             if (length(Modislist) == 0) stop("There is NO available images for the specified product!")
@@ -289,11 +288,10 @@ setMethod("getMODIS", "numeric",
             } else cat('Download is failed!')
             
           }
-)
 
 
-setMethod("ModisDownload", "character",
-          function(x,h,v,dates,version='005',MRTpath,mosaic=FALSE,bands_subset='',delete=FALSE,proj=FALSE,UL="",LR="",resample_type='NEAREST_NEIGHBOR',proj_type='UTM', proj_params='0 0 0 0 0 0 0 0 0 0 0 0',datum='WGS84',utm_zone=NA,pixel_size) {
+
+ModisDownload=function(x,h,v,dates,version='005',MRTpath,mosaic=FALSE,bands_subset='',delete=FALSE,proj=FALSE,UL="",LR="",resample_type='NEAREST_NEIGHBOR',proj_type='UTM', proj_params='0 0 0 0 0 0 0 0 0 0 0 0',datum='WGS84',utm_zone=NA,pixel_size) {
             dHDF <- .getMODIS(x,h,v,dates,version)
             dHDF$Date <- as.character(dHDF$Date)
             dHDF$Name <- as.character(dHDF$Name)
@@ -348,11 +346,10 @@ setMethod("ModisDownload", "character",
             }
             
           }
-)
 
 
-setMethod("ModisDownload", "numeric",
-          function(x,h,v,dates,version='005',MRTpath,mosaic=FALSE,bands_subset='',delete=FALSE,proj=FALSE,UL="",LR="",resample_type='NEAREST_NEIGHBOR',proj_type='UTM', proj_params='0 0 0 0 0 0 0 0 0 0 0 0',datum='WGS84',utm_zone=NA,pixel_size) {
+
+ModisDownload=function(x,h,v,dates,version='005',MRTpath,mosaic=FALSE,bands_subset='',delete=FALSE,proj=FALSE,UL="",LR="",resample_type='NEAREST_NEIGHBOR',proj_type='UTM', proj_params='0 0 0 0 0 0 0 0 0 0 0 0',datum='WGS84',utm_zone=NA,pixel_size) {
             dHDF <- .getMODIS(x,h,v,dates,version)
             dHDF$Date <- as.character(dHDF$Date)
             dHDF$Name <- as.character(dHDF$Name)
@@ -406,4 +403,8 @@ setMethod("ModisDownload", "numeric",
             }
             
           }
-)
+
+
+
+
+

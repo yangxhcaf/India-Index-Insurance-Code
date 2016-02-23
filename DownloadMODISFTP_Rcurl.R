@@ -135,23 +135,43 @@ registerDoParallel(5)
 
 
 # Mosaic Data -------------------------------------------------------------
-  # requirements: Install MRT in local directory, avoid spaces in all paths, add environmental variable MRT_DATA_DIR ~\\MRT\\data path 
   # mosaic adjacent tiles for each date
-  # only works if you set working directory
-  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1/')
+  # requirements: Install MRT in local directory, avoid spaces in all paths, add environmental variable MRT_DATA_DIR ~\\MRT\\data path 
   
   # set up system evironment for MRT data
-  Sys.setenv(MRT_DATA_DIR = "G:\\Faculty\\Mann\\Projects\\MRT\\data")
+  #Sys.setenv(MRT_DATA_DIR = "G:\\Faculty\\Mann\\Projects\\MRT\\data")  # only needed first run 
   
-   
-  for (i in (1:length(avail_files_df$yeardoy))){
-    print(i)
-    print(paste("# of mosaiced tiles",length(files[grep(pattern=avail_files_df$yeardoy[i],files$yeardoy),'files']),' for date ',avail_files_df$yeardoy[i]))
-    mosaicHDF(hdfNames = files[grep(pattern=avail_files_df$yeardoy[i],files$yeardoy),'short_name'], 
-              filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.hdf',sep=''), 
+   # only works if you set working directory
+  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1/') # path to files with only / slashes
+  
+  for (i in (1:length(needed_files_df$yeardoy))){
+    print(paste(i,'out of',length(needed_files_df$yeardoy)))
+    print(paste("# of mosaiced tiles",length(files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'files']),' for date ',needed_files_df$yeardoy[i]))
+    if(file.exists(paste(getwd(),'/',needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''))==T){print('Skipping File Exists');next}
+    mosaicHDF(hdfNames = files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'short_name'], 
+              filename=paste(needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''), 
               MRTpath=MRT, delete=F)
   }
   
-  hdfNames = files[grep(pattern=avail_files_df$yeardoy[i],files$yeardoy),'files']
-  filename = paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.hdf',sep='')
-  MRTpath=MRT
+  
+  
+  
+  # Reproject ---------------------------------------------------------------
+  
+  reproj_files = paste(needed_files_df$products,'_',needed_files_df$yeardoy,'.hdf',sep='')
+  
+  for (i in (2:length(reproj_files))){
+    print(i)
+    print(paste(i,'out of',length(needed_files_df$yeardoy)))
+    print(paste("Writing out tiffs for", list.files('.',pattern =  reproj_files[i] ),' for date ',needed_files_df$yeardoy[i]))
+    reprojectHDF(hdfName = reproj_files[i],
+                 filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep=''),  
+                 MRTpath=MRT, proj_type='SIN', 
+                 proj_params='6371007.181 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 
+                 datum='NODATUM', pixel_size=250)
+  }
+  
+  
+  
+  
+  

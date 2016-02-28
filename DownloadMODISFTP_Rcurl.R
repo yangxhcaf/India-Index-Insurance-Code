@@ -46,7 +46,7 @@ registerDoParallel(5)
   # Product Filters 
   products = c('MYD13Q1','MOD13Q1')
   location = c(-31.467934,-57.101319) # Lat Lon of a location of interest within your tiles listed above #India c(30.259,75.644) 
-  tiles =  c('h13v12')   # India example c('h24v05','h24v06')
+  tiles =  c('h24v05','h24v06') # c('h13v12')   India example 
   dates = c('2002-07-04','2016-02-02') # example c('year-month-day',year-month-day')
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'
   out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay'
@@ -77,7 +77,7 @@ registerDoParallel(5)
   # find all urls for download
   urls = paste(ftp, needed_files_df$products,'/',needed_files_df$year, "/", needed_files_df$doy, "/",sep='')
   junk= foreach(j = 1:length(urls),.packages = 'RCurl') %dopar% {
-  #for(j in 437:length(urls)){
+  #for(j in 1:length(urls)){
       url=urls[j]
       # get urls and limit to wanted tiles
       Sys.sleep(1)
@@ -176,12 +176,14 @@ registerDoParallel(5)
     if(length(tifs[grep(tifs,pattern=gsub(".hdf$", "\\1",reproj_files[i]))])>=1){ print('File exists')
       next
     }else{
-    reprojectHDF(hdfName = reproj_files[i],
-                 filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep=''),  
-                 MRTpath=MRT, proj_type='SIN', 
-                 proj_params='6371007.181 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 
-                 datum='NODATUM', pixel_size=250,
-                 bands_subset="1 1 1 1 1 1 1 0 0 0 0 1")}
+      print(paste('Input:',reproj_files[i],' Output:',paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep='')))
+   # reprojectHDF(hdfName = reproj_files[i],
+  #             filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep=''),  
+  #               MRTpath=MRT, proj_type='SIN', 
+  #               proj_params='6371007.181 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 
+  #               datum='NODATUM', pixel_size=250,
+  #               bands_subset="1 1 1 1 1 1 1 0 0 0 0 1")
+      }
   }
   
   

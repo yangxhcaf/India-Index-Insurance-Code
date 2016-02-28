@@ -45,11 +45,11 @@ registerDoParallel(5)
   
   # Product Filters 
   products = c('MYD13Q1','MOD13Q1')
-  location = c(30.259,75.644) # Lat Lon of a location of interest within your tiles listed above
-  tiles =  c('h24v05','h24v06')   #example c('h24v05','h24v06')
+  location = c(-31.467934,-57.101319) # Lat Lon of a location of interest within your tiles listed above #India c(30.259,75.644) 
+  tiles =  c('h13v12')   # India example c('h24v05','h24v06')
   dates = c('2002-07-04','2016-02-02') # example c('year-month-day',year-month-day')
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'
-  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1'
+  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay'
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
    
   # find all available dates for each product
@@ -142,35 +142,47 @@ registerDoParallel(5)
   #Sys.setenv(MRT_DATA_DIR = "G:\\Faculty\\Mann\\Projects\\MRT\\data")  # only needed first run 
   
    # only works if you set working directory
-  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1/') # path to files with only / slashes
+  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay/') # path to files with only / slashes
   
   for (i in (1:length(needed_files_df$yeardoy))){
     print(paste(i,'out of',length(needed_files_df$yeardoy)))
     print(paste("# of mosaiced tiles",length(files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'files']),' for date ',needed_files_df$yeardoy[i]))
     if(file.exists(paste(getwd(),'/',needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''))==T){print('Skipping File Exists');next}
+    # if no mosaic needs to be done (1 file)
+    if(length(files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'files'])==1){
+      file.copy(from=files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'short_name'],to=paste(needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''))
+    }else{
+    # else mosaic images
     mosaicHDF(hdfNames = files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'short_name'], 
               filename=paste(needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''), 
               MRTpath=MRT, delete=F)
+    }
   }
   
   
   
   
   # Reproject ---------------------------------------------------------------
+  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1/') # path to files with only / slashes
   
   reproj_files = paste(needed_files_df$products,'_',needed_files_df$yeardoy,'.hdf',sep='')
   
-  for (i in (2:length(reproj_files))){
+  for (i in (1:length(reproj_files))){
     print(i)
     print(paste(i,'out of',length(needed_files_df$yeardoy)))
     print(paste("Writing out tiffs for", list.files('.',pattern =  reproj_files[i] ),' for date ',needed_files_df$yeardoy[i]))
+    tifs = list.files(getwd(),pattern = '250m_16_days_EVI.tif')
+    
+    if(length(tifs[grep(tifs,pattern=gsub(".hdf$", "\\1",reproj_files[i]))])>=1){ print('File exists')
+      next
+    }else{
     reprojectHDF(hdfName = reproj_files[i],
                  filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep=''),  
                  MRTpath=MRT, proj_type='SIN', 
                  proj_params='6371007.181 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 
-                 datum='NODATUM', pixel_size=250)
+                 datum='NODATUM', pixel_size=250,
+                 bands_subset="1 1 1 1 1 1 1 0 0 0 0 1")}
   }
-  
   
   
   

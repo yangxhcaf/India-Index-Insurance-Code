@@ -46,12 +46,13 @@ registerDoParallel(5)
   # Product Filters 
   products = c('MYD13Q1','MOD13Q1')
   location = c(-31.467934,-57.101319) # Lat Lon of a location of interest within your tiles listed above #India c(30.259,75.644) 
-  tiles =  c('h24v05','h24v06') # c('h13v12')   India example 
+  tiles =   c('h13v12')  #c('h24v05','h24v06')  India example 
   dates = c('2002-07-04','2016-02-02') # example c('year-month-day',year-month-day')
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'
-  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay'
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-   
+  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay/'
+  setwd(out_dir)
+  
   # find all available dates for each product
   available_date_list = list()
   available_products_list = list()
@@ -102,6 +103,7 @@ registerDoParallel(5)
           # download as binary and save
           print(write_names[i])
           if(file.exists(paste(out_dir,'/',write_names[i],sep=''))==F){
+              print('writing hdf file')
               bin = getBinaryURL(filenames_url[i])
               writeBin(bin, paste(out_dir,'/',write_names[i],sep='')) 
           }else{
@@ -125,6 +127,7 @@ registerDoParallel(5)
   files$products = gsub(paste("^.*(",paste(products,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
   files$tiles    = gsub(paste("^.*(",paste(tiles,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
   files$yeardoy  = strftime(files$dates, format="%Y%j")
+  files$reproj_files = paste(gsub("[.]006.*.hdf$", "\\1",files$short_name,perl=T) )
   
   # find files not listed 
   missing_dates =  outersect(paste(files$products,files$dates,files$tiles,sep=' '), apply(MARGIN=1,X=expand.grid(paste(needed_files_df$products,needed_files_df$date,sep=' '),tiles), FUN=function(x){paste(x,collapse=' ')} )  )
@@ -133,59 +136,28 @@ registerDoParallel(5)
   format(strptime('2010-05-25','%Y-%m-%d'),'%Y%j')
   
 
-
-# Mosaic Data -------------------------------------------------------------
-  # mosaic adjacent tiles for each date
-  # requirements: Install MRT in local directory, avoid spaces in all paths, add environmental variable MRT_DATA_DIR ~\\MRT\\data path 
-  
-  # set up system evironment for MRT data
-  #Sys.setenv(MRT_DATA_DIR = "G:\\Faculty\\Mann\\Projects\\MRT\\data")  # only needed first run 
-  
-   # only works if you set working directory
-  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay/') # path to files with only / slashes
-  
-  for (i in (1:length(needed_files_df$yeardoy))){
-    print(paste(i,'out of',length(needed_files_df$yeardoy)))
-    print(paste("# of mosaiced tiles",length(files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'files']),' for date ',needed_files_df$yeardoy[i]))
-    if(file.exists(paste(getwd(),'/',needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''))==T){print('Skipping File Exists');next}
-    # if no mosaic needs to be done (1 file)
-    if(length(files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'files'])==1){
-      file.copy(from=files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'short_name'],to=paste(needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''))
-    }else{
-    # else mosaic images
-    mosaicHDF(hdfNames = files[grep(pattern=needed_files_df$yeardoy[i],files$yeardoy),'short_name'], 
-              filename=paste(needed_files_df$products[i],'_',needed_files_df$yeardoy[i],'.hdf',sep=''), 
-              MRTpath=MRT, delete=F)
-    }
-  }
-  
-  
   
   
   # Reproject ---------------------------------------------------------------
-  setwd('G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MYD13Q1/') # path to files with only / slashes
-  
-  reproj_files = paste(needed_files_df$products,'_',needed_files_df$yeardoy,'.hdf',sep='')
-  
-  for (i in (1:length(reproj_files))){
+ 
+   
+  for (i in (1:length(files$reproj_files))){
     print(i)
-    print(paste(i,'out of',length(needed_files_df$yeardoy)))
-    print(paste("Writing out tiffs for", list.files('.',pattern =  reproj_files[i] ),' for date ',needed_files_df$yeardoy[i]))
+    print(paste(i,'out of',length(files$reproj_files)))
+    print(paste("Writing out tiffs ", list.files('.',pattern =  files$reproj_files[i] ),' for date ',files$yeardoy[i]))
     tifs = list.files(getwd(),pattern = '250m_16_days_EVI.tif')
     
-    if(length(tifs[grep(tifs,pattern=gsub(".hdf$", "\\1",reproj_files[i]))])>=1){ print('File exists')
+    if(length(tifs[grep(tifs,pattern=paste(files$products[i],files$yeardoy[i],files$tiles[i],sep='_'))])>=1){ print('File exists')
       next
     }else{
-      print(paste('Input:',reproj_files[i],' Output:',paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep='')))
-   # reprojectHDF(hdfName = reproj_files[i],
-  #             filename=paste(avail_files_df$products[i],'_',avail_files_df$yeardoy[i],'.tif',sep=''),  
-  #               MRTpath=MRT, proj_type='SIN', 
-  #               proj_params='6371007.181 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 
-  #               datum='NODATUM', pixel_size=250,
-  #               bands_subset="1 1 1 1 1 1 1 0 0 0 0 1")
+      print(paste('Input:',files$reproj_files[i],' Output:',paste(files$products[i],'_',files$yeardoy[i],'.tif',sep='')))
+      reprojectHDF(hdfName = files$short_name[i],
+                 filename=paste(files$products[i],'_',files$yeardoy[i],'_',files$tiles[i],'.tif',sep=''),  
+                 MRTpath=MRT, proj_type='SIN', 
+                 proj_params='6371007.181 0 0 0', 
+                 datum='NODATUM', pixel_size=250,
+                 bands_subset="1 1 1 1 1 1 1 0 0 0 0 1")
       }
   }
   
-  
-  
-  
+   

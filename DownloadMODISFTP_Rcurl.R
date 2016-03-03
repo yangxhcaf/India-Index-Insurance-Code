@@ -11,6 +11,7 @@ library(rgdal)
 library(sp)
 library(maptools)
 library(rts)
+library(gdalUtils)
 source('G://Faculty//Mann//Projects//Ethiopia Project//GIS Data//250m_EVI_Data//SplineAndOutlierRemoval.R')
 
 
@@ -44,13 +45,13 @@ registerDoParallel(5)
   GetProducts()
   
   # Product Filters 
-  products = c('MYD13Q1','MOD13Q1')
-  location = c(-31.467934,-57.101319) # Lat Lon of a location of interest within your tiles listed above #India c(30.259,75.644) 
-  tiles =   c('h13v12')  #c('h24v05','h24v06')  India example 
+  products = 'MCD12Q1' #EVI c('MYD13Q1','MOD13Q1') 
+  location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
+  tiles =   c('h24v05','h24v06')   # India example c('h13v12')
   dates = c('2002-07-04','2016-02-02') # example c('year-month-day',year-month-day')
-  ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'
+  ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/5/'    # allData/6/ for evi, allData/5/ for landcover 
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/Uruguay/'
+  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MODISLandCover/India/'
   setwd(out_dir)
   
   # find all available dates for each product
@@ -115,7 +116,7 @@ registerDoParallel(5)
   
   
   
-  # Find any missing files and download -------------------------------------
+# Find any missing files and download -------------------------------------
   
   
   # list all files
@@ -138,14 +139,25 @@ registerDoParallel(5)
 
   
   
-  # Reproject ---------------------------------------------------------------
+
+
+# Get Names of all Layers in HDF ------------------------------------------
+
+
+  get_subdatasets('./MCD12Q1.A2003001.h24v05.005.2011061231359.hdf')
+  
+  
+  
+# Reproject ---------------------------------------------------------------
  
+  band_subset = "1 1 0 0 1 1 1 0 0 1 1 0 0 0 0 0"  # Example: first seven and last layer'1 1 1 1 1 1 1 0 0 0 0 1"
+  output_pattern = 'Land_Cover_Type_1.tif' # '250m_16_days_EVI.tif' looks for existing EVI tif files to avoid repeating
    
   for (i in (1:length(files$reproj_files))){
     print(i)
     print(paste(i,'out of',length(files$reproj_files)))
     print(paste("Writing out tiffs ", list.files('.',pattern =  files$reproj_files[i] ),' for date ',files$yeardoy[i]))
-    tifs = list.files(getwd(),pattern = '250m_16_days_EVI.tif')
+    tifs = list.files(getwd(),pattern =  output_pattern)
     
     if(length(tifs[grep(tifs,pattern=paste(files$products[i],files$yeardoy[i],files$tiles[i],sep='_'))])>=1){ print('File exists')
       next
@@ -156,8 +168,9 @@ registerDoParallel(5)
                  MRTpath=MRT, proj_type='SIN', 
                  proj_params='6371007.181 0 0 0', 
                  datum='NODATUM', pixel_size=250,
-                 bands_subset="1 1 1 1 1 1 1 0 0 0 0 1")
+                 bands_subset=band_subset)
       }
   }
   
-   
+
+ 

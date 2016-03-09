@@ -171,7 +171,11 @@ registerDoParallel(5)
   
 
   
-  
+#   This is what I use in gdal:
+#     uly_map = 10007554.677
+#   ulx_map = -20015109.354
+#   pix = 463.312716525
+#   proj4 = '+proj=sinu +a=6371007.181 +b=6371007.181 +units=m' 
 
   
 

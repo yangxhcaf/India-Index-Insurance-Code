@@ -4,6 +4,8 @@
 
 rm(list=ls())
 source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+source('G://Faculty//Mann//Projects//Ethiopia Project//GIS Data//250m_EVI_Data//SplineAndOutlierRemoval.R')
+source('G:\\Faculty\\Mann\\Scripts\\SplineAndOutlierRemoval.R')
 library(RCurl)
 library(raster)
 library(MODISTools)
@@ -12,9 +14,6 @@ library(sp)
 library(maptools)
 library(rts)
 library(gdalUtils)
-source('G://Faculty//Mann//Projects//Ethiopia Project//GIS Data//250m_EVI_Data//SplineAndOutlierRemoval.R')
-
-
 library(foreach)
 library(doParallel)
 registerDoParallel(5)
@@ -45,13 +44,13 @@ registerDoParallel(5)
   GetProducts()
   
   # Product Filters 
-  products = 'MCD12Q1' #EVI c('MYD13Q1','MOD13Q1') 
+  products = c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1'
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
   tiles =   c('h24v05','h24v06')   # India example c('h13v12')
-  dates = c('2002-07-04','2016-02-02') # example c('year-month-day',year-month-day')
+  dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02') 
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/5/'    # allData/6/ for evi, allData/5/ for landcover 
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MODISLandCover/India/'
+  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/India/'
   setwd(out_dir)
   
   # find all available dates for each product
@@ -84,16 +83,16 @@ registerDoParallel(5)
       # get urls and limit to wanted tiles
       Sys.sleep(1)
       filenames_url = tryCatch({getURL(url, ftp.use.epsv = F, dirlistonly = T)}, error = function(err) {
-                     # getURL fails if you make too many queries, slow down using system pause              
-                      print(paste("Your server is pathetic, pausing for 60 seconds: ",err))
+                 # getURL fails if you make too many queries, slow down using system pause              
+                  print(paste("Your server is pathetic, pausing for 60 seconds: ",err))
+                  Sys.sleep(60)
+                    tryCatch({getURL(url, ftp.use.epsv = F, dirlistonly = T)}, error = function(err) {
+                      # getURL fails if you make too many queries, slow down using system pause              
+                      print(paste("Your server is really pathetic, pausing for 60 seconds: ",err))
                       Sys.sleep(60)
-                        tryCatch({getURL(url, ftp.use.epsv = F, dirlistonly = T)}, error = function(err) {
-                          # getURL fails if you make too many queries, slow down using system pause              
-                          print(paste("Your server is really pathetic, pausing for 60 seconds: ",err))
-                          Sys.sleep(60)
-                          getURL(url, ftp.use.epsv = F, dirlistonly = T)
-                        })
-                      })
+                      getURL(url, ftp.use.epsv = F, dirlistonly = T)
+                    })
+                  })
       filenames_url = paste(url, strsplit(filenames_url, "\r*\n")[[1]], sep = "")
       filenames_url = filenames_url[multi_grep_character(tiles,filenames_url)] # find needed files based on tiles
        
@@ -118,7 +117,6 @@ registerDoParallel(5)
   
 # Find any missing files and download -------------------------------------
   
-  
   # list all files
   files = data.frame(files=list.files(out_dir,pattern=".hdf", all.files=T, full.names=T),stringsAsFactors = F)
   files$short_name =  list.files(out_dir,pattern=".hdf", all.files=T, full.names=F)
@@ -139,8 +137,6 @@ registerDoParallel(5)
 
   
   
-
-
 # Get Names of all Layers in HDF ------------------------------------------
 
 
@@ -150,27 +146,133 @@ registerDoParallel(5)
   
 # Reproject ---------------------------------------------------------------
  
+  
   band_subset = "1 1 0 0 1 1 1 0 0 1 1 0 0 0 0 0"  # Example: first seven and last layer'1 1 1 1 1 1 1 0 0 0 0 1"
   output_pattern = 'Land_Cover_Type_1.tif' # '250m_16_days_EVI.tif' looks for existing EVI tif files to avoid repeating
    
   for (i in (1:length(files$reproj_files))){
-    print(i)
-    print(paste(i,'out of',length(files$reproj_files)))
-    print(paste("Writing out tiffs ", list.files('.',pattern =  files$reproj_files[i] ),' for date ',files$yeardoy[i]))
-    tifs = list.files(getwd(),pattern =  output_pattern)
-    
-    if(length(tifs[grep(tifs,pattern=paste(files$products[i],files$yeardoy[i],files$tiles[i],sep='_'))])>=1){ print('File exists')
-      next
-    }else{
-      print(paste('Input:',files$reproj_files[i],' Output:',paste(files$products[i],'_',files$yeardoy[i],'.tif',sep='')))
-      reprojectHDF(hdfName = files$short_name[i],
-                 filename=paste(files$products[i],'_',files$yeardoy[i],'_',files$tiles[i],'.tif',sep=''),  
-                 MRTpath=MRT, proj_type='SIN', 
-                 proj_params='6371007.181 0 0 0', 
-                 datum='NODATUM', pixel_size=250,
-                 bands_subset=band_subset)
-      }
+      print(i)
+      print(paste(i,'out of',length(files$reproj_files)))
+      print(paste("Writing out tiffs ", list.files('.',pattern =  files$reproj_files[i] ),' for date ',files$yeardoy[i]))
+      tifs = list.files(getwd(),pattern =  output_pattern)
+      
+      if(length(tifs[grep(tifs,pattern=paste(files$products[i],files$yeardoy[i],files$tiles[i],sep='_'))])>=1){ print('File exists')
+          next
+      }else{
+          print(paste('Input:',files$reproj_files[i],' Output:',paste(files$products[i],'_',files$yeardoy[i],'.tif',sep='')))
+          reprojectHDF(hdfName = files$short_name[i],
+                     filename=paste(files$products[i],'_',files$yeardoy[i],'_',files$tiles[i],'.tif',sep=''),  
+                     MRTpath=MRT, proj_type='SIN', 
+                     proj_params='6371007.181 0 0 0', 
+                     datum='NODATUM', pixel_size=250,
+                     bands_subset=band_subset)
+        }
   }
   
 
- 
+  
+  
+
+  
+
+# Stack relevant data -----------------------------------------------------
+
+
+  tile_2_process = 'h24v06'
+  # Set up data
+  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_EVI.tif$',sep='')), full.names = TRUE)
+  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  flist = flist[order(flist_dates)]  # file list in order
+  # stack data and save
+  EVI_stack = stack(flist)
+  names(EVI_stack) = flist_dates
+  save(EVI_stack,file = paste('.//EVI_stack',tile_2_process,'.RData',sep='') )
+  
+  tile_2_process = 'h24v05'
+  # Set up data
+  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_EVI.tif$',sep='')), full.names = TRUE)
+  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  flist=flist[order(flist_dates)]  # file list in order
+  # stack data and save
+  EVI_stack = stack(flist)
+  names(EVI_stack) = flist_dates
+  save(EVI_stack,file = paste('.//EVI_stack',tile_2_process,'.RData',sep='') )
+  
+  # NDVI
+  tile_2_process = 'h24v06'
+  # Set up data
+  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_NDVI.tif$',sep='')), full.names = TRUE)
+  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  flist = flist[order(flist_dates)]  # file list in order
+  # stack data and save
+  EVI_stack = stack(flist)
+  names(EVI_stack) = flist_dates
+  save(EVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
+  
+  tile_2_process = 'h24v05'
+  # Set up data
+  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_NDVI.tif$',sep='')), full.names = TRUE)
+  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  flist=flist[order(flist_dates)]  # file list in order
+  # stack data and save
+  EVI_stack = stack(flist)
+  names(EVI_stack) = flist_dates
+  save(EVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
+  
+  # Quality flag
+  tile_2_process = 'h24v06'
+  # Set up data
+  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_pixel_reliability.tif$',sep='')), full.names = TRUE)
+  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  flist = flist[order(flist_dates)]  # file list in order
+  # stack data and save
+  EVI_stack = stack(flist)
+  names(EVI_stack) = flist_dates
+  save(EVI_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
+  
+  tile_2_process = 'h24v05'
+  # Set up data
+  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_pixel_reliability.tif$',sep='')), full.names = TRUE)
+  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  flist=flist[order(flist_dates)]  # file list in order
+  # stack data and save
+  EVI_stack = stack(flist)
+  names(EVI_stack) = flist_dates
+  save(EVI_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
+  
+  
+  
+  
+  # Visualize examples of smoothed data -------------------------------------
+  
+  
+  dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(EVI_stack)),format='%Y%j') # create dates to interpolate to
+  pred_dates =  strptime(dates,'%Y-%m-%d') 
+  
+  
+  EVI_v1 = getValues(EVI_stack, 1000, 1)
+  EVI_v1[EVI_v1<0]=NA
+  EVI_v1=EVI_v1*0.0001
+  dim(EVI_v1)
+  
+  row = 100
+  plotdata = data.frame(EVI= EVI_v1[row,], 
+                        dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI')
+  
+  plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1[row,], 
+                        dates=dates, pred_dates=pred_dates,spline_spar = 0.3), 
+                        dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
+  
+  
+  ggplot(plotdata, aes(x=dates,y=EVI,group=class))+geom_point(aes(colour=class))
+   
+  
+  
+  
+  # Remove low quality cells ------------------------------------------------
+  
+  
+  
+  
+  
+  

@@ -11,7 +11,9 @@
 
 
 rm(list=ls())
-#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
+
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
 library(RCurl)
 library(raster)

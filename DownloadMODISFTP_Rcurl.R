@@ -1,11 +1,18 @@
 # Michael Mann
 # This script uses RCurl and ModisDownload to access an ftp server and download desired modis tiles
 
+# Run the following in bash before starting R
+# module load proj.4/4.8.0
+# module load gdal/gcc/1.11
+# module load R/3.0.2
+# module load gcc/4.9.0
+# R
+
+
 
 rm(list=ls())
-source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
-source('G://Faculty//Mann//Projects//Ethiopia Project//GIS Data//250m_EVI_Data//SplineAndOutlierRemoval.R')
-source('G:\\Faculty\\Mann\\Scripts\\SplineAndOutlierRemoval.R')
+#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
 library(RCurl)
 library(raster)
 library(MODISTools)
@@ -16,7 +23,7 @@ library(rts)
 library(gdalUtils)
 library(foreach)
 library(doParallel)
-registerDoParallel(5)
+#registerDoParallel(5)
 
 
 
@@ -187,6 +194,7 @@ registerDoParallel(5)
   
 
 # Stack relevant data -----------------------------------------------------
+  setwd('/groups/manngroup/India_Index/Data/India')
 
   # EVI
   tile_2_process = 'h24v06'
@@ -257,7 +265,7 @@ registerDoParallel(5)
   
   tile_2_process = 'h24v05'
   load(paste('.//PixelReliability_stack',tile_2_process,'.RData',sep=''))
-  EVI_stack
+  Reliability_stack
   intToBits(-128)  
   
   

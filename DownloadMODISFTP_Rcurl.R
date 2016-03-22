@@ -263,10 +263,20 @@ library(doParallel)
   
 # Remove low quality cells ------------------------------------------------
   
-  tile_2_process = 'h24v05'
-  load(paste('.//PixelReliability_stack',tile_2_process,'.RData',sep=''))
-  Reliability_stack
-  intToBits(-128)  
+ for( tile_2_process in c( 'h24v05','h24v06'){
+
+  	reliability_stackname = load(paste('.//PixelReliability_stack',tile_2_process,'.RData',sep=''))
+ 	reliability_stackvalues = get(reliability_stackname)
+	
+	# remove clouds from NDVI
+	data_stackname = load(paste('.//NDVI_stack',tile_2_process,'.RData',sep=''))  
+  	data_stackvalues = get(data_stackname)
+
+	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { data_stackvalues[[i]][reliability_stackvalues[[i]]>0]=NA}
+	save(,file = paste(,'_wo_cld.RData',sep=''))
+
+
+} 
   
   
   

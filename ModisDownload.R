@@ -10,6 +10,7 @@
 # Reference: http://www.r-gis.net
 
 # MRTproj function is a wrapper to MRT tools, can be used to resample and subset an HDF image and convert to GeoTiff
+# Changes made to error handling by Michael Mann
 
 library(raster)
 

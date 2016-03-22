@@ -34,9 +34,10 @@ registerDoParallel(5)
   }
 
 
-
-# Download MODIS data -----------------------------------------------------
   
+
+# Set up parameters -------------------------------------------------------
+
   # give path to Modis Reproduction Tool
   MRT = 'G:/Faculty/Mann/Projects/MRT/bin'
   
@@ -52,6 +53,11 @@ registerDoParallel(5)
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
   out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/India/'
   setwd(out_dir)
+  
+  
+# Download MODIS data -----------------------------------------------------
+  
+
   
   # find all available dates for each product
   available_date_list = list()
@@ -171,7 +177,8 @@ registerDoParallel(5)
   
 
   
-#   This is what I use in gdal:
+#   MODIS SINUSOIDAL PROJECITON DETAILS:
+#  This is what I use in gdal:
 #     uly_map = 10007554.677
 #   ulx_map = -20015109.354
 #   pix = 463.312716525
@@ -181,7 +188,7 @@ registerDoParallel(5)
 
 # Stack relevant data -----------------------------------------------------
 
-
+  # EVI
   tile_2_process = 'h24v06'
   # Set up data
   flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_EVI.tif$',sep='')), full.names = TRUE)
@@ -209,9 +216,9 @@ registerDoParallel(5)
   flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
   flist = flist[order(flist_dates)]  # file list in order
   # stack data and save
-  EVI_stack = stack(flist)
-  names(EVI_stack) = flist_dates
-  save(EVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
+  NDVI_stack = stack(flist)
+  names(NDVI_stack) = flist_dates
+  save(NDVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
   
   tile_2_process = 'h24v05'
   # Set up data
@@ -219,9 +226,9 @@ registerDoParallel(5)
   flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
   flist=flist[order(flist_dates)]  # file list in order
   # stack data and save
-  EVI_stack = stack(flist)
-  names(EVI_stack) = flist_dates
-  save(EVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
+  NDVI_stack = stack(flist)
+  names(NDVI_stack) = flist_dates
+  save(NDVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
   
   # Quality flag
   tile_2_process = 'h24v06'
@@ -230,9 +237,9 @@ registerDoParallel(5)
   flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
   flist = flist[order(flist_dates)]  # file list in order
   # stack data and save
-  EVI_stack = stack(flist)
-  names(EVI_stack) = flist_dates
-  save(EVI_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
+  Reliability_stack = stack(flist)
+  names(Reliability_stack) = flist_dates
+  save(Reliability_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
   
   tile_2_process = 'h24v05'
   # Set up data
@@ -240,15 +247,25 @@ registerDoParallel(5)
   flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
   flist=flist[order(flist_dates)]  # file list in order
   # stack data and save
-  EVI_stack = stack(flist)
-  names(EVI_stack) = flist_dates
-  save(EVI_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
+  Reliability_stack = stack(flist)
+  names(Reliability_stack) = flist_dates
+  save(Reliability_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
+  
+  
+  
+# Remove low quality cells ------------------------------------------------
+  
+  tile_2_process = 'h24v05'
+  load(paste('.//PixelReliability_stack',tile_2_process,'.RData',sep=''))
+  EVI_stack
+  intToBits(-128)  
   
   
   
   
-  # Visualize examples of smoothed data -------------------------------------
+# Visualize examples of smoothed data -------------------------------------
   
+  load( paste('.//EVI_stack',tile_2_process,'.RData',sep='') )
   
   dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(EVI_stack)),format='%Y%j') # create dates to interpolate to
   pred_dates =  strptime(dates,'%Y-%m-%d') 
@@ -259,7 +276,7 @@ registerDoParallel(5)
   EVI_v1=EVI_v1*0.0001
   dim(EVI_v1)
   
-  row = 100
+  row = 500  # 100 is good
   plotdata = data.frame(EVI= EVI_v1[row,], 
                         dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI')
   
@@ -270,13 +287,17 @@ registerDoParallel(5)
   
   ggplot(plotdata, aes(x=dates,y=EVI,group=class))+geom_point(aes(colour=class))
    
+    
+  # plot out 5% of non-linear distribution 
+  windows()
+   q = quantile(plotdata$EVI,na.rm=T, probs = seq(0.05, .1, 0.25))
+   a=ggplot(plotdata, aes(EVI)) + geom_histogram(colour='blue',fill='blue',alpha=.3)+ 
+         geom_vline(xintercept = q,size=2)+labs(title = "Distribution")
   
-  
-  
-  # Remove low quality cells ------------------------------------------------
-  
-  
-  
+   b=ggplot(plotdata, aes(EVI)) + stat_ecdf(geom = "step",colour='blue',size=1.5)+
+     geom_vline(xintercept = q,size=2)+geom_hline(yintercept = 0.05,size=2)+
+     labs(title = "Cumulative Distribution")
+   multiplot(a,b, cols=2)
   
   
   

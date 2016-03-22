@@ -1,5 +1,6 @@
 library(parallel)
-
+library(RCurl)
+  
   # returns the matched files
   CheckMODISTile <- function(tile, year, doy, data_dir){
   	matched_files <- Sys.glob(file.path(data_dir, year, doy, paste("*", tile, "*", sep="")))
@@ -14,12 +15,12 @@ library(parallel)
   }
 
   # apply this function to a missing_files data.frame, and it will download to the appropriate place
-  DownloadFile <- function(x, data_dir, mcd43a4=T){
+  DownloadFile <- function(x, data_dir , product ){
   	# get the variables from data.frame row
   	# tile <- x[1]
-  	tile <- as.character(unlist(x[1]))
-  	year <- x[3]
-  	doy <- x[4]
+  	tile <- as.character(unlist(x[1]))[1]
+  	year <- x[1,3]
+  	doy <- x[1,4]
   	# doy <- formatC(as.integer(x[3]), width=3, flag="0")
   
   	# create the new directory, only happens if it doesn't exist
@@ -27,25 +28,18 @@ library(parallel)
   	created_dir <- dir.create(out_dir, recursive=T)
   
   	# download the file using wget
-  	if(mcd43a4){
-  		wget_cmd <- paste("wget -P ", out_dir, " ftp://ladsweb.nascom.nasa.gov/allData/6/MCD43A4/", year, "/", doy, "/", "*", tile, "*", sep="")
-  	}else{
-  		wget_cmd <- paste("wget -P ", out_dir, " ftp://ladsweb.nascom.nasa.gov/allData/6/MCD43A2/", year, "/", doy, "/", "*", tile, "*", sep="")
-  	}
-  
-  
-  	system(wget_cmd)
+  	
+ 		#wget_cmd <- paste("wget -P ", out_dir, " ftp://ladsweb.nascom.nasa.gov/allData/6/",product,"/", year, "/", doy, "/", "*", tile, "*", sep="")
+  	#system(wget_cmd)
   }
 
 # let's get going...
 # data_dir <- "/projectnb/modislc/data/mcd12_in/c6/new_nbar/mcd43a4"
 # data_dir <- "/projectnb/modislc/data/mcd12_in/c6/new_nbar/mcd43a2"
-tiles <- scan("/projectnb/modislc/users/joshgray/PhenoCode/commented_phenology_code_v2/gltiles.txt", what=character(), quiet=T)
-tiles <- tiles[grep('.*h(1[8-9])v01|(1[8-9]|20)v02|(1[7-9]|20)v03|(1[7-9]|20)v04|(1[7-9]|20)v05.*', tiles)] # subset to Europe
-# tiles[grep('.*h(1[0-2])v07|(09|1[0-3])v08|(09|1[0-4])v09|(1[0-4])v10|(1[1-4])v11|(1[1-3])v12|(1[2-3])v13|(1[3-4])v14.*', tiles)]  # subset to South America
-years <- 2000:2011
-modis_dates <- seq.Date(as.Date(paste(years[1], "-1-1", sep="")), as.Date(paste(years[length(years)], "-12-31", sep="")), by=1)
-
+tiles <-  c('h24v05','h24v06')
+years <- 2015:2016 
+modis_dates <- seq.Date(as.Date(paste(years[1], "-3-1", sep="")), as.Date(paste(years[length(years)], "-2-1", sep="")), by=1)
+product = 'MOD13Q1'
 
 # create a data_frame of all possible combinations of tile, year, and doy
 all_files_df <- expand.grid(tiles, modis_dates)
@@ -54,7 +48,7 @@ all_files_df$year <- strftime(all_files_df$date, format="%Y")
 all_files_df$doy <- strftime(all_files_df$date, format="%j")
 
 # create a cluster and apply the CheckApply function to the all_tiles data_frame
-cl <- makeCluster(16)
+cl <- makeCluster(2)
 # cl <- makeCluster(8)
 clusterExport(cl, c("CheckMODISTile", "DownloadFile"))
 
@@ -63,7 +57,8 @@ delta_num_missing <- 1
 last_missing <- 0
 max_iter <- 10 # maximum number of times to go through
 i <- 1
-data_dir <- "/projectnb/modislc/data/mcd12_in/c6/new_nbar/mcd43a4"
+data_dir <- "G:\\Faculty\\Mann\\Projects\\India Index Insurance\\Data"
+
 while(delta_num_missing > 0 & i <= max_iter){
 	system.time(all_files_df$num_files <- parApply(cl, all_files_df, 1, CheckApply, data_dir))
 	# now we attempt to download missing tile dates, again using the cluster
@@ -78,8 +73,9 @@ while(delta_num_missing > 0 & i <= max_iter){
 		last_missing <- num_missing
 	}
 
-	system.time(parApply(cl, missing_files_df, 1, DownloadFile, data_dir))
+	system.time(parApply(cl, x=missing_files_df, 1, FUN=DownloadFile, data_dir))
 	i <- i + 1
+ 
 }
 
 # check for missing MCD43A2 and download; iterate until the number of missing files doesn't change

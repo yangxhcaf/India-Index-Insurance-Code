@@ -198,69 +198,38 @@ library(doParallel)
 # Stack relevant data -----------------------------------------------------
   setwd('/groups/manngroup/India_Index/Data/India')
 
-  # EVI
-  tile_2_process = 'h24v06'
-  # Set up data
-  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_EVI.tif$',sep='')), full.names = TRUE)
-  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
-  flist = flist[order(flist_dates)]  # file list in order
-  # stack data and save
-  EVI_stack = stack(flist)
-  names(EVI_stack) = flist_dates
-  save(EVI_stack,file = paste('.//EVI_stack',tile_2_process,'.RData',sep='') )
+  # create data stack for each variable and tile 
+  for(product in c('EVI','NDVI','pixel_reliability')){
+  for( tile_2_process in c( 'h24v06','h24v05')){
+  	# Set up data
+  	flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_',product,'.tif$',sep='')), 
+		full.names = TRUE)
+  	flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+  	flist = flist[order(flist_dates)]  # file list in order
+  	# stack data and save
+  	stacked = stack(flist)
+  	names(stacked) = flist_dates
+  	assign(paste(product,'stack',tile_2_process,sep='_'),stacked)
+  	save( list=paste(product,'stack',tile_2_process,sep='_') ,
+		file = paste('.//',product,'_stack_',tile_2_process,'.RData',sep='') )
+  }
+  }
   
-  tile_2_process = 'h24v05'
-  # Set up data
-  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_EVI.tif$',sep='')), full.names = TRUE)
-  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
-  flist=flist[order(flist_dates)]  # file list in order
-  # stack data and save
-  EVI_stack = stack(flist)
-  names(EVI_stack) = flist_dates
-  save(EVI_stack,file = paste('.//EVI_stack',tile_2_process,'.RData',sep='') )
-  
-  # NDVI
-  tile_2_process = 'h24v06'
-  # Set up data
-  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_NDVI.tif$',sep='')), full.names = TRUE)
-  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
-  flist = flist[order(flist_dates)]  # file list in order
-  # stack data and save
-  NDVI_stack = stack(flist)
-  names(NDVI_stack) = flist_dates
-  save(NDVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
-  
-  tile_2_process = 'h24v05'
-  # Set up data
-  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_NDVI.tif$',sep='')), full.names = TRUE)
-  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
-  flist=flist[order(flist_dates)]  # file list in order
-  # stack data and save
-  NDVI_stack = stack(flist)
-  names(NDVI_stack) = flist_dates
-  save(NDVI_stack,file = paste('.//NDVI_stack',tile_2_process,'.RData',sep='') )
-  
-  # Quality flag
-  tile_2_process = 'h24v06'
-  # Set up data
-  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_pixel_reliability.tif$',sep='')), full.names = TRUE)
-  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
-  flist = flist[order(flist_dates)]  # file list in order
-  # stack data and save
-  Reliability_stack = stack(flist)
-  names(Reliability_stack) = flist_dates
-  save(Reliability_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
-  
-  tile_2_process = 'h24v05'
-  # Set up data
-  flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_pixel_reliability.tif$',sep='')), full.names = TRUE)
-  flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
-  flist=flist[order(flist_dates)]  # file list in order
-  # stack data and save
-  Reliability_stack = stack(flist)
-  names(Reliability_stack) = flist_dates
-  save(Reliability_stack,file = paste('.//PixelReliability_stack',tile_2_process,'.RData',sep='') )
-  
+
+# Limit stacks to common dates -------------------------------------------
+  load( paste('.//EVI_stack_','h24v06','.RData',sep='') )
+  load( paste('.//EVI_stack_','h24v05','.RData',sep='') )
+  load( paste('.//NDVI_stack_','h24v06','.RData',sep='') )
+  load( paste('.//NDVI_stack_','h24v05','.RData',sep='') )
+  load( paste('.//pixel_reliability_stack_','h24v06','.RData',sep='') )
+  load( paste('.//pixel_reliability_stack_','h24v05','.RData',sep='') )
+
+  # limit stacks to common elements
+  common_dates = Reduce(intersect, list(names(EVI_stack),names(NDVI_stack),names(Reliability_stack)))
+  EVI_stack_h24v05 = subset(EVI_stack_h24v05, common_dates, drop=F)
+  all.equal(common_dates,names(EVI_stack_h24v05))
+
+
   
   
 # Remove low quality cells ------------------------------------------------
@@ -274,8 +243,9 @@ library(doParallel)
 	data_stackname = load(paste('.//NDVI_stack',tile_2_process,'.RData',sep=''))  
   	data_stackvalues = get(data_stackname)
 
-	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { data_stackvalues[[i]][reliability_stackvalues[[i]]>0]=NA}
-	save(,file = paste(,'_wo_cld.RData',sep=''))
+	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { 
+		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
+	save(,file = paste(data_stackname,'_',tile_2_process,'_wo_cld.RData',sep=''))
 
 
 } 

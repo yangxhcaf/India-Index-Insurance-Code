@@ -43,7 +43,17 @@ registerDoParallel(16)
            y[!y%in%x]))
   }
 
-
+  dirlist <- function(url, full = TRUE){
+    dir <- unlist(
+      strsplit(
+        getURL(url,
+               ftp.use.epsv = FALSE,
+               dirlistonly = TRUE),
+        "\n")
+    )
+    if(full) dir <- paste0(url, dir)
+    return(dir)
+  }
   
 
 # Set up parameters -------------------------------------------------------
@@ -55,25 +65,26 @@ registerDoParallel(16)
   GetProducts()
   
   # Product Filters 
-  products = c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1'
+  products = c('MCD12Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
   tiles =   c('h24v05','h24v06')   # India example c('h13v12')
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02') 
-  ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/5/'    # allData/6/ for evi, allData/5/ for landcover 
+  ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/51/'    # allData/6/ for evi, 
+  # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/India/'
+  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MODISLandCover/India/'
   setwd(out_dir)
   
+ 
   
-# Download MODIS data -----------------------------------------------------
-  
-
+  # Download MODIS data -----------------------------------------------------
   
   # find all available dates for each product
   available_date_list = list()
   available_products_list = list()
   for(product in products){
-    available_date_list = c(available_date_list,list(as.character(strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],product)),'%Y%j'))   ))
+    available_date_list = c(available_date_list,list(as.character(strptime(gsub("^.*A([0-9]+).*$", "\\1",
+            GetDates(location[1], location[2],product)),'%Y%j'))   ))
     available_products_list = c(available_products_list,list(rep(product,length(GetDates(location[1], location[2],product)))))
   }
   
@@ -81,7 +92,7 @@ registerDoParallel(16)
   avail_files_df$year = strftime(avail_files_df$date, format="%Y")
   avail_files_df$doy = strftime(avail_files_df$date, format="%j")
   avail_files_df$yeardoy = strftime(avail_files_df$date, format="%Y%j")
-  
+  avail_files_df
   head(avail_files_df)
   dim(avail_files_df)
   
@@ -143,6 +154,7 @@ registerDoParallel(16)
   files$tiles    = gsub(paste("^.*(",paste(tiles,collapse='|'),").*$",sep = ''), "\\1",files$files,perl=T) # strip products
   files$yeardoy  = strftime(files$dates, format="%Y%j")
   files$reproj_files = paste(gsub("[.]006.*.hdf$", "\\1",files$short_name,perl=T) )
+  files
   
   # find files not listed 
   missing_dates =  outersect(paste(files$products,files$dates,files$tiles,sep=' '), apply(MARGIN=1,X=expand.grid(paste(needed_files_df$products,needed_files_df$date,sep=' '),tiles), FUN=function(x){paste(x,collapse=' ')} )  )
@@ -156,14 +168,14 @@ registerDoParallel(16)
 # Get Names of all Layers in HDF ------------------------------------------
 
 
-  get_subdatasets('./MCD12Q1.A2003001.h24v05.005.2011061231359.hdf')
+  get_subdatasets('./MCD12Q1.A2002001.h24v05.051.2014287172414.hdf')
   
   
   
 # Reproject ---------------------------------------------------------------
- 
+
   
-  band_subset = "1 1 0 0 1 1 1 0 0 1 1 0 0 0 0 0"  # Example: first seven and last layer'1 1 1 1 1 1 1 0 0 0 0 1"
+  band_subset = "1 1 0 0 1 1 1 0 0 1 1 0 0 0 0 0"  # Example: first seven and last layer'1 1 1 1 1 1 1 0 0 0 0 1" landcover= "1 1 0 0 1 1 1 0 0 1 1 0 0 0 0 0"
   output_pattern = 'Land_Cover_Type_1.tif' # '250m_16_days_EVI.tif' looks for existing EVI tif files to avoid repeating
    
   for (i in (1:length(files$reproj_files))){

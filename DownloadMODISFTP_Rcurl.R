@@ -2,11 +2,12 @@
 # This script uses RCurl and ModisDownload to access an ftp server and download desired modis tiles
 
 # Run the following in bash before starting R
-# module load proj.4/4.8.0
-# module load gdal/gcc/1.11
+ module load proj.4/4.8.0
+ module load gdal/gcc/1.11
 # module load R/3.0.2
-# module load gcc/4.9.0
-# R
+ module load R
+ module load gcc/4.9.0
+ R
 
 
 
@@ -25,8 +26,8 @@ library(rts)
 library(gdalUtils)
 library(foreach)
 library(doParallel)
-#registerDoParallel(5)
-
+library(ggplot2)
+registerDoParallel(16)
 
 
 # Functions ---------------------------------------------------------------
@@ -217,6 +218,8 @@ library(doParallel)
   
 
 # Limit stacks to common dates -------------------------------------------
+  rm(list=ls())
+  setwd('/groups/manngroup/India_Index/Data/India')
   load( paste('.//EVI_stack_','h24v06','.RData',sep='') )
   load( paste('.//EVI_stack_','h24v05','.RData',sep='') )
   load( paste('.//NDVI_stack_','h24v06','.RData',sep='') )
@@ -225,60 +228,76 @@ library(doParallel)
   load( paste('.//pixel_reliability_stack_','h24v05','.RData',sep='') )
 
   # limit stacks to common elements
-  common_dates = Reduce(intersect, list(names(EVI_stack),names(NDVI_stack),names(Reliability_stack)))
-  EVI_stack_h24v05 = subset(EVI_stack_h24v05, common_dates, drop=F)
-  all.equal(common_dates,names(EVI_stack_h24v05))
-
+  for(product in c('EVI','NDVI','pixel_reliability')){
+  for( tile in c( 'h24v06','h24v05')){
+	 common_dates = Reduce(intersect, list(names(get(paste('EVI_stack_',tile,sep=''))),
+		names(get(paste('NDVI_stack_',tile,sep=''))),
+		names(get(paste('pixel_reliability_stack_',tile,sep=''))) ))
+	  
+	 assign(paste(product,'_stack_',tile,sep=''),subset( get(paste(product,'_stack_',tile,sep='')), 
+		common_dates, drop=F) )
+	 print('raster depth all equal')
+	 print( all.equal(common_dates,names(get(paste(product,'_stack_',tile,sep=''))))   )
+         print(dim(get(paste(product,'_stack_',tile,sep='')))[3])
+  }}
 
   
   
-# Remove low quality cells ------------------------------------------------
+# Remove low quality cells & assign projection ------------------------------------------------
   
- for( tile_2_process in c( 'h24v05','h24v06'){
+  reliability_prefix = 'pixel_reliability'
+  products2removeclouds = c('EVI','NDVI')
+  tiles = c( 'h24v05','h24v06')
+  for(product in products2removeclouds){
+  for( tile in tiles){
+	print(paste('Working on',product,tile))
+	# load quality flag
+        reliability_stackvalues = get(paste(reliability_prefix,'_stack_',tile,sep=''))
 
-  	reliability_stackname = load(paste('.//PixelReliability_stack',tile_2_process,'.RData',sep=''))
- 	reliability_stackvalues = get(reliability_stackname)
-	
-	# remove clouds from NDVI
-	data_stackname = load(paste('.//NDVI_stack',tile_2_process,'.RData',sep=''))  
-  	data_stackvalues = get(data_stackname)
+	# remove clouds from produt
+        data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
+        crs(data_stackvalues) ='+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'
 
 	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { 
 		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
-	save(,file = paste(data_stackname,'_',tile_2_process,'_wo_cld.RData',sep=''))
+        assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
+	save(list=paste(product,'_stack_',tile,sep=''),
+		file = paste(product,'_stack_',tile,'_wo_clouds.Rdata',sep=''))
+  }} 
+  
+
+# Remove non-agricultural lands ---------------------------------------------
+# use MCD12Q1 landcover classification 2 (less exclusion of built up areas) 
 
 
-} 
-  
-  
-  
+
   
 # Visualize examples of smoothed data -------------------------------------
+  setwd('/groups/manngroup/India_Index/Data/India')
   
-  load( paste('.//EVI_stack',tile_2_process,'.RData',sep='') )
+  load( paste('.//EVI_stack_','h24v05','_wo_clouds.Rdata',sep='') )
   
-  dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(EVI_stack)),format='%Y%j') # create dates to interpolate to
+  dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(EVI_stack_h24v05)),format='%Y%j') # create dates to interpolate to
   pred_dates =  strptime(dates,'%Y-%m-%d') 
   
   
-  EVI_v1 = getValues(EVI_stack, 1000, 1)
-  EVI_v1[EVI_v1<0]=NA
+  EVI_v1 = getValues(EVI_stack_h24v05, 1000, 1)
+  EVI_v1[EVI_v1<=-2000]=NA
   EVI_v1=EVI_v1*0.0001
   dim(EVI_v1)
   
-  row = 500  # 100 is good
+  row = 900  #500 100 is good
   plotdata = data.frame(EVI= EVI_v1[row,], 
                         dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI')
   
   plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1[row,], 
-                        dates=dates, pred_dates=pred_dates,spline_spar = 0.3), 
+                        dates=dates, pred_dates=pred_dates,spline_spar = 0.2), 
                         dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
-  
   
   ggplot(plotdata, aes(x=dates,y=EVI,group=class))+geom_point(aes(colour=class))
    
     
-  # plot out 5% of non-linear distribution 
+# plot out 5% of non-linear distribution --------------------------------------
   windows()
    q = quantile(plotdata$EVI,na.rm=T, probs = seq(0.05, .1, 0.25))
    a=ggplot(plotdata, aes(EVI)) + geom_histogram(colour='blue',fill='blue',alpha=.3)+ 

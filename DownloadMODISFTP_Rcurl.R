@@ -43,18 +43,6 @@ registerDoParallel(16)
            y[!y%in%x]))
   }
 
-  dirlist <- function(url, full = TRUE){
-    dir <- unlist(
-      strsplit(
-        getURL(url,
-               ftp.use.epsv = FALSE,
-               dirlistonly = TRUE),
-        "\n")
-    )
-    if(full) dir <- paste0(url, dir)
-    return(dir)
-  }
-  
 
 # Set up parameters -------------------------------------------------------
 
@@ -72,7 +60,7 @@ registerDoParallel(16)
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/51/'    # allData/6/ for evi, 
   # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
   strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-  out_dir = 'G:/Faculty/Mann/Projects/India_Index_Insurance/Data/MODISLandCover/India/'
+  out_dir = '/groups/manngroup/India_Index/Data/MODISLandCover/India/'
   setwd(out_dir)
   
  
@@ -157,7 +145,9 @@ registerDoParallel(16)
   files
   
   # find files not listed 
-  missing_dates =  outersect(paste(files$products,files$dates,files$tiles,sep=' '), apply(MARGIN=1,X=expand.grid(paste(needed_files_df$products,needed_files_df$date,sep=' '),tiles), FUN=function(x){paste(x,collapse=' ')} )  )
+  missing_dates =  outersect(paste(files$products,files$dates,files$tiles,sep=' '), 
+	apply(MARGIN=1,X=expand.grid(paste(needed_files_df$products,needed_files_df$date,sep=' '),tiles), 
+	FUN=function(x){paste(x,collapse=' ')} )  )
   missing_dates
   # check dates in year,doy
   format(strptime('2010-05-25','%Y-%m-%d'),'%Y%j')
@@ -225,27 +215,52 @@ registerDoParallel(16)
   	assign(paste(product,'stack',tile_2_process,sep='_'),stacked)
   	save( list=paste(product,'stack',tile_2_process,sep='_') ,
 		file = paste('.//',product,'_stack_',tile_2_process,'.RData',sep='') )
-  }
-  }
+  }}
+
+  # Stack land cover data NOTE: automatically fills missing years with most recent LC available
+  setwd('/groups/manngroup/India_Index/Data/MODISLandCover/India')
+  for(product in c('MCD12Q1')){
+  for( tile in c( 'h24v06','h24v05')){
+        # Set up data
+        flist = list.files(".",glob2rx(paste(product,'*',tile,'.Land_Cover_Type_2.tif$',sep='')),
+                full.names = TRUE)
+        flist = flist[order(flist_dates)]  # file list in order
+        flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+        #create duplicates of most recent year till end of study period
+	studyperiod = format(seq(strptime(dates[1],'%Y-%m-%d'),strptime(dates[2],'%Y-%m-%d'), by='year'),'%Y%j') 
+        missingyears = outersect(flist_dates, studyperiod)
+	mostrecent = flist[length(flist)]
+	flistfull = c(flist,rep(mostrecent,length(missingyears)))
+	
+        # stack data and save
+        stacked = stack(flistfull)
+        names(stacked) = c(flist_dates,missingyears)
+        assign(paste(product,'stack',tile,sep='_'),stacked)
+        save( list=paste(product,'stack',tile,sep='_') ,
+                file = paste('.//',product,'_stack_',tile,'.RData',sep='') )
+  }}
   
 
 # Limit stacks to common dates -------------------------------------------
   rm(list=ls())
-  setwd('/groups/manngroup/India_Index/Data/India')
-  load( paste('.//EVI_stack_','h24v06','.RData',sep='') )
-  load( paste('.//EVI_stack_','h24v05','.RData',sep='') )
-  load( paste('.//NDVI_stack_','h24v06','.RData',sep='') )
-  load( paste('.//NDVI_stack_','h24v05','.RData',sep='') )
-  load( paste('.//pixel_reliability_stack_','h24v06','.RData',sep='') )
-  load( paste('.//pixel_reliability_stack_','h24v05','.RData',sep='') )
+  setwd('/groups/manngroup/India_Index/Data')
+  load( paste('.//India//EVI_stack_','h24v06','.RData',sep='') )
+  load( paste('.//India//EVI_stack_','h24v05','.RData',sep='') )
+  load( paste('.//India//NDVI_stack_','h24v06','.RData',sep='') )
+  load( paste('.//India//NDVI_stack_','h24v05','.RData',sep='') )
+  load( paste('.//India//pixel_reliability_stack_','h24v06','.RData',sep='') )
+  load( paste('.//India//pixel_reliability_stack_','h24v05','.RData',sep='') )
+  load( paste('.//MODISLandCover//India//MCD12Q1_stack_','h24v06','.RData',sep='') )
+  load( paste('.//MODISLandCover//India//MCD12Q1_stack_','h24v05','.RData',sep='') )
 
   # limit stacks to common elements
   for(product in c('EVI','NDVI','pixel_reliability')){
   for( tile in c( 'h24v06','h24v05')){
+	 # find dates that exist in all datasets 
 	 common_dates = Reduce(intersect, list(names(get(paste('EVI_stack_',tile,sep=''))),
 		names(get(paste('NDVI_stack_',tile,sep=''))),
 		names(get(paste('pixel_reliability_stack_',tile,sep=''))) ))
-	  
+	 # subset stacks for common dates  
 	 assign(paste(product,'_stack_',tile,sep=''),subset( get(paste(product,'_stack_',tile,sep='')), 
 		common_dates, drop=F) )
 	 print('raster depth all equal')
@@ -281,6 +296,29 @@ registerDoParallel(16)
 # Remove non-agricultural lands ---------------------------------------------
 # use MCD12Q1 landcover classification 2 (less exclusion of built up areas) 
 
+  LandCover_product = 'MCD12Q1'
+  products2removeLC = c('EVI','NDVI')
+  tiles = c( 'h24v05','h24v06')
+  for(product in products2removeLC){
+  for( tile in tiles){
+        print(paste('Working on',product,tile))
+        # load land cover data
+        LC_stackvalues = get(paste(LandCover_product,'_stack_',tile,sep=''))
+	LC_dates = format(strptime( gsub("^.*X([0-9]+).*$", "\\1", names(LC_stackvalues)),format='%Y%j'),'%Y')
+        # load product data 
+        data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
+        data_dates = format(strptime( gsub("^.*X([0-9]+).*$", "\\1", names(data_stackvalues)),format='%Y%j'),'%Y')
+
+        foreach(i=1:dim(data_stackvalues)[3]) %dopar% {
+		# get the land cover data for the current product layer
+		LC_value = subset(LC_stackvalues, seq(1,length(LC_dates))[LC_dates == data_dates[i]]) 
+		# restrict to area with crops (code = 12) 
+                data_stackvalues[[i]][LC_value!=12]=NA}
+        # save data 
+	assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
+        save(list=paste(product,'_stack_',tile,sep=''),
+                file = paste(product,'_stack_',tile,'_wo_clouds_crops.Rdata',sep=''))
+  }}
 
 
   
@@ -322,3 +360,5 @@ registerDoParallel(16)
   
   
   
+
+

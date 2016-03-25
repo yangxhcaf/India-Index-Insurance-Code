@@ -325,27 +325,56 @@ registerDoParallel(16)
 # Visualize examples of smoothed data -------------------------------------
   setwd('/groups/manngroup/India_Index/Data/India')
   
-  load( paste('.//EVI_stack_','h24v05','_wo_clouds.Rdata',sep='') )
+  load( paste('.//EVI_stack_','h24v05','_wo_clouds_crops.Rdata',sep='') )
   
-  dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(EVI_stack_h24v05)),format='%Y%j') # create dates to interpolate to
+  plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(EVI_stack_h24v05)),format='%Y%j') # create dates to interpolate to
   pred_dates =  strptime(dates,'%Y-%m-%d') 
   
   
-  EVI_v1 = getValues(EVI_stack_h24v05, 1000, 1)
+  EVI_v1 = getValues(NDVI_stack_h24v05, 1000, 1)
   EVI_v1[EVI_v1<=-2000]=NA
   EVI_v1=EVI_v1*0.0001
   dim(EVI_v1)
   
   row = 900  #500 100 is good
   plotdata = data.frame(EVI= EVI_v1[row,], 
-                        dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI')
+                        dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI')
   
   plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1[row,], 
                         dates=dates, pred_dates=pred_dates,spline_spar = 0.2), 
-                        dates =as.Date(strptime(dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
+                        dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
+
+# set planting on last week of october
+  start_end_years = c(strptime(dates[1],'%Y-%m-%d'),strptime(dates[2],'%Y-%m-%d'))
+  names(unclass(start_end_years[1]))
+  start_end_years[1]$mon=10    # set month to Nov (10) b/c base zero counting
+  start_end_years[1]$mday=1    # set to day 1 
+  start_end_years[1]$mday =start_end_years[1]$mday-7   # set to 7 days before
+  start_end_years[1]
+  planting = seq(start_end_years[1],
+    length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
+    by='year')
+
+
+# set harvest date 2nd week of april
+  start_end_years[2]$year=start_end_years[1]$year+1    # set year equal to start year +1 
+  start_end_years[2]$mon=3    # set month to april (3) b/c base zero counting
+  start_end_years[2]$mday=1    # set to day 1
+  start_end_years[2]$mday =start_end_years[2]$mday+14   # set to 2 weeks later
+  start_end_years[2]
+  harvest = seq(start_end_years[2],
+    length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
+    by='year')
+
+  # plot out time series with planting and harvest dates
+  rects = data.frame(xstart = as.Date(planting), 
+    xend = as.Date(harvest))
   
-  ggplot(plotdata, aes(x=dates,y=EVI,group=class))+geom_point(aes(colour=class))
+  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+        ymin = -Inf, ymax = Inf), alpha = 0.4)+
+	geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))
    
+
     
 # plot out 5% of non-linear distribution --------------------------------------
   windows()

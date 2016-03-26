@@ -53,7 +53,7 @@ registerDoParallel(16)
   GetProducts()
   
   # Product Filters 
-  products = c('MCD12Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
+  products =  c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
   tiles =   c('h24v05','h24v06')   # India example c('h13v12')
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02') 
@@ -154,14 +154,12 @@ registerDoParallel(16)
   
 
   
-  
 # Get Names of all Layers in HDF ------------------------------------------
 
 
   get_subdatasets('./MCD12Q1.A2002001.h24v05.051.2014287172414.hdf')
   
-  
-  
+    
 # Reproject ---------------------------------------------------------------
 
   
@@ -199,10 +197,11 @@ registerDoParallel(16)
   
 
 # Stack relevant data -----------------------------------------------------
-  setwd('/groups/manngroup/India_Index/Data/India')
-
+  setwd('/groups/manngroup/India_Index/Data/India')  # folder where  EVI .tifs are 
+   
   # create data stack for each variable and tile 
-  for(product in c('EVI','NDVI','pixel_reliability')){
+  foreach(product =  c('blue_reflectance','MIR_reflectance','NIR_reflectance','red_reflectance',
+	'EVI','NDVI','pixel_reliability')) %dopar% {  
   for( tile_2_process in c( 'h24v06','h24v05')){
   	# Set up data
   	flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_',product,'.tif$',sep='')), 
@@ -214,7 +213,7 @@ registerDoParallel(16)
   	names(stacked) = flist_dates
   	assign(paste(product,'stack',tile_2_process,sep='_'),stacked)
   	save( list=paste(product,'stack',tile_2_process,sep='_') ,
-		file = paste('.//',product,'_stack_',tile_2_process,'.RData',sep='') )
+		file = paste('../Data Stacks/Raw Stacks/',product,'_stack_',tile_2_process,'.RData',sep='') )
   }}
 
   # Stack land cover data NOTE: automatically fills missing years with most recent LC available
@@ -224,42 +223,38 @@ registerDoParallel(16)
         # Set up data
         flist = list.files(".",glob2rx(paste(product,'*',tile,'.Land_Cover_Type_2.tif$',sep='')),
                 full.names = TRUE)
-        flist = flist[order(flist_dates)]  # file list in order
         flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+        flist = flist[order(flist_dates)]  # file list in order
         #create duplicates of most recent year till end of study period
 	studyperiod = format(seq(strptime(dates[1],'%Y-%m-%d'),strptime(dates[2],'%Y-%m-%d'), by='year'),'%Y%j') 
         missingyears = outersect(flist_dates, studyperiod)
 	mostrecent = flist[length(flist)]
-	flistfull = c(flist,rep(mostrecent,length(missingyears)))
-	
+	flistfull = c(flist,rep(mostrecent,length(missingyears)))	
         # stack data and save
         stacked = stack(flistfull)
         names(stacked) = c(flist_dates,missingyears)
         assign(paste(product,'stack',tile,sep='_'),stacked)
         save( list=paste(product,'stack',tile,sep='_') ,
-                file = paste('.//',product,'_stack_',tile,'.RData',sep='') )
+                file = paste('../../Data Stacks/LC Stacks/',product,'_stack_',tile,'.RData',sep='') )
   }}
   
 
 # Limit stacks to common dates -------------------------------------------
-  rm(list=ls())
   setwd('/groups/manngroup/India_Index/Data')
-  load( paste('.//India//EVI_stack_','h24v06','.RData',sep='') )
-  load( paste('.//India//EVI_stack_','h24v05','.RData',sep='') )
-  load( paste('.//India//NDVI_stack_','h24v06','.RData',sep='') )
-  load( paste('.//India//NDVI_stack_','h24v05','.RData',sep='') )
-  load( paste('.//India//pixel_reliability_stack_','h24v06','.RData',sep='') )
-  load( paste('.//India//pixel_reliability_stack_','h24v05','.RData',sep='') )
-  load( paste('.//MODISLandCover//India//MCD12Q1_stack_','h24v06','.RData',sep='') )
-  load( paste('.//MODISLandCover//India//MCD12Q1_stack_','h24v05','.RData',sep='') )
+
+  # load data stacks from both directories
+  stack_types_2_load =c('blue_reflectance', 'MIR_reflectance',
+	'NIR_reflectance','red_reflectance','EVI','NDVI','pixel_reliability')
+  dir1 = list.files('./Data Stacks/Raw Stacks/','.RData',full.names=T)
+  lapply(dir1, load,.GlobalEnv)
 
   # limit stacks to common elements
-  for(product in c('EVI','NDVI','pixel_reliability')){
+  for(product in stack_types_2_load ){  
   for( tile in c( 'h24v06','h24v05')){
-	 # find dates that exist in all datasets 
-	 common_dates = Reduce(intersect, list(names(get(paste('EVI_stack_',tile,sep=''))),
-		names(get(paste('NDVI_stack_',tile,sep=''))),
-		names(get(paste('pixel_reliability_stack_',tile,sep=''))) ))
+	 # find dates that exist in all datasets for current tile
+         all_dates = lapply(paste(stack_types_2_load,'stack',tile,sep='_'),function(x){names(get(x))})
+	 # restrict to common dates 
+	 common_dates = Reduce(intersect, all_dates)
 	 # subset stacks for common dates  
 	 assign(paste(product,'_stack_',tile,sep=''),subset( get(paste(product,'_stack_',tile,sep='')), 
 		common_dates, drop=F) )
@@ -271,9 +266,11 @@ registerDoParallel(16)
   
   
 # Remove low quality cells & assign projection ------------------------------------------------
-  
+  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+
   reliability_prefix = 'pixel_reliability'
-  products2removeclouds = c('EVI','NDVI')
+  products2removeclouds = c('blue_reflectance', 'MIR_reflectance',
+        'NIR_reflectance','red_reflectance','EVI','NDVI')
   tiles = c( 'h24v05','h24v06')
   for(product in products2removeclouds){
   for( tile in tiles){
@@ -289,7 +286,7 @@ registerDoParallel(16)
 		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
         assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
 	save(list=paste(product,'_stack_',tile,sep=''),
-		file = paste(product,'_stack_',tile,'_wo_clouds.Rdata',sep=''))
+		file = paste('WO Clouds/',product,'_stack_',tile,'_wo_clouds.Rdata',sep=''))
   }} 
   
 

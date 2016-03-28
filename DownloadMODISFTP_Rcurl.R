@@ -1,3 +1,4 @@
+
 # Michael Mann
 # This script uses RCurl and ModisDownload to access an ftp server and download desired modis tiles
 
@@ -266,6 +267,7 @@ registerDoParallel(16)
   
   
 # Remove low quality cells & assign projection ------------------------------------------------
+  # load data in previous section and run common dates
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
 
   reliability_prefix = 'pixel_reliability'
@@ -286,15 +288,25 @@ registerDoParallel(16)
 		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
         assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
 	save(list=paste(product,'_stack_',tile,sep=''),
-		file = paste('WO Clouds/',product,'_stack_',tile,'_wo_clouds.Rdata',sep=''))
+		file = paste('WO Clouds/',product,'_stack_',tile,'_wo_clouds.RData',sep=''))
   }} 
   
 
 # Remove non-agricultural lands ---------------------------------------------
 # use MCD12Q1 landcover classification 2 (less exclusion of built up areas) 
 
+  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+
+  # load data stacks from both directories
+  dir1 = list.files('./WO Clouds/','.RData',full.names=T)
+  lapply(dir1, load,.GlobalEnv)
+  dir2 = list.files('./LC Stacks/','.RData',full.names=T)
+  lapply(dir2, load,.GlobalEnv)
+
+
   LandCover_product = 'MCD12Q1'
-  products2removeLC = c('EVI','NDVI')
+  products2removeLC = c('blue_reflectance', 'MIR_reflectance',
+        'NIR_reflectance','red_reflectance','EVI','NDVI','pixel_reliability')
   tiles = c( 'h24v05','h24v06')
   for(product in products2removeLC){
   for( tile in tiles){

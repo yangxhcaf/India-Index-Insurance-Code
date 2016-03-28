@@ -44,6 +44,25 @@ registerDoParallel(16)
            y[!y%in%x]))
   }
 
+  PlantHarvestDates = function(start_date,end_date,PlantingMonth,PlantingDay,HarvestMonth,HarvestDay){
+    # this function takes in date range and returns planting and harvest date for time series
+    # set planting
+    start_end_years = c(strptime(start_date,'%Y-%m-%d'),strptime(end_date,'%Y-%m-%d'))
+    names(unclass(start_end_years[1]))
+    start_end_years[1]$mon=PlantingMonth-1
+    start_end_years[1]$mday=PlantingDay
+    planting = seq(start_end_years[1],
+      length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
+      by='year')
+    # set harvest
+    start_end_years[2]$year=start_end_years[1]$year+1    # set year equal to start year +1
+    start_end_years[2]$mon=HarvestMonth-1
+    start_end_years[2]$mday=HarvestDay
+    harvest = seq(start_end_years[2],
+      length=strptime(end_date,'%Y-%m-%d')$year-strptime(start_date,'%Y-%m-%d')$year,
+      by='year')
+    return(data.frame(planting=planting,harvest=harvest))
+  }
 
 # Set up parameters -------------------------------------------------------
 
@@ -330,6 +349,44 @@ registerDoParallel(16)
   }}
 
 
+
+# Rescale and set valid ranges of data  ---------------------------------------------
+  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+
+  # load data stacks from both directories
+  dir1 = list.files('./WO Clouds Crops/','.RData',full.names=T)
+  lapply(dir1, load,.GlobalEnv)
+
+  # setup a dataframe with valid ranges and scale factors
+  valid = data.frame(stack='NDVI', fill= -3000,validL=-2000,validU=10000,scale=0.0001,stringsAsFactors=F)
+  valid = rbind(valid,c('EVI',-3000,-2000,10000,0.0001))
+  valid = rbind(valid,c('blue_reflectance',-1000,0,10000,0.0001))
+  valid = rbind(valid,c('red_reflectance',-1000,0,10000,0.0001))
+  valid = rbind(valid,c('MIR_reflectance',-1000,0,10000,0.0001))
+  valid = rbind(valid,c('NIR_reflectance',-1000,0,10000,0.0001))
+
+  # Loop through valid ranges  
+  products2clean = unique(valid$stack)
+  tiles = c( 'h24v05','h24v06')
+  for(product in products2clean){
+  for( tile in tiles){
+        print(paste('Working on',product,tile))
+        # load product data
+        data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
+        valid_values = valid[grep(product,valid$stack),]
+        foreach(i=1:dim(data_stackvalues)[3]) %dopar% {
+                # NA out fill data 
+                data_stackvalues[[i]][data_stackvalues[[i]]==as.numeric(valid_values$fill)]=NA
+                data_stackvalues[[i]][data_stackvalues[[i]]<as.numeric(valid_values$validL)]=NA
+                data_stackvalues[[i]][data_stackvalues[[i]]>as.numeric(valid_values$validU)]=NA
+                data_stackvalues[[i]]=data_stackvalues[[i]]*as.numeric(valid_values$scale)}
+        # save data
+        assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
+        save(list=paste(product,'_stack_',tile,sep=''),
+                file = paste('./WO Clouds Crops Scaled/',product,'_stack_',tile,'_wo_clouds_crops.Rdata',sep=''))
+  }}
+
+
   
 # Visualize examples of smoothed data -------------------------------------
   setwd('/groups/manngroup/India_Index/Data/India')
@@ -353,27 +410,8 @@ registerDoParallel(16)
                         dates=dates, pred_dates=pred_dates,spline_spar = 0.2), 
                         dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
 
-# set planting on last week of october
-  start_end_years = c(strptime(dates[1],'%Y-%m-%d'),strptime(dates[2],'%Y-%m-%d'))
-  names(unclass(start_end_years[1]))
-  start_end_years[1]$mon=10    # set month to Nov (10) b/c base zero counting
-  start_end_years[1]$mday=1    # set to day 1 
-  start_end_years[1]$mday =start_end_years[1]$mday-7   # set to 7 days before
-  start_end_years[1]
-  planting = seq(start_end_years[1],
-    length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
-    by='year')
-
-
-# set harvest date 2nd week of april
-  start_end_years[2]$year=start_end_years[1]$year+1    # set year equal to start year +1 
-  start_end_years[2]$mon=3    # set month to april (3) b/c base zero counting
-  start_end_years[2]$mday=1    # set to day 1
-  start_end_years[2]$mday =start_end_years[2]$mday+14   # set to 2 weeks later
-  start_end_years[2]
-  harvest = seq(start_end_years[2],
-    length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
-    by='year')
+  # Get planting and harvest dates 
+  PlantHarvestDates(dates[1],dates[2],PlantingMonth=10,PlantingDay=23,HarvestMonth=3,HarvestDay=10)
 
   # plot out time series with planting and harvest dates
   rects = data.frame(xstart = as.Date(planting), 

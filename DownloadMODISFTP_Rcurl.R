@@ -326,7 +326,7 @@ registerDoParallel(16)
         # save data 
 	assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
         save(list=paste(product,'_stack_',tile,sep=''),
-                file = paste(product,'_stack_',tile,'_wo_clouds_crops.Rdata',sep=''))
+                file = paste('./WO Clouds Crops/',product,'_stack_',tile,'_wo_clouds_crops.Rdata',sep=''))
   }}
 
 

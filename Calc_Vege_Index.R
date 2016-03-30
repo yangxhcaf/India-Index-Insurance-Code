@@ -1,4 +1,4 @@
-# Michael Mann
+# Michael Mann    Calc_Vege_Index.R
 # This script calculates a series of stastics about the wheat growing season
 
 # Run the following in bash before starting R
@@ -57,7 +57,7 @@ registerDoParallel(16)
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
 
   # load data stacks from both directories
-  dir1 = list.files('./WO Clouds/','.RData',full.names=T)
+  dir1 = list.files('./WO Clouds Crops/','.RData',full.names=T)
   lapply(dir1, load,.GlobalEnv)
 
 
@@ -170,6 +170,53 @@ registerDoParallel(16)
   } 
 
 
+# Check functions ----------------------------------------------
+# Load Data Layers 
+  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+  
+  dates = c('2002-01-01','2016-02-02') 
+
+  # load data stacks from both directories
+  dir1 = list.files('./WO Clouds Crops/','.RData',full.names=T)
+  lapply(dir1, load,.GlobalEnv)
+
+
+  plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
+
+  EVI_v1 = getValues(NDVI_stack_h24v05, 1000, 1)
+  EVI_v1[EVI_v1<=-2000]=NA
+  EVI_v1=EVI_v1*0.0001
+  dim(EVI_v1)
+
+  row = 900  #500 100 is good
+  plotdata = data.frame(EVI= EVI_v1[row,],
+                        dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI')
+
+  plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1[row,],
+                        dates=plot_dates, pred_dates=plot_dates,spline_spar = 0.2),
+                        dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
+
+  # Get planting and harvest dates
+  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=10,
+	PlantingDay=23,HarvestMonth=3,HarvestDay=10)
+
+  # plot out time series with planting and harvest dates
+  rects = data.frame(xstart = as.Date(PlantHarvest$planting),
+    xend = as.Date(PlantHarvest$harvest))
+
+  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+        ymin = -Inf, ymax = Inf), alpha = 0.4)+
+        geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))
+
+
+
+
+
+
+
+
+
+# Run functions on stacks -----------------------------------------
 # newextent = extent(500000,600000,1000000,1100000)
 # EVI_crop = crop(EVI_stack,newextent)
 # DOY_crop = crop(DOY_stack,newextent)

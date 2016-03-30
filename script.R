@@ -2,6 +2,7 @@
 
 rm(list=ls())
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
+source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProcessing.R')
 library(RCurl)
 library(raster)
 #library(MODISTools)
@@ -9,7 +10,7 @@ library(raster)
 library(sp)
 library(maptools)
 #library(rts)
-library(gdalUtils)
+#library(gdalUtils)
 library(foreach)
 library(doParallel)
 library(ggplot2)
@@ -22,7 +23,7 @@ registerDoParallel(8)
   MRT = 'G:/Faculty/Mann/Projects/MRT/bin'
 
   # get list of all available modis products
-  GetProducts()
+  #GetProducts()
 
   # Product Filters
   products =  c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
@@ -31,7 +32,7 @@ registerDoParallel(8)
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02')
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/51/'    # allData/6/ for evi,
   # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
-  strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
+  #strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
   out_dir = '/groups/manngroup/India_Index/Data/MODISLandCover/India/'
   setwd(out_dir)
 
@@ -57,7 +58,27 @@ registerDoParallel(8)
   rm(list=ls()[grep('stack',ls())]) # running into memory issues clear stacks load one by one
 
 
-  # Loop through valid ranges
+
+# Rescale and set valid ranges of data  ---------------------------------------------
+  # NOTE: This is run through sbatch with 128gb node
+  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+
+  # load data stacks from both directories
+  dir1 = list.files('./WO Clouds Crops/','.RData',full.names=T)
+  lapply(dir1, load,.GlobalEnv)
+
+  # setup a dataframe with valid ranges and scale factors
+  valid = data.frame(stack='NDVI', fill= -3000,validL=-2000,validU=10000,scale=0.0001,stringsAsFactors=F)
+  valid = rbind(valid,c('EVI',-3000,-2000,10000,0.0001))
+  valid = rbind(valid,c('blue_reflectance',-1000,0,10000,0.0001))
+  valid = rbind(valid,c('red_reflectance',-1000,0,10000,0.0001))
+  valid = rbind(valid,c('MIR_reflectance',-1000,0,10000,0.0001))
+  valid = rbind(valid,c('NIR_reflectance',-1000,0,10000,0.0001))
+  valid
+
+  rm(list=ls()[grep('stack',ls())]) # running into memory issues clear stacks load one by one
+
+ # Loop through valid ranges
   products2clean = unique(valid$stack)
   tiles = c( 'h24v05','h24v06')
   for(product in products2clean){
@@ -67,17 +88,18 @@ registerDoParallel(8)
         lapply(dir1[grep(product,dir1)],load,.GlobalEnv)
         data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
         valid_values = valid[grep(product,valid$stack),]
-        foreach(i=1:dim(data_stackvalues)[3]) %dopar% {
-                # NA out fill data
-                data_stackvalues[[i]][data_stackvalues[[i]]==as.numeric(valid_values$fill)|
-                        data_stackvalues[[i]]<as.numeric(valid_values$validL)|
-                        data_stackvalues[[i]]>as.numeric(valid_values$validU)]=NA
-                data_stackvalues[[i]]=data_stackvalues[[i]]*as.numeric(valid_values$scale)}
-        # save data
-        assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
-        save(list=paste(product,'_stack_',tile,sep=''),
-                file = paste('./WO Clouds Crops Scaled/',product,'_stack_',
-                        tile,'_wo_clouds_crops.RData',sep=''))
+
+        ScaleClean = function(x){
+                x[x==valid_values$fill]=NA
+                x[x < valid_values$validL]=NA
+                x[x > valid_values$validU]=NA
+                x = x * valid_values$scale
+                x}
+
+        RasterChunkProcessing(in_stack=data_stackvalues,in_stack_nm=paste(product,'_stack_',tile,sep='')
+            ,block_width=10,worker_number=12,out_path='./WO Clouds Crops Scaled/',
+            out_nm_postfix='WO_Clouds_Crops_Scaled', FUN=ScaleClean)
+
         rm(list=ls()[grep(product,ls())])
   }}
 

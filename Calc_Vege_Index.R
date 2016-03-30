@@ -92,16 +92,20 @@ registerDoParallel(16)
     #dates[which(x %in% a ) ]
   }
   
-  annualMinumumNearDOY = function(x,dates,DOY_in){
+  annualMinumumNearDOY = function(x,dates_in,DOY_in){
     #x = EVI values, dates=dates of observation POSIX, DOY_in = '%Y%j' of rain onset
     tempDOY = strptime(DOY_in,'%Y%j')
-    tempMINdate = dates[localMaxima(x*-1)]
+    # avoid problems with time class
+    if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
+    if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
+    # find all local minima, and match with DOY
+    tempMINdate = dates_in[localMaxima(x*-1)]
     grid = expand.grid(tempDOY, tempMINdate)
-    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),format(grid[,1],'%Y%j')),function(x)x[which.min(x)])) 
-    whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)      
+    # find best minimal per DOY
+    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
+    whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)
     grid[whichwasmin,2]
   }
-
 
  
   EVI_Stat = function(EVI_rows,DOY_rows){
@@ -204,11 +208,44 @@ registerDoParallel(16)
   rects = data.frame(xstart = as.Date(PlantHarvest$planting),
     xend = as.Date(PlantHarvest$harvest))
 
+  # test summary statistics 
+  plotdatasmoothed = plotdata[plotdata$class=='EVI Smoothed',]
+  vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
+  
+  vertical_lines =  annualMinumumNearDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_in=format(PlantHarvest$planting,'%Y%j'))
+
+ annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
+    #x = EVI values, dates=dates of observation POSIX, DOY_in = '%Y%j' of rain onset
+    tempDOY = strptime(DOY_in,'%Y%j')
+    # avoid problems with time class
+    if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
+    if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
+    # find all local minima, and match with DOY
+    tempMINdate = dates_in[localMaxima(x*-1)]
+    grid = expand.grid(tempDOY, tempMINdate)
+    # limit to fixed # of days before DOY
+    DOY_before = strptime(DOY_in,'%Y%j')
+    #names(unclass(DOY_before[1]))
+    DOY_before$mday=DOY_before$mday-days_before
+    DOY_grid = data.frame(DOY_before=DOY_before,DOY_in=strptime(DOY_in,'%Y%j'))
+    # get all days 'days_before' DOY_in
+    DOY_interest = unlist(lapply(1:dim(DOY_grid)[1],function(h){ format(seq(g[h,1],g[h,2],by='day'),'%Y%j')}))  
+ 
+    subset(grid,  grid[,1]<paste('2004-01-01') & grid[,1]>'2002-01-01'   )
+
+    # find best minimal per DOY
+    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
+    whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)
+    grid[whichwasmin,2]
+  }
+
+
+
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+
-        geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))
-
-
+        geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
+	geom_vline(xintercept = as.numeric(as.Date(strptime(vertical_lines,'%Y-%m-%d')))) 
 
 
 
@@ -273,4 +310,5 @@ registerDoParallel(16)
     names(r) = colnames(result)[layer]
     writeRaster(r,paste('result',colnames(result)[layer],'b.tif',sep='_'),overwrite=T)
   }
+
 

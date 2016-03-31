@@ -389,22 +389,10 @@ registerDoParallel(8)
         	x = x * as.numeric(valid_values$scale)
         	x}
 
-	RasterChunkProcessing(in_stack=data_stackvalues[[1:5]],in_stack_nm=paste(product,'_stack_',tile,sep='')
-	    ,block_width=15,worker_number=12,out_path='./WO Clouds Crops Scaled/',
+	RasterChunkProcessing(in_stack=data_stackvalues,in_stack_nm=paste(product,'_stack_',tile,sep='')
+	    ,block_width=5,worker_number=12,out_path='./WO Clouds Crops Scaled/',
 	    out_nm_postfix='WO_Clouds_Crops_Scaled', FUN=ScaleClean)
 
-	#foreach(i=1:dim(data_stackvalues)[3]) %dopar% {
-        #        # NA out fill data 
-        #        data_stackvalues[[i]][data_stackvalues[[i]]==as.numeric(valid_values$fill)|
-	#		data_stackvalues[[i]]<as.numeric(valid_values$validL)|
-	#		data_stackvalues[[i]]>as.numeric(valid_values$validU)]=NA
-        #        data_stackvalues[[i]]=data_stackvalues[[i]]*as.numeric(valid_values$scale)}
-        ## save data
-        #assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
-        #save(list=paste(product,'_stack_',tile,sep=''),
-        #        file = paste('./WO Clouds Crops Scaled/',product,'_stack_',
-	#		tile,'_wo_clouds_crops.RData',sep=''))
-        rm(list=ls()[grep(product,ls())])
   }}
 
 

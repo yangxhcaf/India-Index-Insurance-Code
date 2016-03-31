@@ -2,7 +2,7 @@
 
 rm(list=ls())
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
-source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProcessing.R')
+source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProcessingSave.R')
 library(RCurl)
 library(raster)
 #library(MODISTools)
@@ -14,7 +14,7 @@ library(maptools)
 library(foreach)
 library(doParallel)
 library(ggplot2)
-registerDoParallel(8)
+registerDoParallel(12)
 
 
 # Set up parameters -------------------------------------------------------
@@ -35,28 +35,6 @@ registerDoParallel(8)
   #strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
   out_dir = '/groups/manngroup/India_Index/Data/MODISLandCover/India/'
   setwd(out_dir)
-
-
-
-# Rescale and set valid ranges of data  ---------------------------------------------
-  # NOTE: This is run through sbatch with 128gb node
-  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
-
-  # load data stacks from both directories
-  dir1 = list.files('./WO Clouds Crops/','.RData',full.names=T)
-  lapply(dir1, load,.GlobalEnv)
-
-  # setup a dataframe with valid ranges and scale factors
-  valid = data.frame(stack='NDVI', fill= -3000,validL=-2000,validU=10000,scale=0.0001,stringsAsFactors=F)
-  valid = rbind(valid,c('EVI',-3000,-2000,10000,0.0001))
-  valid = rbind(valid,c('blue_reflectance',-1000,0,10000,0.0001))
-  valid = rbind(valid,c('red_reflectance',-1000,0,10000,0.0001))
-  valid = rbind(valid,c('MIR_reflectance',-1000,0,10000,0.0001))
-  valid = rbind(valid,c('NIR_reflectance',-1000,0,10000,0.0001))
-  valid
-
-  rm(list=ls()[grep('stack',ls())]) # running into memory issues clear stacks load one by one
-
 
 
 # Rescale and set valid ranges of data  ---------------------------------------------
@@ -88,15 +66,15 @@ registerDoParallel(8)
         lapply(dir1[grep(product,dir1)],load,.GlobalEnv)
         data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
         valid_values = valid[grep(product,valid$stack),]
-
-        ScaleClean = function(x){
-                x[x==valid_values$fill]=NA
-                x[x < valid_values$validL]=NA
-                x[x > valid_values$validU]=NA
-                x = x * valid_values$scale
+	
+ 	ScaleClean = function(x){
+                x[x==as.numeric(valid_values$fill)]=NA
+                x[x < as.numeric(valid_values$validL)]=NA
+                x[x > as.numeric(valid_values$validU)]=NA
+                x = x * as.numeric(valid_values$scale)
                 x}
 
-        RasterChunkProcessing(in_stack=data_stackvalues,in_stack_nm=paste(product,'_stack_',tile,sep='')
+        RasterChunkProcessingSave(in_stack=data_stackvalues,in_stack_nm=paste(product,'_stack_',tile,sep='')
             ,block_width=10,worker_number=12,out_path='./WO Clouds Crops Scaled/',
             out_nm_postfix='WO_Clouds_Crops_Scaled', FUN=ScaleClean)
 

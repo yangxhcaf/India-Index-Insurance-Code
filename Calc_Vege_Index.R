@@ -64,11 +64,6 @@ registerDoParallel(16)
 
 # Set up parameters -------------------------------------------------------
 
-  # give path to Modis Reproduction Tool
-  MRT = 'G:/Faculty/Mann/Projects/MRT/bin'
-
-  # get list of all available modis products
-  #GetProducts()
 
   # Product Filters
   products =  c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover$
@@ -92,19 +87,18 @@ registerDoParallel(16)
     y
   }
   
-  annualMaxima = function(x,dates){
+  annualMaxima = function(x,dates_in){
     # returns location of maximum value by year 
-    datesY = format(dates,'%Y')
+    datesY = format(dates_in,'%Y')
     a=do.call(rbind,lapply(split(x,datesY),function(x)x[which.max(x)]))
-    dates[which(x %in% a ) ]
+    dates_in[x %in% a ]
   }
 
-  annualMaximaValue = function(x,dates){
+  annualMaximaValue = function(x,dates_in){
     # returns location of maximum value by year 
-    datesY = format(dates,'%Y')
+    datesY = format(dates_in,'%Y')
     a=do.call(rbind,lapply(split(x,datesY),function(x)x[which.max(x)]))
     a
-    #dates[which(x %in% a ) ]
   }
   
   annualMinumumNearDOY = function(x,dates_in,DOY_in){
@@ -117,10 +111,36 @@ registerDoParallel(16)
     tempMINdate = dates_in[localMaxima(x*-1)]
     grid = expand.grid(tempDOY, tempMINdate)
     # find best minimal per DOY
-    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
+    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),
+	format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
     whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)
     grid[whichwasmin,2]
   }
+
+
+ annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
+    # calculates the annual minimum for days_before days before each DOY for planting season
+    # best to set DOY as the last expected date of planting
+    if(days_before<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
+    #x = EVI values, dates=dates of observation POSIX, DOY_in = '%Y%j' of rain onset
+    tempDOY = strptime(DOY_in,'%Y%j')
+    # avoid problems with time class
+    if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
+    if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=format(as.POSIXlt(dates_in),'%Y%j')}
+    # limit to fixed # of days before DOY
+    DOY_before = tempDOY
+    #names(unclass(DOY_before[1]))
+    DOY_before$mday=DOY_before$mday-days_before      # set days before to doy - days_before
+    DOY_table = data.frame(DOY_before=DOY_before,DOY_in=strptime(DOY_in,'%Y%j'))   #match DOY with Days_be$
+    # get all days 'days_before' DOY_in in a list
+    DOY_interest = unlist(lapply(1:dim(DOY_table)[1],function(h){ format(seq(DOY_table[h,1],
+                DOY_table[h,2],by='day'),'%Y%j')}))
+    # find all local minima, and match with DOY
+    x_DOY_interest = x[dates_in %in% DOY_interest]
+    dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
+    # get min value for this period for each year
+    annualMaxima(x_DOY_interest*-1,strptime(dates_DOY_interest,'%Y%j'))
+ }
 
  
   EVI_Stat = function(EVI_rows,DOY_rows){
@@ -193,7 +213,6 @@ registerDoParallel(16)
 # Load Data Layers 
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
   
-  dates = c('2002-01-01','2016-02-02') 
 
   # load data stacks from both directories
   dir1 = list.files('./WO Clouds Crops/','.RData',full.names=T)
@@ -202,22 +221,32 @@ registerDoParallel(16)
 
   plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
 
-  EVI_v1 = getValues(NDVI_stack_h24v05, 1000, 1)
-  EVI_v1[EVI_v1<=-2000]=NA
-  EVI_v1=EVI_v1*0.0001
-  dim(EVI_v1)
+  # get LC examples
+  ogrInfo('../LandCoverTrainingData','IndiaLandCoverExamples')
+  crops = readOGR('../LandCoverTrainingData','IndiaLandCoverExamples')
+  crops = spTransform(crops, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  crops$id = 1:dim(crops@data)[1]
+  # extract raster values for these locations
+  registerDoParallel(10)
+  EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
+     extract(NDVI_stack_h24v05,crops[crops$id ==i,])
+  }
+  EVI=lapply(EVI, function(x){
+  x[x<=-2000]=NA
+  x=x*0.0001})
 
-  row = 900  #500 100 is good
-  plotdata = data.frame(EVI= EVI_v1[row,],
+  # Plot
+  EVI_v1 = as.numeric(EVI[[3]])
+  plotdata = data.frame(EVI= EVI_v1,
                         dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI')
 
-  plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1[row,],
+  plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1,
                         dates=plot_dates, pred_dates=plot_dates,spline_spar = 0.2),
                         dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
 
   # Get planting and harvest dates
-  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=10,
-	PlantingDay=23,HarvestMonth=3,HarvestDay=10)
+  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
+	PlantingDay=23,HarvestMonth=4,HarvestDay=30)
 
   # plot out time series with planting and harvest dates
   rects = data.frame(xstart = as.Date(PlantHarvest$planting),
@@ -225,47 +254,10 @@ registerDoParallel(16)
 
   # test summary statistics 
   plotdatasmoothed = plotdata[plotdata$class=='EVI Smoothed',]
-  vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
+  #vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
   
-
- annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
-    #x = EVI values, dates=dates of observation POSIX, DOY_in = '%Y%j' of rain onset
-    tempDOY = strptime(DOY_in,'%Y%j')
-    # avoid problems with time class
-    if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
-    if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
-    # find all local minima, and match with DOY
-    tempMINdate = dates_in[localMaxima(x*-1)]
-    grid = expand.grid(tempDOY, tempMINdate)
-    # subset  all days 'days_before' DOY_in to those that fall in valid date ranges
-    grid = subset(grid,  grid[,1]>paste(dates[1]) & grid[,1]<paste(dates[2])   )
-  
-    # limit to fixed # of days before DOY
-    DOY_before = tempDOY
-    #names(unclass(DOY_before[1]))
-    DOY_before$mday=DOY_before$mday-days_before      # set days before to doy - days_before
-    DOY_table = data.frame(DOY_before=DOY_before,DOY_in=strptime(DOY_in,'%Y%j'))   #match DOY with Days_before dates 
-
-    # get all days 'days_before' DOY_in in a list
-    DOY_interest = unlist(lapply(1:dim(DOY_table)[1],function(h){ format(seq(DOY_table[h,1],
-		DOY_table[h,2],by='day'),'%Y%j')}))
-    # limit grid to local minima in DOY_insterest 
-    # grid[,1] = original DOY , grid[,2] = all local minima
-   # grid[ format(grid[,2],'%Y%j') %in% DOY_interest,]
-    # find best minimal per DOY
-    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),
-	format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
-
-
-    whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)
-    grid[whichwasmin,2]
-  }
-
-
   vertical_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_in=format(PlantHarvest$planting,'%Y%j'), days_before =15)
-
-
+        DOY_in=format(PlantHarvest$planting,'%Y%j'), days_before =30)
 
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+

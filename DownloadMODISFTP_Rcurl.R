@@ -388,11 +388,18 @@ registerDoParallel(8)
         	x[x > as.numeric(valid_values$validU)]=NA
         	x = x * as.numeric(valid_values$scale)
         	x}
+	
+	# Break larger stacks into smaller chunks and save raster stack outputs  
+	times = 1:dim(data_stackvalues)[3]
+	times = split(times, ceiling(seq_along(times)/20))
 
-	RasterChunkProcessing(in_stack=data_stackvalues,in_stack_nm=paste(product,'_stack_',tile,sep='')
-	    ,block_width=5,worker_number=12,out_path='./WO Clouds Crops Scaled/',
-	    out_nm_postfix='WO_Clouds_Crops_Scaled', FUN=ScaleClean)
-
+	i = 1
+	for(j in times){
+	  RasterChunkProcessing(in_stack=data_stackvalues[[j]],in_stack_nm=paste(product,'_stack_',tile,sep='')
+	      ,block_width=5,worker_number=12,out_path='./WO Clouds Crops Scaled/',
+	      out_nm_postfix=paste('WO_Clouds_Crops_Scaled_',sprintf("%03d",i),sep=''), FUN=ScaleClean)
+	i=i+1
+	}
   }}
 
 

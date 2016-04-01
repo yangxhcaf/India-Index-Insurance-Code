@@ -5,6 +5,7 @@
 RasterChunkProcessing = function(in_stack,in_stack_nm, block_width,
 	worker_number,out_path,out_nm_postfix, FUN){
   #Determine optimal block size for loading  stack data
+
     nrows = dim(in_stack)[1]
     nblocks = nrows%/%block_width 
     bs_rows = seq(1,nblocks*block_width+1,block_width)
@@ -37,6 +38,7 @@ RasterChunkProcessing = function(in_stack,in_stack_nm, block_width,
   out_stack =  stack(value_list)
   assign(paste(in_stack_nm,'_',out_nm_postfix,sep=''),out_stack)
   save(out_stack, file = paste(out_path,in_stack_nm,'_',out_nm_postfix,'.RData',sep=''))
+
 }
 
 
@@ -58,5 +60,3 @@ RasterChunkProcessing = function(in_stack,in_stack_nm, block_width,
 #
 #RasterChunkProcessing(in_stack,in_stack_nm, block_width,
 #        worker_number,out_path,out_nm_postfix, FUN=ScaleClean)
-
-

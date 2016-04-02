@@ -26,6 +26,7 @@ library(gdalUtils)
 library(foreach)
 library(doParallel)
 library(ggplot2)
+library(MESS)
 registerDoParallel(16)
 
 
@@ -122,11 +123,20 @@ registerDoParallel(16)
     grid[whichwasmin,2]
   }
 
+  AnnualAverageDOYvalues = function(x,dates_in){
+    # calculates the average value for DOY for the whole series
+    datesj = format(dates_in,'%j')
+    do.call(rbind,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
 
-x = plotdatasmoothed$EVI
-dates_in = plotdatasmoothed$dates
-DOY_in=PlantHarvest$planting
-days_before=30
+   AnnualAUC = function(x,dates_in){
+         # calculate area under the curve by year
+         FUN = function(q,w){auc(q,w,type='spline')}
+         datesY = format(dates_in,'%Y')
+         data.split = split(x,datesY)
+         date.split = split(as.numeric(dates_in),datesY)
+         do.call(rbind,lapply(1:length(data.split),function(z){
+                FUN(q=date.split[[z]],w=data.split[[z]])} ))
+        }
 
 
  annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
@@ -268,7 +278,7 @@ days_before=30
   plotdatasmoothed = plotdata[plotdata$class=='EVI Smoothed',]
   #vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
   
- annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
+  annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
 
   vertical_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
         DOY_in=PlantHarvest$planting,days_before=30)
@@ -277,6 +287,33 @@ x = plotdatasmoothed$EVI
 dates_in = plotdatasmoothed$dates
 DOY_in=PlantHarvest$planting
 days_before=30
+
+
+  AnnualAggregator = function(x,dates_in,FUN){
+    # returns an annual summary statistic of
+    # Example AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){$
+    datesY = format(dates_in,'%Y')
+    do.call(rbind,lapply(split(x,datesY),FUN))}
+
+   AnnualAUC = function(x,dates_in){
+	 # calculate area under the curve by year
+ 	 FUN = function(q,w){auc(q,w,type='spline')}
+	 datesY = format(dates_in,'%Y')
+         data.split = split(x,datesY)
+         date.split = split(as.numeric(dates_in),datesY)
+    	 do.call(rbind,lapply(1:length(data.split),function(z){ 
+		FUN(q=date.split[[z]],w=data.split[[z]])} ))
+	}
+
+ AnnualAUC = function(x,dates_in){
+         # calculate area under the curve by year
+         FUN = function(q,w){auc(q,w,type='spline')}
+         datesY = format(dates_in,'%Y')
+         data.split = split(x,datesY)
+         date.split = split(as.numeric(dates_in),datesY)
+         do.call(rbind,lapply(1:length(data.split),function(z){
+                FUN(q=date.split[[z]],w=data.split[[z]])} ))
+        }
 
 
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,

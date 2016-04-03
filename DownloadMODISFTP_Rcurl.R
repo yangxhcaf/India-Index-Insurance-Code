@@ -227,8 +227,10 @@ registerDoParallel(8)
   	# Set up data
   	flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_',product,'.tif$',sep='')), 
 		full.names = TRUE)
-  	flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+        flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
   	flist = flist[order(flist_dates)]  # file list in order
+        flist_dates = flist_dates[order(flist_dates)]  # file_dates list in order
+
   	# stack data and save
   	stacked = stack(flist)
   	names(stacked) = flist_dates
@@ -246,6 +248,7 @@ registerDoParallel(8)
                 full.names = TRUE)
         flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
         flist = flist[order(flist_dates)]  # file list in order
+        flist_dates = flist_dates[order(flist_dates)]  # file_dates list in order
         #create duplicates of most recent year till end of study period
 	studyperiod = format(seq(strptime(dates[1],'%Y-%m-%d'),strptime(dates[2],'%Y-%m-%d'), by='year'),'%Y%j') 
         missingyears = outersect(flist_dates, studyperiod)

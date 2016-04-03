@@ -354,7 +354,7 @@ registerDoParallel(8)
 
 
 
-# Rescale and set valid ranges of data  ---------------------------------------------
+# Set valid ranges of data  ---------------------------------------------
   # NOTE: This is run through sbatch with 128gb node 
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
 
@@ -392,17 +392,17 @@ registerDoParallel(8)
         	x = x * as.numeric(valid_values$scale)
         	x}
 	
-	# Break larger stacks into smaller chunks and save raster stack outputs  
-	times = 1:dim(data_stackvalues)[3]
-	times = split(times, ceiling(seq_along(times)/20))
+        junk = foreach(i=1:dim(data_stackvalues)[3]) %dopar% {
+                data_stackvalues[[i]]=ScaleClean(data_stackvalues[[i]])
+                return(i)}
 
-	i = 1
-	for(j in times){
-	  RasterChunkProcessing(in_stack=data_stackvalues[[j]],in_stack_nm=paste(product,'_stack_',tile,sep='')
-	      ,block_width=5,worker_number=12,out_path='./WO Clouds Crops Scaled/',
-	      out_nm_postfix=paste('WO_Clouds_Crops_Scaled_',sprintf("%03d",i),sep=''), FUN=ScaleClean)
-	i=i+1
-	}
+        assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
+        dir.create(file.path('../Data Stacks/WO Clouds Crops Clean'), showWarnings=F,recursive=$
+        save(list=paste(product,'_stack_',tile,sep=''),
+                file = paste('WO Clouds Crops Clean/',product,'_stack_',tile,'_wo_clouds_crops_$
+
+        rm(list=ls()[grep(product,ls())])
+
   }}
 
 

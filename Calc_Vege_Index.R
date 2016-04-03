@@ -75,8 +75,7 @@ registerDoParallel(16)
     if (x[[1]] == x[[2]]) {
       y <- y[-1]
     }
-    y
-  }
+    y  }
   
   annualMaxima = function(x,dates_in){
     # returns location of maximum value by year 
@@ -160,8 +159,36 @@ registerDoParallel(16)
     x_DOY_interest = x[dates_in %in% DOY_interest]
     dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
     # get min value for this period for each year
-    annualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest))
+    sort(annualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
  }
+
+   PeriodAUC = function(x,dates_in,DOY_start,DOY_end){
+         # calculate area under the curve by period of the year
+         # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
+         # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
+
+         dates_group = rep(0,length(dates_in))    # create storage for factors of periods
+         # get sequences of periods of inerest
+         seq_interest = lapply(1:length(DOY_start),function(z){seq(DOY_start[z],DOY_end[z],by='days')})
+         # switch dates-group to period group
+         years_avail = sort(as.numeric(unique(unlist(
+                lapply(seq_interest,function(z) format(z,'%Y'))))))
+
+         junk=lapply(1:length(seq_interest),function(z){        #assigns year for beginging of planting season
+                dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
+                assign('dates_group',dates_group,envir = .GlobalEnv) })
+         dates_group
+
+         FUN = function(q,w){auc(q,w,type='spline')}
+         datesY = format(dates_in,'%Y')
+         data.split = split(x,dates_group)
+         d = do.call(rbind,lapply(2:length(data.split),function(z){
+                FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
+         print(cbind(names(data.split)[2:length(data.split)], d))
+        }
+
+
+
  
   EVI_Stat = function(EVI_rows,DOY_rows){
       require(sp)
@@ -278,44 +305,12 @@ registerDoParallel(16)
   plotdatasmoothed = plotdata[plotdata$class=='EVI Smoothed',]
   #vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
   
-  annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
 
   vertical_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
         DOY_in=PlantHarvest$planting,days_before=30)
 
-x = plotdatasmoothed$EVI
-dates_in = plotdatasmoothed$dates
-DOY_in=PlantHarvest$planting
-days_before=30
 
-
-  AnnualAggregator = function(x,dates_in,FUN){
-    # returns an annual summary statistic of
-    # Example AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){$
-    datesY = format(dates_in,'%Y')
-    do.call(rbind,lapply(split(x,datesY),FUN))}
-
-   AnnualAUC = function(x,dates_in){
-	 # calculate area under the curve by year
- 	 FUN = function(q,w){auc(q,w,type='spline')}
-	 datesY = format(dates_in,'%Y')
-         data.split = split(x,datesY)
-         date.split = split(as.numeric(dates_in),datesY)
-    	 do.call(rbind,lapply(1:length(data.split),function(z){ 
-		FUN(q=date.split[[z]],w=data.split[[z]])} ))
-	}
-
- AnnualAUC = function(x,dates_in){
-         # calculate area under the curve by year
-         FUN = function(q,w){auc(q,w,type='spline')}
-         datesY = format(dates_in,'%Y')
-         data.split = split(x,datesY)
-         date.split = split(as.numeric(dates_in),datesY)
-         do.call(rbind,lapply(1:length(data.split),function(z){
-                FUN(q=date.split[[z]],w=data.split[[z]])} ))
-        }
-
-
+# dev.new()
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+
         geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+

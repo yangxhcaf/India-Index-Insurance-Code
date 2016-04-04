@@ -11,8 +11,9 @@
 
 
 rm(list=ls())
-source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
-source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
+#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+#source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
+source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
 
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
 library(RCurl)
@@ -21,8 +22,8 @@ library(MODISTools)
 library(rgdal)
 library(sp)
 library(maptools)
-library(rts)
-library(gdalUtils)
+#library(rts)
+#library(gdalUtils)
 library(foreach)
 library(doParallel)
 library(ggplot2)
@@ -42,6 +43,7 @@ registerDoParallel(16)
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-$
 
 
+# Function  --------------------------------------------------
  
   EVI_Stat = function(EVI_rows,DOY_rows){
       require(sp)
@@ -110,6 +112,7 @@ registerDoParallel(16)
   } 
 
 
+
 # Check functions ----------------------------------------------
 # Load Data Layers 
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
@@ -160,15 +163,54 @@ registerDoParallel(16)
   #vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
   
 
-  vertical_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_in=PlantHarvest$planting,days_before=30)
 
-
-# dev.new()
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+
         geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
-	geom_vline(xintercept = as.numeric(as.Date(strptime(vertical_lines,'%Y-%m-%d')))) 
+	geom_vline(colour='blue',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+ 
+        geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='orange',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
+	annotate("text", x =(PlantHarvest$planting[1]+60), y = 0.375, label = "Wheat")+
+        annotate("text", x =(PlantHarvest$harvest[1]+90), y = 0.3, label = "Rice")
+
+
+
+# Example function calls ---------------------------------------------------
+
+  plant_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_in=PlantHarvest$planting,days_before=30)
+
+  harvest_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_in=PlantHarvest$harvest,days_before=30)
+
+  max_lines =  AnnualMaxima(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
+
+  AnnualMaximaValue(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
+
+  AnnualAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,FUN=function(x)mean(x,na.rm=T))
+  AnnualAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,FUN=function(x)min(x,na.rm=T))
+  AnnualAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,FUN=function(x)max(x,na.rm=T))
+
+  PeriodAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        date_range_st=PlantHarvest$planting, date_range_end=PlantHarvest$harvest,
+        by_in='days',FUN=function(x)max(x,na.rm=T))
+
+  AnnualMinumumNearDOY(x,dates_in,DOY_in=PlantHarvest$planting[1])
+
+  AnnualAverageDOYvalues(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
+
+  AnnualAUC(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
+
+  AnnualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_in=PlantHarvest$planting,days_before=30)
+
+  PeriodAUC(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_start=PlantHarvest$planting,DOY_end=PlantHarvest$harvest)
+
+
+
+
+
 
 
 

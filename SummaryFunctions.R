@@ -34,14 +34,14 @@
     }
     y  }
 
-  annualMaxima = function(x,dates_in){
+  AnnualMaxima = function(x,dates_in){
     # returns location of maximum value by year
     datesY = format(dates_in,'%Y')
     a=do.call(rbind,lapply(split(x,datesY),function(x)x[which.max(x)]))
     dates_in[x %in% a ]
   }
 
-  annualMaximaValue = function(x,dates_in){
+  AnnualMaximaValue = function(x,dates_in){
     # returns location of maximum value by year
     datesY = format(dates_in,'%Y')
     a=do.call(rbind,lapply(split(x,datesY),function(x)x[which.max(x)]))
@@ -49,22 +49,26 @@
 
 
   AnnualAggregator = function(x,dates_in,FUN){
-    # returns an annual summary statistic of
+    # returns an annual summary statistic of any function
     # Example AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
     datesY = format(dates_in,'%Y')
     do.call(rbind,lapply(split(x,datesY),FUN))}
 
-  PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days'){
+
+  PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
     # returns a summary statistic of x for the period defined by date_range_st, date_range_end
     if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
-    DateRange = seq(date_range_st,date_range_end,by=by_in)
-    x=x[dates_in %in% DateRange]
-    dates_in=dates_in[dates_in %in% DateRange]
-    FUN(x)}
+    dataout=lapply(1:length(date_range_st),function(z){
+    	DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+    	x=x[dates_in %in% DateRange]
+    	dates_in=dates_in[dates_in %in% DateRange]
+    	FUN(x)})
+    unlist(dataout)
+    }
 
 
- annualMinumumNearDOY = function(x,dates_in,DOY_in){
+  AnnualMinumumNearDOY = function(x,dates_in,DOY_in){
     #x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of rain onset as.Date
     tempDOY = as.POSIXlt(DOY_in)
     # avoid problems with time class
@@ -86,7 +90,7 @@
     datesj = format(dates_in,'%j')
     do.call(rbind,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
 
-   AnnualAUC = function(x,dates_in){
+  AnnualAUC = function(x,dates_in){
          # calculate area under the curve by year
          FUN = function(q,w){auc(q,w,type='spline')}
          datesY = format(dates_in,'%Y')
@@ -97,7 +101,7 @@
         }
 
 
- annualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
+ AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
     # calculates the annual minimum for days_before days before each DOY for planting season
     # best to set DOY as the last expected date of planting
     if(days_before<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
@@ -118,33 +122,36 @@
     x_DOY_interest = x[dates_in %in% DOY_interest]
     dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
     # get min value for this period for each year
-    sort(annualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
+    sort(AnnualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
  }
 
 
-   PeriodAUC = function(x,dates_in,DOY_start,DOY_end){
+   PeriodAUC = function(x_in,dates_in,DOY_start_in,DOY_end_in){
          # calculate area under the curve by period of the year
          # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
          # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
 
          dates_group = rep(0,length(dates_in))    # create storage for factors of periods
-         # get sequences of periods of inerest
-         seq_interest = lapply(1:length(DOY_start),function(z){seq(DOY_start[z],DOY_end[z],by='days')})
+  	 # get sequences of periods of inerest
+         seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
          # switch dates-group to period group
          years_avail = sort(as.numeric(unique(unlist(
                 lapply(seq_interest,function(z) format(z,'%Y'))))))
-
-         junk=lapply(1:length(seq_interest),function(z){        #assigns year for beginging of planting season
-                dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
-                assign('dates_group',dates_group,envir = .GlobalEnv) })
-         dates_group
-
+         for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
+                print(years_avail[z])
+		dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
+                assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
+	 # calculate AUC for periods of interest
          FUN = function(q,w){auc(q,w,type='spline')}
          datesY = format(dates_in,'%Y')
-         data.split = split(x,dates_group)
-         d = do.call(rbind,lapply(2:length(data.split),function(z){
-                FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
+         data.split = split(x_in,dates_group)
+         d = do.call(rbind,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
+		FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
          print(cbind(names(data.split)[2:length(data.split)], d))
-        }
+         d
+	}
 
 
+
+
+for(x in 1:15)  print(FUN(q=1:length(data.split[[x]]),w=data.split[[x]]))

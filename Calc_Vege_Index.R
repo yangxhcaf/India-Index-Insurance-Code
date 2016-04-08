@@ -132,14 +132,15 @@ registerDoParallel(16)
   crops$id = 1:dim(crops@data)[1]
 
   # extract raster values for these locations
-  registerDoParallel(16)
-  EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
-     extract(NDVI_stack_h24v05,crops[crops$id ==i,])
-  }
-  EVI=lapply(EVI, function(x){
-  x[x<=-2000]=NA
-  x=x*0.0001})
+  #registerDoParallel(16)
+  #EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
+  #   extract(NDVI_stack_h24v05,crops[crops$id ==i,])
+  #}
+  #EVI=lapply(EVI, function(x){
+  #x[x<=-2000]=NA
+  #x=x*0.0001})
 
+  save( EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData',sep='') )
 
   # Plot
   EVI_v1 = as.numeric(EVI[[3]])
@@ -204,8 +205,8 @@ registerDoParallel(16)
   AnnualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
         DOY_in=PlantHarvest$planting,days_before=30)
 
-  PeriodAUC(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_start=PlantHarvest$planting,DOY_end=PlantHarvest$harvest)
+  PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_start_in=PlantHarvest$planting,DOY_end_in=PlantHarvest$harvest)
 
 
 

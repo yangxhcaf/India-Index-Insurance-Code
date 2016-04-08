@@ -44,7 +44,7 @@
   AnnualMaximaValue = function(x,dates_in){
     # returns location of maximum value by year
     datesY = format(dates_in,'%Y')
-    a=do.call(rbind,lapply(split(x,datesY),function(x)x[which.max(x)]))
+    a=do.call(c,lapply(split(x,datesY),function(x)x[which.max(x)]))
     a}
 
 
@@ -52,7 +52,7 @@
     # returns an annual summary statistic of any function
     # Example AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
     datesY = format(dates_in,'%Y')
-    do.call(rbind,lapply(split(x,datesY),FUN))}
+    do.call(c,lapply(split(x,datesY),FUN))}
 
 
   PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
@@ -64,7 +64,9 @@
     	x=x[dates_in %in% DateRange]
     	dates_in=dates_in[dates_in %in% DateRange]
     	FUN(x)})
-    unlist(dataout)
+    	dataout = do.call(c,dataout)
+	names(dataout)=format(date_range_st,'%Y')
+	dataout
     }
 
 
@@ -88,7 +90,9 @@
   AnnualAverageDOYvalues = function(x,dates_in){
     # calculates the average value for DOY for the whole series
     datesj = format(dates_in,'%j')
-    do.call(rbind,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
+    do.call(c,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
+
+
 
   AnnualAUC = function(x,dates_in){
          # calculate area under the curve by year
@@ -96,9 +100,11 @@
          datesY = format(dates_in,'%Y')
          data.split = split(x,datesY)
          date.split = split(as.numeric(dates_in),datesY)
-         do.call(rbind,lapply(1:length(data.split),function(z){
+         dataout = do.call(c,lapply(1:length(data.split),function(z){
                 FUN(q=date.split[[z]],w=data.split[[z]])} ))
-        }
+         names(dataout)=unique(datesY)
+         dataout
+	}
 
 
  AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
@@ -138,20 +144,19 @@
          years_avail = sort(as.numeric(unique(unlist(
                 lapply(seq_interest,function(z) format(z,'%Y'))))))
          for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
-                print(years_avail[z])
 		dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
                 assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
 	 # calculate AUC for periods of interest
          FUN = function(q,w){auc(q,w,type='spline')}
          datesY = format(dates_in,'%Y')
          data.split = split(x_in,dates_group)
-         d = do.call(rbind,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
+         d = do.call(c,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
 		FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
-         print(cbind(names(data.split)[2:length(data.split)], d))
+         names(d) = names(data.split)[2:length(data.split)]
+	 #print(cbind(names(data.split)[2:length(data.split)], d))
          d
 	}
 
 
 
 
-for(x in 1:15)  print(FUN(q=1:length(data.split[[x]]),w=data.split[[x]]))

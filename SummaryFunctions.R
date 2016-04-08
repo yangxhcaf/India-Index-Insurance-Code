@@ -107,10 +107,10 @@
 	}
 
 
- AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_before){
+ AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_shift,dir){
     # calculates the annual minimum for days_before days before each DOY for planting season
     # best to set DOY as the last expected date of planting
-    if(days_before<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
+    if(days_shift<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
     #x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of planting harvest
     tempDOY = as.POSIXlt(DOY_in)
     # avoid problems with time class
@@ -119,11 +119,17 @@
     # limit to fixed # of days before DOY
     DOY_before = tempDOY
     #names(unclass(DOY_before[1]))
-    DOY_before$mday=DOY_before$mday-days_before      # set days before to doy - days_before
+    if(dir=='before') DOY_before$mday=DOY_before$mday-days_shift      # set days before to doy - days_before
+    if(dir=='after') DOY_before$mday=DOY_before$mday+days_shift      # set days before to doy - days_before
     DOY_table = data.frame(DOY_before=DOY_before,DOY_in=as.POSIXlt(DOY_in))   #match DOY with Days_be$
     # get all days 'days_before' DOY_in in a list
-    DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],function(h){format(seq(DOY_table[h,1],
-                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')
+ if(dir=='before'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+		function(h){format(seq(DOY_table[h,1],
+                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')}
+ if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+		function(h){format(seq(DOY_table[h,2],
+                DOY_table[h,1],by='day'),'%Y-%m-%d')})),tz='UTC')}
+
     # find all local minima, and match with DOY
     x_DOY_interest = x[dates_in %in% DOY_interest]
     dates_DOY_interest = dates_in[dates_in %in% DOY_interest]

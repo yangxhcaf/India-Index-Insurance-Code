@@ -59,6 +59,9 @@
     # returns a summary statistic of x for the period defined by date_range_st, date_range_end
     if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
+    #Avoid problems with missing plant or harvest dates
+    if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+		break}
     dataout=lapply(1:length(date_range_st),function(z){
     	DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
     	x=x[dates_in %in% DateRange]
@@ -67,6 +70,25 @@
     	dataout = do.call(c,dataout)
 	names(dataout)=format(date_range_st,'%Y')
 	dataout
+    }
+
+
+ PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+    # returns a summary statistic of x for the period defined by date_range_st, date_range_end
+    if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+                                             date_range_end = as.Date(date_range_end)}
+    #Avoid problems with missing plant or harvest dates
+    if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+                break}
+    dataout=lapply(1:length(date_range_st),function(z){
+        DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+        x=x[dates_in %in% DateRange]
+        dates_in=dates_in[dates_in %in% DateRange]
+        dates_in[which(FUN(x) ==  x)]
+	})
+        dataout = do.call(c,dataout)
+        names(dataout)=format(date_range_st,'%Y')
+        dataout
     }
 
 

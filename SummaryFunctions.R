@@ -54,6 +54,16 @@
     datesY = format(dates_in,'%Y')
     do.call(c,lapply(split(x,datesY),FUN))}
 
+  correct_dates = function(dates_in, dates_str, dates_end){
+    # handle plant or harvest dates with a different lengths
+    # returns corrected start dates in list [[1]] and corrected end dates in [[2]]
+    length_diff = length(dates_str)-length(dates_end)
+    if(length_diff!=1){stop('difference in date lengths can only be =1')}else{
+		if(length_diff==1){dates_end=c(dates_end,dates_in[length(dates_in)])}
+                if(length_diff==-1){dates_str=c(dates_str,dates_in[1])}
+	list(dates_str,dates_end)}
+	}
+
 
   PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
     # returns a summary statistic of x for the period defined by date_range_st, date_range_end

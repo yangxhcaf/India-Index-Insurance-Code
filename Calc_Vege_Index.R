@@ -123,7 +123,7 @@ registerDoParallel(16)
   lapply(dir1, load,.GlobalEnv)
 
 
-  plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
+   plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
 
   # get LC examples
   ogrInfo('../LandCoverTrainingData','IndiaLandCoverExamples')
@@ -132,18 +132,21 @@ registerDoParallel(16)
   crops$id = 1:dim(crops@data)[1]
 
   # extract raster values for these locations
-  #registerDoParallel(16)
-  #EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
-  #   extract(NDVI_stack_h24v05,crops[crops$id ==i,])
-  #}
-  #EVI=lapply(EVI, function(x){
-  #x[x<=-2000]=NA
-  #x=x*0.0001})
+  registerDoParallel(16)
+  EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
+     extract(NDVI_stack_h24v05,crops[crops$id ==i,])
+  }
+  endCluster()
+  EVI=lapply(EVI, function(x){
+  	x[x<=-2000]=NA
+  	#x=x*0.0001
+	})
 
-  save( EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData',sep='') )
+  #save( EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData')
 
   # Plot
-  EVI_v1 = as.numeric(EVI[[3]])
+  EVI_v1 = as.numeric(EVI[[4]])
   plotdata = data.frame(EVI= EVI_v1,
                         dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI')
 
@@ -161,30 +164,26 @@ registerDoParallel(16)
 
   # test summary statistics 
   plotdatasmoothed = plotdata[plotdata$class=='EVI Smoothed',]
-  #vertical_lines =  annualMaxima(plotdatasmoothed$EVI,plotdatasmoothed$dates)
   
-
-
-  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
-        ymin = -Inf, ymax = Inf), alpha = 0.4)+
-        geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
-	geom_vline(colour='blue',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+ 
-        geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
-        geom_vline(colour='orange',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
-	annotate("text", x =(PlantHarvest$planting[1]+60), y = 0.375, label = "Wheat")+
-        annotate("text", x =(PlantHarvest$harvest[1]+90), y = 0.3, label = "Rice")
-
 
 
 # Example function calls ---------------------------------------------------
 
-  plant_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_in=PlantHarvest$planting,days_before=30)
+  plant_lines =  AnnualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_in=PlantHarvest$planting,days_shift=30,dir='before')
 
-  harvest_lines =  annualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_in=PlantHarvest$harvest,days_before=30)
+  harvest_lines =  AnnualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_in=PlantHarvest$harvest,days_shift=30,dir='after')
 
-  max_lines =  AnnualMaxima(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
+  # correct the number of elements in each date vector (assigns last day if no final harvest date available) 
+  plant_lines = correct_dates(dates_in= plotdatasmoothed$dates, dates_str=plant_lines, dates_end=harvest_lines)[[1]]
+  harvest_lines = correct_dates(dates_in= plotdatasmoothed$dates, dates_str=plant_lines, dates_end=harvest_lines)[[2]]
+
+  max_lines =  PeriodAggregatorDates(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        date_range_st=plant_lines, date_range_end=harvest_lines,
+        by_in='days',FUN=function(x)max(x,na.rm=T))
+
+  AnnualMaxima(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
 
   AnnualMaximaValue(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
 
@@ -203,27 +202,59 @@ registerDoParallel(16)
   AnnualAUC(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
 
   AnnualMinumumBeforeDOY(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_in=PlantHarvest$planting,days_before=30)
+        DOY_in=PlantHarvest$planting,days_shift=30,dir='before')
 
-  PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        DOY_start_in=PlantHarvest$planting,DOY_end_in=PlantHarvest$harvest)
+  # estimates AUC for whole growing season
+  growing_AUC = PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_start_in=plant_lines,DOY_end_in=harvest_lines)
+
+  # estimates AUC for first 1/2 of growing season
+  leading_AUC = PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_start_in=plant_lines,DOY_end_in=max_lines)
+
+  # estimates AUC for second 1/2 of growing season
+  trailing_AUC = PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        DOY_start_in=max_lines,DOY_end_in=harvest_lines)
+
+  # compare each year to mean AUC
+  growing_AUC-mean(growing_AUC,na.rm=T)
 
 
 
 
+  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+        ymin = -Inf, ymax = Inf), alpha = 0.4)+
+        geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
+        geom_vline(colour='blue',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='orange',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
+        annotate("text", x =(PlantHarvest$planting[1]+60), y = 0.375, label = "Wheat")+
+        annotate("text", x =(PlantHarvest$harvest[1]+90), y = 0.3, label = "Rice")
 
 
 
+  # Run functions on list of points 
+  ptm <- proc.time()
+  cell = cellFromXY(NDVI_stack_h24v05, crops[crops$id ==2,])
+  r = rasterFromCells(NDVI_stack_h24v05, cell,values=F)
+  registerDoParallel(16)
+  result = foreach(i = 1:dim(NDVI_stack_h24v05)[3],.packages='raster',.inorder=T) %dopar% {
+     crop(NDVI_stack_h24v05[[i]],r)
+  }
+  result2 = getValues(stack(result))
+  endCluster()
+  proc.time() - ptm
 
+  plot(1:length(result2),result2)
 
+  ptm <- proc.time()
+  result3 =  extract(NDVI_stack_h24v05,crops[crops$id ==2,])
+  proc.time() - ptm
 
+  identical(as.numeric(result2),as.numeric(result3))
 
 
 # Run functions on stacks -----------------------------------------
-# newextent = extent(500000,600000,1000000,1100000)
-# EVI_crop = crop(EVI_stack,newextent)
-# DOY_crop = crop(DOY_stack,newextent)
-# plot(EVI_crop[[1]])
 
 
 #Determine optimal block size for loading in MODIS stack data

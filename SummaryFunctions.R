@@ -197,8 +197,9 @@
 
 
 
+
 extract_stack_point_polygon = function(point_or_polygon, raster_stack, num_workers){
-          # Create raster stack containing only values from locations of spatial points or polygons
+          # Returns raster stack containing only locations of spatial points or polygons
           lapply(c('raster','foreach','doParallel'), require, character.only = T)
           registerDoParallel(num_workers)
           ptm <- proc.time()
@@ -210,16 +211,44 @@ extract_stack_point_polygon = function(point_or_polygon, raster_stack, num_worke
                 if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
                     cell = as.numeric(na.omit(cellFromXY(raster_stack, point_or_polygon[j,])))}
                 if(length(cell)==0)return(NA)
-                r = rasterFromCells(raster_stack, cell[[1]],values=F)
+                r = rasterFromCells(raster_stack, cell,values=F)
                 result = foreach(i = 1:dim(raster_stack)[3],.packages='raster',.inorder=T) %dopar% {
                    crop(raster_stack[[i]],r)
                 }
-          return(stack(result))
+                return(stack(result))
           }
           print( proc.time() - ptm)
           endCluster()
           return(ply_result)
 }
+
+
+extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
+          # Returns list containing values from locations of spatial points or polygons
+          lapply(c('raster','foreach','doParallel'), require, character.only = T)
+          registerDoParallel(num_workers)
+          ptm <- proc.time()
+          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
+                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
+                get_class= class(point_or_polygon)[1]
+                if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
+                    cell = as.numeric(na.omit(cellFromPolygon(raster_stack, point_or_polygon[j], weights=F)[[1]]))}
+                if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
+                    cell = as.numeric(na.omit(cellFromXY(raster_stack, point_or_polygon[j,])))}
+                if(length(cell)==0)return(NA)
+                r = rasterFromCells(raster_stack, cell,values=F)
+                result = foreach(i = 1:dim(raster_stack)[3],.packages='raster',.inorder=T) %dopar% {
+                   crop(raster_stack[[i]],r)
+                }
+                result=as.data.frame(getValues(stack(result)))
+                return(result)
+          }
+          print( proc.time() - ptm)
+          endCluster()
+          return(ply_result)
+}
+
+
 
 
 

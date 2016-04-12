@@ -54,19 +54,24 @@
     datesY = format(dates_in,'%Y')
     do.call(c,lapply(split(x,datesY),FUN))}
 
+
   correct_dates = function(dates_in, dates_str, dates_end){
     # handle plant or harvest dates with a different lengths
     # returns corrected start dates in list [[1]] and corrected end dates in [[2]]
+    if(class(dates_in)[1]== "POSIXct" )dates_in = as.Date(dates_in)
+
     length_diff = length(dates_str)-length(dates_end)
     if(length_diff!=1){stop('difference in date lengths can only be =1')}else{
-		if(length_diff==1){dates_end=c(dates_end,dates_in[length(dates_in)])}
-                if(length_diff==-1){dates_str=c(dates_str,dates_in[1])}
-	list(dates_str,dates_end)}
-	}
+                if(length_diff==1){dates_end =  as.Date(c(as.character(dates_end),
+			as.character(dates_in[length(dates_in)])))  }
+                if(length_diff==-1){dates_str = c(dates_str,dates_in[1])}
+        list(dates_str,dates_end)}
+    }
 
 
   PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
     # returns a summary statistic of x for the period defined by date_range_st, date_range_end
+    if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
     if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
     #Avoid problems with missing plant or harvest dates
@@ -83,19 +88,20 @@
     }
 
 
- PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-    # returns a summary statistic of x for the period defined by date_range_st, date_range_end
-    if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+   PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+    	# returns a summary statistic of x for the period defined by date_range_st, date_range_end
+    	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+    	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
-    #Avoid problems with missing plant or harvest dates
-    if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
-                break}
-    dataout=lapply(1:length(date_range_st),function(z){
-        DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
-        x=x[dates_in %in% DateRange]
-        dates_in=dates_in[dates_in %in% DateRange]
-        dates_in[which(FUN(x) ==  x)]
-	})
+    	#Avoid problems with missing plant or harvest dates
+    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+    	            break}
+    	dataout=lapply(1:length(date_range_st),function(z){
+    	    DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+    	    x=x[dates_in %in% DateRange]
+    	    dates_in=dates_in[dates_in %in% DateRange]
+    	    dates_in[which(FUN(x) ==  x)]
+		})
         dataout = do.call(c,dataout)
         names(dataout)=format(date_range_st,'%Y')
         dataout
@@ -139,41 +145,42 @@
 	}
 
 
- AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_shift,dir){
-    # calculates the annual minimum for days_before days before each DOY for planting season
-    # best to set DOY as the last expected date of planting
-    if(days_shift<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
-    #x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of planting harvest
-    tempDOY = as.POSIXlt(DOY_in)
-    # avoid problems with time class
-    if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
-    if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
-    # limit to fixed # of days before DOY
-    DOY_before = tempDOY
-    #names(unclass(DOY_before[1]))
-    if(dir=='before') DOY_before$mday=DOY_before$mday-days_shift      # set days before to doy - days_before
-    if(dir=='after') DOY_before$mday=DOY_before$mday+days_shift      # set days before to doy - days_before
-    DOY_table = data.frame(DOY_before=DOY_before,DOY_in=as.POSIXlt(DOY_in))   #match DOY with Days_be$
-    # get all days 'days_before' DOY_in in a list
- if(dir=='before'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
-		function(h){format(seq(DOY_table[h,1],
-                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')}
- if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
-		function(h){format(seq(DOY_table[h,2],
-                DOY_table[h,1],by='day'),'%Y-%m-%d')})),tz='UTC')}
+    AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_shift,dir){
+    	# calculates the annual minimum for days_before days before each DOY for planting season
+    	# best to set DOY as the last expected date of planting
+    	if(days_shift<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
+    	#x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of planting harvest
+    	tempDOY = as.POSIXlt(DOY_in)
+    	# avoid problems with time class
+    	if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
+    	if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
+    	# limit to fixed # of days before DOY
+    	DOY_before = tempDOY
+    	#names(unclass(DOY_before[1]))
+    	if(dir=='before') DOY_before$mday=DOY_before$mday-days_shift      # set days before to doy - days_before
+    	if(dir=='after') DOY_before$mday=DOY_before$mday+days_shift      # set days before to doy - days_before
+    	DOY_table = data.frame(DOY_before=DOY_before,DOY_in=as.POSIXlt(DOY_in))   #match DOY with Days_be$
+    	# get all days 'days_before' DOY_in in a list
+ 	if(dir=='before'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+			function(h){format(seq(DOY_table[h,1],
+	                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')}
+	 if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+			function(h){format(seq(DOY_table[h,2],
+	                DOY_table[h,1],by='day'),'%Y-%m-%d')})),tz='UTC')}
 
-    # find all local minima, and match with DOY
-    x_DOY_interest = x[dates_in %in% DOY_interest]
-    dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
-    # get min value for this period for each year
-    sort(AnnualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
- }
+	    # find all local minima, and match with DOY
+	    x_DOY_interest = x[dates_in %in% DOY_interest]
+	    dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
+	    # get min value for this period for each year
+	    sort(AnnualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
+    }
 
 
    PeriodAUC = function(x_in,dates_in,DOY_start_in,DOY_end_in){
          # calculate area under the curve by period of the year
          # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
          # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
+        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
 
          dates_group = rep(0,length(dates_in))    # create storage for factors of periods
   	 # get sequences of periods of inerest
@@ -247,6 +254,7 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
           endCluster()
           return(ply_result)
 }
+
 
 
 

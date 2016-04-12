@@ -43,75 +43,6 @@ registerDoParallel(16)
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-$
 
 
-# Function  --------------------------------------------------
- 
-  EVI_Stat = function(EVI_rows,DOY_rows){
-      require(sp)
-      require(raster)      
-      require(MESS)
-      #smooth new EVI data    
-      smooth_holderl = lapply( 1:dim(EVI_rows)[1], function(i)  SplineAndOutlierRemoval(x = EVI_rows[i,], 
-		dates=dates, pred_dates=pred_dates,spline_spar = 0.4) )
-      #calculate stats 
-      corwet = as.numeric(unlist(lapply(1:length(smooth_holderl), function(x) if(!is.na(smooth_holderl[[x]][1])){cor(smooth_holderl[[x]],smooth_sample_dryagri_mean)}else{NA} )  ) ) #correlation with dry agriculture
-      cordry = as.numeric(unlist(lapply(1:length(smooth_holderl), function(x) if(!is.na(smooth_holderl[[x]][1])){cor(smooth_holderl[[x]],smooth_sample_wetagri_mean)}else{NA} )  ) ) 
-      mean = as.numeric(unlist(lapply(1:length(smooth_holderl), function(x) mean(smooth_holderl[[x]]) )  ) )
-      sd = as.numeric(unlist(lapply(1:length(smooth_holderl), function(x) sd(smooth_holderl[[x]]) )  ) )
-      max = as.numeric(unlist(lapply(1:length(smooth_holderl), function(x) max(smooth_holderl[[x]]) )  ) )
-      min = as.numeric(unlist(lapply(1:length(smooth_holderl), function(x) min(smooth_holderl[[x]]) )  ) )
-      localMax = lapply(1:length(smooth_holderl),function(x)  pred_dates[localMaxima(smooth_holderl[[x]])]   )
-      peaks = unlist(lapply(1:length(localMax), function(x) length(localMax[[x]]))) # number of local maximums over period
-      # find minimum closest to rainy season onset DOY
-      colnames(DOY_rows)=format(dates2,"%Y")
-      DOY = t(apply(round(DOY_rows[,],0),1,function(x) paste(names(x),x,sep='')))
-      greenupdate = lapply(1:length(smooth_holderl),function(i) annualMinumumNearDOY(x=smooth_holderl[[i]],dates=pred_dates,DOY_in=DOY[i,]))
-      #greenupdate2= lapply(1:length(smooth_holderl),function(i) annualMaxima((smooth_holderl[[i]]*-1),pred_dates)) # date of annual manimum 
-      maxupdate   = lapply(1:length(smooth_holderl),function(i) annualMaxima(smooth_holderl[[i]],pred_dates)) # date of annual maximum 
-      maxupvalue   = lapply(1:length(maxupdate),function(i) annualMaximaValue(smooth_holderl[[i]],pred_dates) ) # date of annual maximum      # calculate area under curve for total, increasing (portion), and decreasing (portion) of EVI curve
-      aucer = function(row){
-          hold_list= vector('list',1)
-          for( elements in 1:(length(greenupdate[[row]])-1) ){     # the -1 restricts it to 2010,2011,2012
-              if(length(greenupdate[[row]])==0){ # if row is empty 
-                hold_list[[1]][[1]] =c(NA,NA,NA)  # store NAs if no data available
-                hold_list[[1]][[2]] =c(NA,NA,NA)  
-                hold_list[[1]][[3]] =c(NA,NA,NA)  
-                break 
-              }
-            require(MESS)
-            finder_TOTauc = pred_dates>=greenupdate[[row]][elements] & pred_dates <greenupdate[[row]][elements+1]
-            finder_DECauc = pred_dates>=maxupdate[[row]][elements] & pred_dates <greenupdate[[row]][elements+1]
-            finder_INCauc = pred_dates>=greenupdate[[row]][elements] & pred_dates <maxupdate[[row]][elements]
-            # AUC is based on local minimum nearest to DOY of rainfall onset
-            TOTauc = auc(pred_dates[finder_TOTauc],smooth_holderl[[row]][finder_TOTauc], type = 'spline')*0.000001  # auc in millions
-            DECauc = auc(pred_dates[finder_DECauc],smooth_holderl[[row]][finder_DECauc], type = 'spline')*0.000001
-            INCauc = auc(pred_dates[finder_INCauc],smooth_holderl[[row]][finder_INCauc], type = 'spline')*0.000001
-            # AUC2 is based on annual minimum
-            hold_list[[1]][[elements]] =c(TOTauc,DECauc,INCauc) #,TOTaucB,DECaucB,INCaucB
-          }
-          return(hold_list)
-       }
-      outer = lapply(1:length(greenupdate),function(x) aucer(x))
-      TOTauc1 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[1]][1])))
-      TOTauc2 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[2]][1])))
-      TOTauc3 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[3]][1])))
-      DECauc1 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[1]][2])))
-      DECauc2 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[2]][2])))
-      DECauc3 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[3]][2])))
-      INCauc1 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[1]][3])))
-      INCauc2 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[2]][3])))
-      INCauc3 = as.numeric(unlist(lapply(1:length(outer), function(x) outer[[x]][[1]][[3]][3])))
-      max1 = as.numeric(unlist(lapply(1:length(maxupvalue), function(x) maxupvalue[[x]]['2010',])))
-      max2 = as.numeric(unlist(lapply(1:length(maxupvalue), function(x) maxupvalue[[x]]['2011',])))
-      max3 = as.numeric(unlist(lapply(1:length(maxupvalue), function(x) maxupvalue[[x]]['2012',])))
-      if(length(max1)==0){
-        max1 = NA
-        max2 = NA
-        max3 = NA
-      }
-      return(cbind(corwet,cordry,mean,sd,max,min,peaks,TOTauc1,TOTauc2,TOTauc3,DECauc1,DECauc2,DECauc3,INCauc1,INCauc2,INCauc3,max1,max2,max3))#TOTaucB,DECaucB,INCaucB
-  } 
-
-
 
 # Check functions ----------------------------------------------
 # Load Data Layers 
@@ -123,7 +54,7 @@ registerDoParallel(16)
   lapply(dir1, load,.GlobalEnv)
 
 
-   plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
+  plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
 
   # get LC examples
   ogrInfo('../LandCoverTrainingData','IndiaLandCoverExamples')
@@ -232,6 +163,111 @@ registerDoParallel(16)
         annotate("text", x =(PlantHarvest$harvest[1]+90), y = 0.3, label = "Rice")
 
 
+
+# Extract polygon or points data from stacks ------------------------
+
+  xys= c(76.27797,28.39791,
+	76.30543,28.39761,
+	76.30548,28.40236,
+	76.27668,28.40489)
+  pt <- matrix(xys, ncol=2, byrow=TRUE)
+  pt <- SpatialPolygons(list(Polygons(list(Polygon(pt)), ID="a"),
+	Polygons(list(Polygon(pt)), ID="b")));
+  proj4string(pt) <-"+proj=longlat +datum=WGS84 +ellps=WGS84"
+  pt <- spTransform(pt, CRS("+proj=sinu +a=6371007.181 +b=6371007.181 +units=m"))
+
+
+  # extract stacks croped to point or polygon
+  out = extract_stack_point_polygon(crops[7:8,],NDVI_stack_h24v06,16)
+
+  # extract values croped to point or polygon
+  out2 = extract_value_point_polygon(pt,NDVI_stack_h24v06,16)
+  out3 = extract_value_point_polygon(crops,NDVI_stack_h24v06,16)
+
+
+
+  # Get planting and harvest dates
+  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
+        PlantingDay=23,HarvestMonth=4,HarvestDay=30)
+
+
+  extr_values=out2
+  PlantHarvestTable = PlantHarvest
+  Annual_Summary_Functions=function(extr_values, PlantHarvestTable){
+     # take in values from extract_value_point_polygon and create annual summary statistics
+     result_summary=foreach(i in 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
+	if(is.na(extr_values[[i]])) return(NA) # avoid empties
+	# Get dates from stack names
+	dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j') 
+	# Calculate smoothed values
+	smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+	    x = as.numeric(extr_values[[i]][z,]),
+            dates=as.Date(dats), 
+	    pred_dates=as.Date(dats),spline_spar = 0.2)})
+
+	# estimate planting and harvest dates
+  	plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+	    dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
+  	harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
+  	# correct the number of elements in each date vector (assigns last day if no final harvest date available)
+        plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
+                dates_end=harvest_dates[[z]])[[1]] })
+  	harvest_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]], 
+		dates_end=harvest_dates[[z]])[[2]] })
+	
+	# Annual statistics
+  	A_mn = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]], 
+		dates_in = dats, FUN=function(x)mean(x,na.rm=T))})
+  	A_min = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]], 
+		dates_in = dats, FUN=function(x)min(x,na.rm=T))})
+  	A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]], 
+		dates_in = dats, FUN=function(x)max(x,na.rm=T))})
+	A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
+	
+	# Growing season statistics
+	G_mx_dates = lapply(1:length(smooth),function(z){ PeriodAggregatorDates(x = smooth[[z]], 
+		dates_in = dats, date_range_st=plant_dates[[z]], 
+		date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T))})
+	G_mn = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) mean(x,na.rm=T)) })
+        G_min = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) min(x,na.rm=T)) })
+        G_mx = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
+	G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+        	DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+        G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+                DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
+        G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+                DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+	G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
+
+	# collect all data products
+	list(G_AUC=G_AUC)
+
+
+
+
+     }
+  }
+
+
+
+  max_lines =  PeriodAggregatorDates(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        date_range_st=plant_lines, date_range_end=harvest_lines,
+        by_in='days',FUN=function(x)max(x,na.rm=T))
+
+
+
+
+
+
+
+# Working demo extact values ---------------------------------------
 
   # Run functions on list of points 
   ptm <- proc.time()

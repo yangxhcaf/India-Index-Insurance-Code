@@ -123,7 +123,7 @@ registerDoParallel(16)
   AnnualAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,FUN=function(x)max(x,na.rm=T))
 
   PeriodAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        date_range_st=PlantHarvest$planting, date_range_end=PlantHarvest$harvest,
+        date_range_st=plant_lines, date_range_end=harvest_lines,
         by_in='days',FUN=function(x)max(x,na.rm=T))
 
   AnnualMinumumNearDOY(x,dates_in,DOY_in=PlantHarvest$planting[1])
@@ -139,6 +139,7 @@ registerDoParallel(16)
   growing_AUC = PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
         DOY_start_in=plant_lines,DOY_end_in=harvest_lines)
 
+
   # estimates AUC for first 1/2 of growing season
   leading_AUC = PeriodAUC(x_in = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
         DOY_start_in=plant_lines,DOY_end_in=max_lines)
@@ -150,6 +151,10 @@ registerDoParallel(16)
   # compare each year to mean AUC
   growing_AUC-mean(growing_AUC,na.rm=T)
 
+  # calculate global quantiles for periods of interest
+  GlobalPeriodAggregator(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
+        date_range_st=plant_lines, date_range_end=harvest_lines,
+        by_in='days',FUN=function(x)quantile(x,0.05,type=8,na.rm=T))
 
 
 
@@ -170,18 +175,18 @@ registerDoParallel(16)
 	76.30543,28.39761,
 	76.30548,28.40236,
 	76.27668,28.40489)
-  pt <- matrix(xys, ncol=2, byrow=TRUE)
-  pt <- SpatialPolygons(list(Polygons(list(Polygon(pt)), ID="a"),
-	Polygons(list(Polygon(pt)), ID="b")));
-  proj4string(pt) <-"+proj=longlat +datum=WGS84 +ellps=WGS84"
-  pt <- spTransform(pt, CRS("+proj=sinu +a=6371007.181 +b=6371007.181 +units=m"))
+  poly = matrix(xys, ncol=2, byrow=TRUE)
+  poly = SpatialPolygons(list(Polygons(list(Polygon(poly)), ID="a"),
+	Polygons(list(Polygon(poly)), ID="b")));
+  proj4string(poly) <-"+proj=longlat +datum=WGS84 +ellps=WGS84"
+  poly = spTransform(poly, CRS("+proj=sinu +a=6371007.181 +b=6371007.181 +units=m"))
 
 
   # extract stacks croped to point or polygon
   out = extract_stack_point_polygon(crops[7:8,],NDVI_stack_h24v06,16)
 
   # extract values croped to point or polygon
-  out2 = extract_value_point_polygon(pt,NDVI_stack_h24v06,16)
+  out2 = extract_value_point_polygon(poly,NDVI_stack_h24v06,16)
   out3 = extract_value_point_polygon(crops,NDVI_stack_h24v06,16)
 
 
@@ -193,67 +198,10 @@ registerDoParallel(16)
 
   extr_values=out2
   PlantHarvestTable = PlantHarvest
-  Annual_Summary_Functions=function(extr_values, PlantHarvestTable){
-     # take in values from extract_value_point_polygon and create annual summary statistics
-     result_summary=foreach(i in 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
-	if(is.na(extr_values[[i]])) return(NA) # avoid empties
-	# Get dates from stack names
-	dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j') 
-	# Calculate smoothed values
-	smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
-	    x = as.numeric(extr_values[[i]][z,]),
-            dates=as.Date(dats), 
-	    pred_dates=as.Date(dats),spline_spar = 0.2)})
+  Quant_percentile=0.05
+ 
 
-	# estimate planting and harvest dates
-  	plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-	    dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
-  	harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
-  	# correct the number of elements in each date vector (assigns last day if no final harvest date available)
-        plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
-                dates_end=harvest_dates[[z]])[[1]] })
-  	harvest_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]], 
-		dates_end=harvest_dates[[z]])[[2]] })
-	
-	# Annual statistics
-  	A_mn = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]], 
-		dates_in = dats, FUN=function(x)mean(x,na.rm=T))})
-  	A_min = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]], 
-		dates_in = dats, FUN=function(x)min(x,na.rm=T))})
-  	A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]], 
-		dates_in = dats, FUN=function(x)max(x,na.rm=T))})
-	A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
-	
-	# Growing season statistics
-	G_mx_dates = lapply(1:length(smooth),function(z){ PeriodAggregatorDates(x = smooth[[z]], 
-		dates_in = dats, date_range_st=plant_dates[[z]], 
-		date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T))})
-	G_mn = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) mean(x,na.rm=T)) })
-        G_min = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) min(x,na.rm=T)) })
-        G_mx = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
-	G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
-        	DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-        G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
-                DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
-        G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
-                DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-	G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
-
-	# collect all data products
-	list(G_AUC=G_AUC)
-
-
-
-
-     }
-  }
+ a= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile)
 
 
 

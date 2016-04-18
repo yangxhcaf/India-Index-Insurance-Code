@@ -87,6 +87,23 @@
 	dataout
     }
 
+    GlobalPeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+    # returns a *single* summary statistic of x for all periods defined by date_range_st, date_range_end
+    if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+    if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+                                             date_range_end = as.Date(date_range_end)}
+    #Avoid problems with missing plant or harvest dates
+    if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+                break}
+    # get data for ranges and cbind then run function
+    dataout=lapply(1:length(date_range_st),function(z){
+        DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+        x[dates_in %in% DateRange]})
+        dataout = do.call(c,dataout)
+        FUN(dataout)
+    }
+
+
 
    PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
     	# returns a summary statistic of x for the period defined by date_range_st, date_range_end
@@ -256,6 +273,80 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
 }
 
 
+
+
+
+stats =  Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile){
+     # take in values from extract_value_point_polygon and create annual summary statistics
+     
+     # iterate between spatial objects
+     result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
+	if(is.na(extr_values[[i]])) return(NA) # avoid empties
+
+        # Get dates from stack names
+        dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
+        # Calculate smoothed values
+        smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+            x = as.numeric(extr_values[[i]][z,]),
+            dates=as.Date(dats),
+            pred_dates=as.Date(dats),spline_spar = 0.2)})
+
+        # estimate planting and harvest dates
+        plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
+        harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
+        # correct the number of elements in each date vector (assigns last day if no final harvest date available)
+        plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
+                dates_end=harvest_dates[[z]])[[1]] })
+        harvest_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
+                dates_end=harvest_dates[[z]])[[2]] })
+
+        # Annual statistics
+        A_mn = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+                dates_in = dats, FUN=function(x)mean(x,na.rm=T))})
+        A_min = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+                dates_in = dats, FUN=function(x)min(x,na.rm=T))})
+        A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+                dates_in = dats, FUN=function(x)max(x,na.rm=T))})
+        A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
+
+        A_Qnt = lapply(1:length(smooth),function(z){quantile(x = smooth[[z]],p=Quant_percentile,type=8,na.rm=T) })
+
+        # Growing season statistics
+        G_mx_dates = lapply(1:length(smooth),function(z){ PeriodAggregatorDates(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T))})
+        G_mn = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) mean(x,na.rm=T)) })
+        G_min = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) min(x,na.rm=T)) })
+        G_mx = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
+        G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+                DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+
+        G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+                DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
+        G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+                DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+        G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
+
+        G_Qnt = lapply(1:length(smooth),function(z){ GlobalPeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x)
+                quantile(x,p=Quant_percentile,type=8,na.rm=T)) })
+
+        # collect all data products
+        list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,A_min=A_min,
+                A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,
+                G_AUC_leading=G_AUC_leading,G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_Qnt=G_Qnt)
+
+     }
+  }
 
 
 

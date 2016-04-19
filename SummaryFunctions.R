@@ -222,47 +222,34 @@
 
 
 
-extract_stack_point_polygon = function(point_or_polygon, raster_stack, num_workers){
-          # Returns raster stack containing only locations of spatial points or polygons
-          lapply(c('raster','foreach','doParallel'), require, character.only = T)
-          registerDoParallel(num_workers)
-          ptm <- proc.time()
-          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
-                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
-                get_class= class(point_or_polygon)[1]
-                if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                    cell = as.numeric(na.omit(cellFromPolygon(raster_stack, point_or_polygon[j], weights=F)[[1]]))}
-                if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
-                    cell = as.numeric(na.omit(cellFromXY(raster_stack, point_or_polygon[j,])))}
-                if(length(cell)==0)return(NA)
-                r = rasterFromCells(raster_stack, cell,values=F)
-                result = foreach(i = 1:dim(raster_stack)[3],.packages='raster',.inorder=T) %dopar% {
-                   crop(raster_stack[[i]],r)
-                }
-                return(stack(result))
-          }
-          print( proc.time() - ptm)
-          endCluster()
-          return(ply_result)
-}
-
-
 extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
           # Returns list containing values from locations of spatial points or polygons
+          if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
           lapply(c('raster','foreach','doParallel'), require, character.only = T)
           registerDoParallel(num_workers)
           ptm <- proc.time()
           ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
                 print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
                 get_class= class(point_or_polygon)[1]
-                if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                    cell = as.numeric(na.omit(cellFromPolygon(raster_stack, point_or_polygon[j], weights=F)[[1]]))}
-                if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
-                    cell = as.numeric(na.omit(cellFromXY(raster_stack, point_or_polygon[j,])))}
-                if(length(cell)==0)return(NA)
-                r = rasterFromCells(raster_stack, cell,values=F)
-                result = foreach(i = 1:dim(raster_stack)[3],.packages='raster',.inorder=T) %dopar% {
-                   crop(raster_stack[[i]],r)
+                # switch rasterstack according to which point or polygon is %over%
+                for(z in 1:length(raster_stack)){
+                        # set raster to use
+                        raster_stack_use = raster_stack[[z]]
+                        # get cell numbers of point of polygon, repeat if missing
+                        if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
+                            cell = as.numeric(na.omit(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]]))}
+                        if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
+                            cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
+                        # if cells found keep raster_stack_use = raster_stack[[z]]
+                        if(length(cell)!=0){break}
+                        # if cells not found repeat for different stack
+                        if(length(cell)==0 & z!=length(raster_stack)){ next}else{return(NA)}
+                }
+
+                # create raster mask from cell numbers
+                r = rasterFromCells(raster_stack_use, cell,values=F)
+                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
+                   crop(raster_stack_use[[i]],r)
                 }
                 result=as.data.frame(getValues(stack(result)))
                 return(result)
@@ -357,3 +344,33 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
 
 
 
+PolygonFromExtent <-function(ext, asSpatial=T, crs=CRS(NA), id=1)
+{
+  if(class(ext)== "RasterLayer")
+  {
+    # if raster supplied determine extent and crs then proceed
+    crs <- ext@crs
+    ext <- extent(ext)
+  }
+  if(class(ext)== "Extent")
+        x1 <- ext@xmin
+        x2 <- ext@xmax
+        y1 <- ext@ymin
+        y2<-ext@ymax
+
+        coords <- matrix(c(x1, y1,
+                                           x1, y2,
+                                           x2, y2,
+                                           x2, y1,
+                                           x1, y1), ncol=2, byrow=T)
+
+        poly <- Polygon(coords)
+        if(asSpatial)
+        {
+                spPoly <- SpatialPolygons(list(Polygons(list(poly), ID=id)), proj4string=crs)
+                return(spPoly)
+
+        }
+        return(poly)
+
+}

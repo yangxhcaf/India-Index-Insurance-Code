@@ -274,14 +274,14 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
 
 
 
+ Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile,aggregate=F){
+     # take in values from extract_value_point_polygon and create annual and global summary statistics
+     # returns a list where elements are composed of annual and growing season statistics
+     # if aggregate=T, pixels comprising a polygon are smoothed and then the average signal is obtained, statistics are run from that
 
-
-stats =  Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile){
-     # take in values from extract_value_point_polygon and create annual summary statistics
-     
      # iterate between spatial objects
      result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
-	if(is.na(extr_values[[i]])) return(NA) # avoid empties
+        if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
 
         # Get dates from stack names
         dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
@@ -290,6 +290,10 @@ stats =  Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_
             x = as.numeric(extr_values[[i]][z,]),
             dates=as.Date(dats),
             pred_dates=as.Date(dats),spline_spar = 0.2)})
+
+        # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
+        # create a mean value for smoothed data
+        if(aggregate==T){smooth = list(Reduce("+", smooth) / length(smooth))}
 
         # estimate planting and harvest dates
         plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
@@ -312,6 +316,7 @@ stats =  Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_
         A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
 
         A_Qnt = lapply(1:length(smooth),function(z){quantile(x = smooth[[z]],p=Quant_percentile,type=8,na.rm=T) })
+
 
         # Growing season statistics
         G_mx_dates = lapply(1:length(smooth),function(z){ PeriodAggregatorDates(x = smooth[[z]],
@@ -347,6 +352,7 @@ stats =  Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_
 
      }
   }
+
 
 
 

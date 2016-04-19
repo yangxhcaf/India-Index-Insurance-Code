@@ -185,10 +185,11 @@ registerDoParallel(16)
 
 
   # extract values croped to point or polygon
-  out2 = extract_value_point_polygon(poly,NDVI_stack_h24v06,16)
-  out3 = extract_value_point_polygon(crops,NDVI_stack_h24v06,16)
 
-
+  out2 = extract_value_point_polygon(poly,list(NDVI_stack_h24v06,NDVI_stack_h24v05)raster_stack,16)
+          ptm <- proc.time()
+  out3 = extract_value_point_polygon(crops,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+print( proc.time() - ptm)
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
@@ -209,89 +210,63 @@ registerDoParallel(16)
 
 
 
+extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
+          # Returns list containing values from locations of spatial points or polygons
+	  if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
+          lapply(c('raster','foreach','doParallel'), require, character.only = T)
+          registerDoParallel(num_workers)
+          ptm <- proc.time()
+          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T,.packages='rgepos') %do%{
+                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
+                get_class= class(point_or_polygon)[1]
+		# switch rasterstack according to which point or polygon is %over% 
+		for(z in 1:length(raster_stack)){
+                   # create polygon for each raster stack
+		      	if(!is.na(point_or_polygon[j,] %over% PolygonFromExtent(raster_stack[[z]][[1]]))){
+		   
+		  
+		    # if point or poly is over raster stack (if true for multiple 'last' is used) 
+		     raster_stack_use = raster_stack[[z]]
+		   } else{
+			raster_stack_use = raster_stack[[1]]
+			}
+		}
+                # get cell numbers of point of polygon, return NA if not %over%
+                if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
+                    cell = as.numeric(na.omit(cellFromPolygon(raster_stack_use, point_or_polygon[j], weights=F)[[1]]))}
+                if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
+                    cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
+                if(length(cell)==0)return(NA)
+		# create raster mask from cell numbers
+                r = rasterFromCells(raster_stack_use, cell,values=F)
+                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
+                   crop(raster_stack_use[[i]],r)
+                }
+                result=as.data.frame(getValues(stack(result)))
+                return(result)
+          }
+          print( proc.time() - ptm)
+          endCluster()
+          return(ply_result)
+}
 
- max_lines =  PeriodAggregatorDates(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,
-        date_range_st=plant_lines, date_range_end=harvest_lines,
-        by_in='days',FUN=function(x)max(x,na.rm=T))
 
 
- Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile,aggregate=F){
-     # take in values from extract_value_point_polygon and create annual and global summary statistics
-     # returns a list where elements are composed of annual and growing season statistics
-     # if aggregate=T, pixels comprising a polygon are smoothed and then the average signal is obtained, statistics are run from that
+# check if point is over a raster stack
+sp::over(point_or_polygon[2,],PolygonFromExtent(raster_stack[[1]][[1]]  ))
 
-     # iterate between spatial objects
-     result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
-        if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
 
-        # Get dates from stack names
-        dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
-        # Calculate smoothed values
-        smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
-            x = as.numeric(extr_values[[i]][z,]),
-            dates=as.Date(dats),
-            pred_dates=as.Date(dats),spline_spar = 0.2)})
 
-	# if aggregate = T, summarize multiple pixels per polygon into one smooth time series
-        # create a mean value for smoothed data 
-	if(aggregate==T){smooth = list(Reduce("+", smooth) / length(smooth))}
 
-        # estimate planting and harvest dates
-        plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
-        harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
-        # correct the number of elements in each date vector (assigns last day if no final harvest date available)
-        plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
-                dates_end=harvest_dates[[z]])[[1]] })
-        harvest_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
-                dates_end=harvest_dates[[z]])[[2]] })
 
-        # Annual statistics
-        A_mn = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
-                dates_in = dats, FUN=function(x)mean(x,na.rm=T))})
-        A_min = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
-                dates_in = dats, FUN=function(x)min(x,na.rm=T))})
-        A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
-                dates_in = dats, FUN=function(x)max(x,na.rm=T))})
-        A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
 
-        A_Qnt = lapply(1:length(smooth),function(z){quantile(x = smooth[[z]],p=Quant_percentile,type=8,na.rm=T) })
 
-        # Growing season statistics
-        G_mx_dates = lapply(1:length(smooth),function(z){ PeriodAggregatorDates(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T))})
-        G_mn = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) mean(x,na.rm=T)) })
-        G_min = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) min(x,na.rm=T)) })
-        G_mx = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
-        G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
-                DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
 
-        G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
-                DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
-        G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
-                DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-        G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
 
-        G_Qnt = lapply(1:length(smooth),function(z){ GlobalPeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x)
-                quantile(x,p=Quant_percentile,type=8,na.rm=T)) })
 
-        # collect all data products
-        list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,A_min=A_min,
-                A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,
-                G_AUC_leading=G_AUC_leading,G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_Qnt=G_Qnt)
 
-     }
-  }
+
+
 
 
 

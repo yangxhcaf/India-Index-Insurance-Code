@@ -70,37 +70,39 @@
 
 
   PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-    # returns a summary statistic of x for the period defined by date_range_st, date_range_end
-    if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
-    if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+    	# returns a summary statistic of x for the period defined by date_range_st, date_range_end
+    	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+    	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
-    #Avoid problems with missing plant or harvest dates
-    if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+    	#Avoid problems with missing plant or harvest dates
+    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
 		break}
-    dataout=lapply(1:length(date_range_st),function(z){
-    	DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
-    	x=x[dates_in %in% DateRange]
-    	dates_in=dates_in[dates_in %in% DateRange]
-    	FUN(x)})
+    	dataout=lapply(1:length(date_range_st),function(z){
+    		DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+    		x=x[dates_in %in% DateRange]
+    		dates_in=dates_in[dates_in %in% DateRange]
+    		FUN(x)})
     	dataout = do.call(c,dataout)
 	names(dataout)=format(date_range_st,'%Y')
 	dataout
     }
 
-    GlobalPeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-    # returns a *single* summary statistic of x for all periods defined by date_range_st, date_range_end
-    if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
-    if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+
+
+   GlobalPeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+   	# returns a *single* summary statistic of x for all periods defined by date_range_st, date_range_end
+    	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+    	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
-    #Avoid problems with missing plant or harvest dates
-    if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+    	#Avoid problems with missing plant or harvest dates
+    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
                 break}
-    # get data for ranges and cbind then run function
-    dataout=lapply(1:length(date_range_st),function(z){
-        DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
-        x[dates_in %in% DateRange]})
-        dataout = do.call(c,dataout)
-        FUN(dataout)
+    	# get data for ranges and cbind then run function
+    	dataout=lapply(1:length(date_range_st),function(z){
+        	DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+        	x[dates_in %in% DateRange]})
+        	dataout = do.call(c,dataout)
+        	FUN(dataout)
     }
 
 
@@ -126,26 +128,26 @@
 
 
   AnnualMinumumNearDOY = function(x,dates_in,DOY_in){
-    #x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of rain onset as.Date
-    tempDOY = as.POSIXlt(DOY_in)
-    # avoid problems with time class
-    if(is.na(tempDOY[1])){print('ERROR: convert date format to as.Date()');break}
-    if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
-    # find all local minima, and match with DOY
-    tempMINdate = dates_in[localMaxima(x*-1)]
-    grid = expand.grid(tempDOY, tempMINdate)
-    # find best minimal per DOY
-    tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),
-        format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
-    whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)
-    grid[whichwasmin,2]
+    	#x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of rain onset as.Date
+    	tempDOY = as.POSIXlt(DOY_in)
+    	# avoid problems with time class
+    	if(is.na(tempDOY[1])){print('ERROR: convert date format to as.Date()');break}
+    	if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
+    	# find all local minima, and match with DOY
+    	tempMINdate = dates_in[localMaxima(x*-1)]
+    	grid = expand.grid(tempDOY, tempMINdate)
+    	# find best minimal per DOY
+    	tempout=do.call(rbind,lapply(split(as.numeric(abs(grid[,1]-grid[,2])),
+    	    	format(grid[,1],'%Y%j')),function(x)x[which.min(x)]))
+    	whichwasmin =  which(as.numeric(abs(grid[,1]-grid[,2])) %in% tempout)
+    	grid[whichwasmin,2]
   }
 
 
   AnnualAverageDOYvalues = function(x,dates_in){
-    # calculates the average value for DOY for the whole series
-    datesj = format(dates_in,'%j')
-    do.call(c,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
+    	# calculates the average value for DOY for the whole series
+    	datesj = format(dates_in,'%j')
+    	do.call(c,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
 
 
 
@@ -181,15 +183,15 @@
  	if(dir=='before'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
 			function(h){format(seq(DOY_table[h,1],
 	                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')}
-	 if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+	if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
 			function(h){format(seq(DOY_table[h,2],
 	                DOY_table[h,1],by='day'),'%Y-%m-%d')})),tz='UTC')}
 
-	    # find all local minima, and match with DOY
-	    x_DOY_interest = x[dates_in %in% DOY_interest]
-	    dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
-	    # get min value for this period for each year
-	    sort(AnnualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
+	# find all local minima, and match with DOY
+	x_DOY_interest = x[dates_in %in% DOY_interest]
+	dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
+	# get min value for this period for each year
+	sort(AnnualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
     }
 
 
@@ -222,12 +224,14 @@
 
 
 
-extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
+ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
           # Returns list containing values from locations of spatial points or polygons
+ 	  # if polygons are too small reverts to centroid 
           if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
           lapply(c('raster','foreach','doParallel'), require, character.only = T)
           registerDoParallel(num_workers)
           ptm <- proc.time()
+          # iterate between points or polygons
           ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
                 print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
                 get_class= class(point_or_polygon)[1]
@@ -237,15 +241,17 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
                         raster_stack_use = raster_stack[[z]]
                         # get cell numbers of point of polygon, repeat if missing
                         if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                            cell = as.numeric(na.omit(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]]))}
+                            cell = as.numeric(na.omit(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]]))
+                            # if polygon is too small to find cells, convert to centroid and get cellfromXY
+                           if(length(cell)==0){                                       #coord(poly) returns centroid
+                                cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
                         if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
                             cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
                         # if cells found keep raster_stack_use = raster_stack[[z]]
                         if(length(cell)!=0){break}
-                        # if cells not found repeat for different stack
-                        if(length(cell)==0 & z!=length(raster_stack)){ next}else{return(NA)}
+                        # if cells not found repeat for different stack or return NA
+                        if(length(cell)==0 & z!=length(raster_stack)){next}else{return(NA)}
                 }
-
                 # create raster mask from cell numbers
                 r = rasterFromCells(raster_stack_use, cell,values=F)
                 result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
@@ -257,7 +263,7 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
           print( proc.time() - ptm)
           endCluster()
           return(ply_result)
-}
+ }
 
 
 

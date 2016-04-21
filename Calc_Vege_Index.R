@@ -62,6 +62,14 @@ registerDoParallel(16)
   crops = spTransform(crops, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
   crops$id = 1:dim(crops@data)[1]
 
+  # get polygon data (all agriculture (one in afganastan to check for errors))
+  ogrInfo('../LandCoverTrainingData','Plot_polys')
+  Polys = readOGR('../LandCoverTrainingData','Plot_polys')
+  Polys = spTransform(Polys, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  Polys$id = 1:dim(Polys@data)[1]
+
+
+
 
 # Extract data for plotting and checking functions ----------------------------- 
   # extract raster values for these locations
@@ -173,23 +181,12 @@ registerDoParallel(16)
 
 # Extract polygon or points data from stacks ------------------------
 
-  xys= c(76.27797,28.39791,
-	76.30543,28.39761,
-	76.30548,28.40236,
-	76.27668,28.40489)
-  poly = matrix(xys, ncol=2, byrow=TRUE)
-  poly = SpatialPolygons(list(Polygons(list(Polygon(poly)), ID="a"),
-	Polygons(list(Polygon(poly)), ID="b")));
-  proj4string(poly) <-"+proj=longlat +datum=WGS84 +ellps=WGS84"
-  poly = spTransform(poly, CRS("+proj=sinu +a=6371007.181 +b=6371007.181 +units=m"))
-
 
   # extract values croped to point or polygon
 
-  out2 = extract_value_point_polygon(poly,list(NDVI_stack_h24v06,NDVI_stack_h24v05)raster_stack,16)
-          ptm <- proc.time()
+  out2 = extract_value_point_polygon(Polys,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
   out3 = extract_value_point_polygon(crops,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
-print( proc.time() - ptm)
+
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
@@ -207,56 +204,6 @@ print( proc.time() - ptm)
   Quant_percentile=0.05
   b= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile)
   b2 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T)
-
-
-
-extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
-          # Returns list containing values from locations of spatial points or polygons
-	  if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
-          lapply(c('raster','foreach','doParallel'), require, character.only = T)
-          registerDoParallel(num_workers)
-          ptm <- proc.time()
-          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T,.packages='rgepos') %do%{
-                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
-                get_class= class(point_or_polygon)[1]
-		# switch rasterstack according to which point or polygon is %over% 
-		for(z in 1:length(raster_stack)){
-                   # create polygon for each raster stack
-		      	if(!is.na(point_or_polygon[j,] %over% PolygonFromExtent(raster_stack[[z]][[1]]))){
-		   
-		  
-		    # if point or poly is over raster stack (if true for multiple 'last' is used) 
-		     raster_stack_use = raster_stack[[z]]
-		   } else{
-			raster_stack_use = raster_stack[[1]]
-			}
-		}
-                # get cell numbers of point of polygon, return NA if not %over%
-                if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                    cell = as.numeric(na.omit(cellFromPolygon(raster_stack_use, point_or_polygon[j], weights=F)[[1]]))}
-                if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
-                    cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
-                if(length(cell)==0)return(NA)
-		# create raster mask from cell numbers
-                r = rasterFromCells(raster_stack_use, cell,values=F)
-                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
-                   crop(raster_stack_use[[i]],r)
-                }
-                result=as.data.frame(getValues(stack(result)))
-                return(result)
-          }
-          print( proc.time() - ptm)
-          endCluster()
-          return(ply_result)
-}
-
-
-
-# check if point is over a raster stack
-sp::over(point_or_polygon[2,],PolygonFromExtent(raster_stack[[1]][[1]]  ))
-
-
-
 
 
 

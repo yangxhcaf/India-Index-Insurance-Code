@@ -241,7 +241,7 @@
                         raster_stack_use = raster_stack[[z]]
                         # get cell numbers of point of polygon, repeat if missing
                         if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                            cell = as.numeric(na.omit(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]]))
+                            cell = as.numeric(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]])
                             # if polygon is too small to find cells, convert to centroid and get cellfromXY
                            if(length(cell)==0){                                       #coord(poly) returns centroid
                                 cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
@@ -307,7 +307,6 @@
         A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
                 dates_in = dats, FUN=function(x)max(x,na.rm=T))})
         A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
-
         A_Qnt = lapply(1:length(smooth),function(z){quantile(x = smooth[[z]],p=Quant_percentile,type=8,na.rm=T) })
 
 
@@ -321,7 +320,7 @@
         G_min = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) min(x,na.rm=T)) })
-        G_mx = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+        G_mx =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
         G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
@@ -331,6 +330,9 @@
                 DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
         G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+	# G_AUC_trailing lag by one year if growing season is over new year
+	names(G_AUC_trailing[[1]]) = names(G_AUC_leading[[1]])
+
         G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
 
         G_Qnt = lapply(1:length(smooth),function(z){ GlobalPeriodAggregator(x = smooth[[z]],
@@ -339,12 +341,25 @@
                 quantile(x,p=Quant_percentile,type=8,na.rm=T)) })
 
         # collect all data products
-        list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,A_min=A_min,
+        out = list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,A_min=A_min,
                 A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,
                 G_AUC_leading=G_AUC_leading,G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_Qnt=G_Qnt)
-
+	out = lapply(out,unlist) # unlist elements
+	# convert dates back
+	out$plant_dates = as.Date(out$plant_dates,origin=as.Date('1970-01-01'))
+        out$harvest_dates = as.Date(out$harvest_dates,origin=as.Date('1970-01-01'))
+        out$G_mx_dates = as.Date(out$G_mx_dates,origin=as.Date('1970-01-01'))
+        names(out$plant_dates)=format( out$plant_dates,'%Y') # add year names
+	names(out$harvest_dates) = names(out$plant_dates)
+	out 
      }
   }
+
+test = lapply(1:length(out),function(x) as.data.frame(out[x]))
+for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])}
+mymerge = function(x,y){merge(x,y,by='row',all=T)}
+Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min","A_max","A_AUC",
+  	"G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading","G_AUC_trailing","G_AUC_diff_mn") ])
 
 
 

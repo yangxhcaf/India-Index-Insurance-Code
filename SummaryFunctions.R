@@ -267,11 +267,11 @@
 
 
 
- Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile,aggregate=F){
+ Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile,aggregate=F,return_df=F){
      # take in values from extract_value_point_polygon and create annual and global summary statistics
      # returns a list where elements are composed of annual and growing season statistics
      # if aggregate=T, pixels comprising a polygon are smoothed and then the average signal is obtained, statistics are run from that
-
+     # if return_df==T, returns data frame of summary stats for long form panel
      # iterate between spatial objects
      result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
         if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
@@ -351,15 +351,22 @@
         out$G_mx_dates = as.Date(out$G_mx_dates,origin=as.Date('1970-01-01'))
         names(out$plant_dates)=format( out$plant_dates,'%Y') # add year names
 	names(out$harvest_dates) = names(out$plant_dates)
-	out 
+	# check if data frame or list should be returned
+	if(return_df ==F)return(out)
+	if(return_df ==T){
+		test = lapply(1:length(out),function(x) as.data.frame(out[x]))
+		for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])} # add rowname for join
+		mymerge = function(x,y){merge(x,y,by='row',all=T)}
+		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min","A_max","A_AUC",
+        	       "G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading","G_AUC_trailing","G_AUC_diff_mn") ])
+		test = cbind(i,test)
+		return(test)
+	} 
      }
   }
 
-test = lapply(1:length(out),function(x) as.data.frame(out[x]))
-for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])}
-mymerge = function(x,y){merge(x,y,by='row',all=T)}
-Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min","A_max","A_AUC",
-  	"G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading","G_AUC_trailing","G_AUC_diff_mn") ])
+
+# SOMETHING WRONG WITH AUC LEADING IN i =16  z=1
 
 
 

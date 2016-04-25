@@ -14,8 +14,9 @@ rm(list=ls())
 #source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
 #source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
 source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
-
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
+
+
 library(RCurl)
 library(raster)
 library(MODISTools)
@@ -28,7 +29,11 @@ library(foreach)
 library(doParallel)
 library(ggplot2)
 library(MESS)
+library(compiler)
 registerDoParallel(16)
+
+functions_in = lsf.str()
+lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # byte code compile all functions http://adv-r.had.co.nz/Profiling.html#vectorise
 
 
 
@@ -73,17 +78,17 @@ registerDoParallel(16)
 
 # Extract data for plotting and checking functions ----------------------------- 
   # extract raster values for these locations
-  registerDoParallel(16)
-  EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
-     extract(NDVI_stack_h24v05,crops[crops$id ==i,])
-  }
-  endCluster()
-  EVI=lapply(EVI, function(x){
-  	x[x<=-2000]=NA
-  	#x=x*0.0001
-	})
-
-  #save( EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData',sep='') )
+#  registerDoParallel(16)
+#  EVI = foreach(i = 1:length(crops),.packages='raster') %dopar% {
+#     extract(NDVI_stack_h24v05,crops[crops$id ==i,])
+#  }
+#  endCluster()
+#  EVI=lapply(EVI, function(x){
+#  	x[x<=-2000]=NA
+#  	#x=x*0.0001
+#	})
+#
+#  #save( EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData')
 
   # Plot
@@ -97,15 +102,16 @@ registerDoParallel(16)
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
-	PlantingDay=23,HarvestMonth=4,HarvestDay=30)
+        PlantingDay=23,HarvestMonth=4,HarvestDay=30)
 
   # plot out time series with planting and harvest dates
   rects = data.frame(xstart = as.Date(PlantHarvest$planting),
     xend = as.Date(PlantHarvest$harvest))
 
-  # test summary statistics 
+  # test summary statistics
   plotdatasmoothed = plotdata[plotdata$class=='EVI Smoothed',]
-  
+
+
 
 
 # Example function calls ---------------------------------------------------
@@ -168,6 +174,7 @@ registerDoParallel(16)
 
 
 
+
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+
         geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
@@ -187,7 +194,6 @@ registerDoParallel(16)
   out2 = extract_value_point_polygon(Polys,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
   out3 = extract_value_point_polygon(crops,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
 
-
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
         PlantingDay=23,HarvestMonth=4,HarvestDay=30)
@@ -198,18 +204,78 @@ registerDoParallel(16)
   Quant_percentile=0.05
   a= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile)
   a2= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile,aggregate=T)
+  a3 =  Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
   extr_values=out3
   PlantHarvestTable = PlantHarvest
   Quant_percentile=0.05
   b= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile)
   b2 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T)
+  b3 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
 
+# Extract data to district level 
 
+  # Get planting and harvest dates
+  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
+        PlantingDay=23,HarvestMonth=4,HarvestDay=30)
 
+  # get District outlines
+  ogrInfo('../Admin Boundaries/','PunjabHaryanaDistricts')
+  districts = readOGR('../Admin Boundaries/','PunjabHaryanaDistricts')
+  districts = spTransform(districts, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  districts$NAME_2 = toupper(as.character(districts$NAME_2)) 
+  
+  # get districut yeild data 
+  yield = read.csv('/groups/manngroup/India_Index/Data/LandCoverTrainingData/Yield_by_district.csv',stringsAsFactors =F)
+  yield$district = as.character(yield$district)
 
+  locales = unique(districts$NAME_2)
+  locales_v = unique(yield$district)
 
+  # change names to match 
+  # find partial matches
+  for(i in 1:length(unique(voltage$location))){
+  	print(paste(locales[i],' -MATCH- ',locales_v[pmatch(locales[i], locales_v)]))}
+  # fill in holes create a dataframe as a lookup table
+  look_up = data.frame(locales =locales,
+  	locales_v = apply(data.frame(locales),1,function(x) locales_v[pmatch(x, locales_v)]),
+	stringsAsFactors=F)
+  look_up
+  locales_v
+
+  locales_v[!(locales_v %in% look_up$locales_v)]
+
+  look_up[6,2] = locales_v[13]
+  look_up[11,2] = locales_v[4]
+  look_up[12,2] = locales_v[21]
+  look_up[20,2] = locales_v[8]
+  look_up[21,2] = locales_v[9]
+  look_up[24,2] = locales_v[23]
+  look_up[34,2] = locales_v[30]
+  look_up[36,2] = locales_v[32]
+  look_up[39,2] = locales_v[35]
+
+  # switch names out use non-voltage data names 
+  for(i in 1:length(look_up$locales)){
+  	print(i)
+  	yield$district[yield$district == look_up$locales_v[i] ] = look_up$locales[i]
+  }
+  
+  # double check that spellings are same on both sheets
+  sort(unique(yield$district))
+  sort(unique(districts$NAME_2))
+
+  
+# Extract data for yeild districts
+
+  #evi_district = extract_value_point_polygon(districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData')
+
+  evi_summary = Annual_Summary_Functions(evi_district, PlantHarvest,Quant_percentile=0.05, aggregate=T, return_df=T)
+
+  
 
 
 

@@ -30,6 +30,7 @@ library(doParallel)
 library(ggplot2)
 library(MESS)
 library(compiler)
+library(plyr)
 registerDoParallel(16)
 
 functions_in = lsf.str()
@@ -273,39 +274,86 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData')
 
-  evi_summary = Annual_Summary_Functions(evi_district, PlantHarvest,Quant_percentile=0.05, aggregate=T, return_df=T)
+  evi_summary = Annual_Summary_Functions(evi_district, PlantHarvest,Quant_percentile=0.05, aggregate=T, return_df=T,
+	num_workers=13)
 
-  
+# Merge EVI data with yields 
+  districts$i = 1:length(districts)
+  districts$district = districts$NAME_2
 
-
-
-
-
-
-
-
-
-# Working demo extact values ---------------------------------------
-
-  # Run functions on list of points 
-  ptm <- proc.time()
-  cell = cellFromXY(NDVI_stack_h24v05, crops[crops$id ==2,])
-  r = rasterFromCells(NDVI_stack_h24v05, cell,values=F)
-  registerDoParallel(16)
-  result = foreach(i = 1:dim(NDVI_stack_h24v05)[3],.packages='raster',.inorder=T) %dopar% {
-     crop(NDVI_stack_h24v05[[i]],r)
+  for(i in 1:length(evi_summary)){
+   	evi_summary[[i]]=join(evi_summary[[i]], districts@data[,c('i','district','NAME_0','NAME_1','NAME_2')])
+	evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-') 
+        evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='Wheat'& yield$season=="Rabi",],type='left') #Rabi Kharif Rice Wheat
   }
-  result2 = getValues(stack(result))
-  endCluster()
-  proc.time() - ptm
 
-  plot(1:length(result2),result2)
+  yield_evi = na.omit(do.call(rbind,evi_summary))
+  yield_evi$season_length = as.numeric(yield_evi$harvest_dates -yield_evi$plant_dates)
+  yield_evi$plant_dates = as.numeric(format(yield_evi$plant_dates,'%j'))
+  yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
+  yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
+  yield_evi$year_trend = as.numeric(  yield_evi$row)
+  write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
 
-  ptm <- proc.time()
-  result3 =  extract(NDVI_stack_h24v05,crops[crops$id ==2,])
-  proc.time() - ptm
+  lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
+	+G_AUC_trailing+season_length+year_trend,data=yield_evi)
+  summary(lm1)
+   
 
-  identical(as.numeric(result2),as.numeric(result3))
+
+# Ridge regression?
+# https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html
+  library(glmnet)
+  form = as.formula(yield_tn_ha ~i+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
+        +G_AUC_trailing+season_length+year_trend)
+  X = as.matrix(model.frame(form, data=yield_evi))
+  Y = X[,1]
+  X = X[,3:dim(X)[2]]
+
+  fit = glmnet(X, Y)
+
+  cvfit = cv.glmnet(X, Y)
+  plot(cvfit)
+
+  cvfit$lambda.min
+  coef(cvfit, s = "lambda.min")
+  rmse_ridge = mean((Y - predict(cvfit, newx = X, s = "lambda.min"))^2)
+  rmse_ridge
+
+
+# LASSO http://machinelearningmastery.com/penalized-regression-in-r/
+  # load the package
+  library(lars)
+  # fit model
+  fit <- lars(X, Y, type="lasso")
+  # summarize the fit
+  summary(fit)
+  # select a step with a minimum error
+  best_step <- fit$df[which.min(fit$RSS)]
+  # make predictions
+  predictions <- predict(fit, X, s=best_step, type="fit")$fit
+  # summarize accuracy
+  rmse <- mean((Y - predictions)^2)
+  print(rmse)
+
+# OLS
+  lm2=  lm((yield_tn_ha) ~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
+        +G_AUC_trailing+season_length+year_trend,data=yield_evi)
+  summary(lm2)
+
+  rmse_ols = mean((yield_evi$yield_tn_ha - predict(lm2, yield_evi))^2)
+  rmse_ols
+
+
+
+# Basic Scatterplot Matrix
+pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
+        +G_AUC_trailing+season_length+year_trend, data =yield_evi,main="Simple Scatterplot Matrix")
+
+
+
+
+
 
 
 # Run functions on stacks -----------------------------------------

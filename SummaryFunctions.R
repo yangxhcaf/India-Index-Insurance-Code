@@ -266,15 +266,26 @@
  }
 
 
+# rework below function to average evi values first then smooth. 
 
- Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile,aggregate=F,return_df=F){
+
+ Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,aggregate=F,return_df=F,num_workers=5){
      # take in values from extract_value_point_polygon and create annual and global summary statistics
      # returns a list where elements are composed of annual and growing season statistics
      # if aggregate=T, pixels comprising a polygon are smoothed and then the average signal is obtained, statistics are run from that
      # if return_df==T, returns data frame of summary stats for long form panel
      # iterate between spatial objects
+
+     registerDoParallel(num_workers)
      result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
         if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
+
+        # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
+        # create a mean value for input data
+        row_names = names(extr_values[[i]])
+        extr_values[[i]] = t(as.data.frame(colMeans( extr_values[[i]],na.rm=T )))
+	names(extr_values[[i]]) = row_names
+	row.names( extr_values[[i]] ) = NULL
 
         # Get dates from stack names
         dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
@@ -283,10 +294,6 @@
             x = as.numeric(extr_values[[i]][z,]),
             dates=as.Date(dats),
             pred_dates=as.Date(dats),spline_spar = 0.2)})
-
-        # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
-        # create a mean value for smoothed data
-        if(aggregate==T){smooth = list(Reduce("+", smooth) / length(smooth))}
 
         # estimate planting and harvest dates
         plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
@@ -360,13 +367,15 @@
 		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min","A_max","A_AUC",
         	       "G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading","G_AUC_trailing","G_AUC_diff_mn") ])
 		test = cbind(i,test)
+		
 		return(test)
 	} 
      }
   }
 
 
-# SOMETHING WRONG WITH AUC LEADING IN i =16  z=1
+
+
 
 
 

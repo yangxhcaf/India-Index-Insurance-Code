@@ -222,7 +222,31 @@
 	}
 
 
+   PeriodAUC_method2 = function(x_in,dates_in,DOY_start_in,DOY_end_in){
+         # calculate area under the curve by period of the year
+         # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
+         # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
+        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
 
+         dates_group = rep(0,length(dates_in))    # create storage for factors of periods
+         # get sequences of periods of inerest
+         seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
+         # switch dates-group to period group
+         years_avail = sort(as.numeric(unique(unlist(
+                lapply(seq_interest,function(z) format(z,'%Y'))))))
+         for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
+                dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
+                assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
+         # calculate AUC for periods of interest
+         FUN = function(q,w){auc(q,w,type='spline')}
+         datesY = format(dates_in,'%Y')
+         data.split = split(x_in,dates_group)
+         d = do.call(c,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
+                FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
+         names(d) = names(data.split)[2:length(data.split)]
+         #print(cbind(names(data.split)[2:length(data.split)], d))
+         d
+        }
 
  extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
           # Returns list containing values from locations of spatial points or polygons
@@ -266,40 +290,72 @@
  }
 
 
-# rework below function to average evi values first then smooth. 
+
+ Neighborhood_quantile=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
+     # take in values from extract_value_polygon and returns quantile for all raster values wihtin poly
+     # if spline_spar = 0, doesn't smooth data, as spline_spar increases smoothing decreases
+
+     # iterate between spatial objects
+     registerDoParallel(num_workers)
+     result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
+        if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
+
+        # Get dates from stack names
+        dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
+        # Calculate smoothed values
+        if(spline_spar!=0){
+        smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+            x = as.numeric(extr_values[[i]][z,]),
+            dates=as.Date(dats),
+            pred_dates=as.Date(dats),spline_spar)})}else{
+            smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))    }
+	# calculate quantile for all values over polygon 
+        N_Qnt = quantile(x = unlist(smooth),p=Quant_percentile,type=8,na.rm=T)
+        N_Qnt     
+      }
+    result_summary
+ }
 
 
- Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,aggregate=F,return_df=F,num_workers=5){
+ Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,aggregate=F,return_df=F,num_workers=5,
+	spline_spar = 0){
      # take in values from extract_value_point_polygon and create annual and global summary statistics
      # returns a list where elements are composed of annual and growing season statistics
      # if aggregate=T, pixels comprising a polygon are smoothed and then the average signal is obtained, statistics are run from that
      # if return_df==T, returns data frame of summary stats for long form panel
+     # if spline_spar = 0, doesn't smooth data, as spline_spar increases smoothing decreases
      # iterate between spatial objects
-
      registerDoParallel(num_workers)
      result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
         if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
 
         # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
         # create a mean value for input data
+	if(aggregate == T){
         row_names = names(extr_values[[i]])
         extr_values[[i]] = t(as.data.frame(colMeans( extr_values[[i]],na.rm=T )))
 	names(extr_values[[i]]) = row_names
-	row.names( extr_values[[i]] ) = NULL
+	row.names( extr_values[[i]] ) = NULL}
 
         # Get dates from stack names
         dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
         # Calculate smoothed values
+	if(spline_spar!=0){
         smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
             x = as.numeric(extr_values[[i]][z,]),
             dates=as.Date(dats),
-            pred_dates=as.Date(dats),spline_spar = 0.2)})
+            pred_dates=as.Date(dats),spline_spar)})}else{
+	    smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))	}
+
+
+# HARVEST DATE annualminbeforeDOY NOT WORKING FOR  extr_values=out2[[2]]  PlantHarvestTable = PlantHarvest
 
         # estimate planting and harvest dates
         plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
             dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
         harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
             dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
+
         # correct the number of elements in each date vector (assigns last day if no final harvest date available)
         plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
                 dates_end=harvest_dates[[z]])[[1]] })
@@ -313,6 +369,8 @@
                 dates_in = dats, FUN=function(x)min(x,na.rm=T))})
         A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
                 dates_in = dats, FUN=function(x)max(x,na.rm=T))})
+        A_sd = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+                dates_in = dats, FUN=function(x)sd(x,na.rm=T))})
         A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
         A_Qnt = lapply(1:length(smooth),function(z){quantile(x = smooth[[z]],p=Quant_percentile,type=8,na.rm=T) })
 
@@ -330,8 +388,14 @@
         G_mx =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
+        G_sd =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) sd(x,na.rm=T)) })
         G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+   G_AUC2 = lapply(1:length(smooth),function(z){ PeriodAUC_method2(x_in = smooth[[z]],dates_in = dats,
+                DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+
 
         G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
@@ -348,10 +412,12 @@
                 quantile(x,p=Quant_percentile,type=8,na.rm=T)) })
 
         # collect all data products
-        out = list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,A_min=A_min,
-                A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,
-                G_AUC_leading=G_AUC_leading,G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_Qnt=G_Qnt)
+        out = list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,
+		A_min=A_min,A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,A_sd=A_sd,
+		G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,G_AUC_leading=G_AUC_leading,
+		G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_Qnt=G_Qnt,G_sd=G_sd)
 	out = lapply(out,unlist) # unlist elements
+	
 	# convert dates back
 	out$plant_dates = as.Date(out$plant_dates,origin=as.Date('1970-01-01'))
         out$harvest_dates = as.Date(out$harvest_dates,origin=as.Date('1970-01-01'))
@@ -364,10 +430,10 @@
 		test = lapply(1:length(out),function(x) as.data.frame(out[x]))
 		for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])} # add rowname for join
 		mymerge = function(x,y){merge(x,y,by='row',all=T)}
-		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min","A_max","A_AUC",
-        	       "G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading","G_AUC_trailing","G_AUC_diff_mn") ])
+		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min",
+			"A_max","A_AUC",'A_sd',"G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading",
+			"G_AUC_trailing","G_AUC_diff_mn",'G_sd') ])
 		test = cbind(i,test)
-		
 		return(test)
 	} 
      }
@@ -375,8 +441,38 @@
 
 
 
+spar_find = function(){
+  performance_list =list()
+  for(spar in seq(0,1,by=0.1)){
+    evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
+          aggregate=T, return_df=T,num_workers=13,spline_spar=spar)
 
 
+  # Merge EVI data with yields
+    districts$i = 1:length(districts)
+    districts$district = districts$NAME_2
+
+    for(i in 1:length(evi_summary)){
+          evi_summary[[i]]=join(evi_summary[[i]], districts@data[,c('i','district','NAME_0','NAME_1','NAME_2')])
+          evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')
+          evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='Wheat'& yield$season=="Rabi",],type='left') #Rabi Kharif Rice Wheat
+    }
+
+    yield_evi = na.omit(do.call(rbind,evi_summary))
+    yield_evi$season_length = as.numeric(yield_evi$harvest_dates -yield_evi$plant_dates)
+    yield_evi$plant_dates = as.numeric(format(yield_evi$plant_dates,'%j'))
+    yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
+    yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
+    yield_evi$year_trend = as.numeric(  yield_evi$row)
+    write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
+
+    lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
+          +G_AUC_trailing+G_AUC_diff_mn +season_length+year_trend+A_sd+G_sd,data=yield_evi)
+    performance_list = c(performance_list,spar,summary(lm1)$adj.r.squared,
+       mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha))
+  }
+   matrix(unlist(performance_list),ncol=3,byrow=T)
+}
 
 
 

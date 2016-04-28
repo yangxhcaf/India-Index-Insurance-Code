@@ -174,8 +174,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         by_in='days',FUN=function(x)quantile(x,0.05,type=8,na.rm=T))
 
 
-
-
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+
         geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
@@ -203,16 +201,29 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   extr_values=out2
   PlantHarvestTable = PlantHarvest
   Quant_percentile=0.05
+  num_workers = 16
+  spline_spar = 0
   a= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile)
   a2= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile,aggregate=T)
   a3 =  Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
+ # get quantiles based on polygon values
+  Neighborhood_quantile(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0)
+
+
+
+ Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,aggregate=F,return_df=F,num_workers=5,
+        spline_spar = 0){
+ 
+
+  # Get summary statistics lists
   extr_values=out3
   PlantHarvestTable = PlantHarvest
   Quant_percentile=0.05
   b= Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile)
   b2 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T)
   b3 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
+
 
 
 # Extract data to district level 
@@ -230,7 +241,15 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   # get districut yeild data 
   yield = read.csv('/groups/manngroup/India_Index/Data/LandCoverTrainingData/Yield_by_district.csv',stringsAsFactors =F)
   yield$district = as.character(yield$district)
+  yield$years_id = as.numeric(substr(yield$year,1,4))
+  
+  ggplot(data=yield[yield$season=='Rabi'& yield$crop=='Wheat',],aes(x=years_id,y=yield_tn_ha,colour=district))+
+	geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
+  # remove two outliers
+  yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
 
+	
+  # get names to match
   locales = unique(districts$NAME_2)
   locales_v = unique(yield$district)
 
@@ -259,7 +278,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   # switch names out use non-voltage data names 
   for(i in 1:length(look_up$locales)){
-  	print(i)
   	yield$district[yield$district == look_up$locales_v[i] ] = look_up$locales[i]
   }
   
@@ -274,8 +292,11 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData')
 
-  evi_summary = Annual_Summary_Functions(evi_district, PlantHarvest,Quant_percentile=0.05, aggregate=T, return_df=T,
-	num_workers=13)
+  # find the best spar value
+  spar_find()  # returns spar,adj R2, RMSE/meanvalue
+
+  evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05, 
+	aggregate=T, return_df=T,num_workers=13,spline_spar=0)
 
 # Merge EVI data with yields 
   districts$i = 1:length(districts)
@@ -296,58 +317,15 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
 
   lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
-	+G_AUC_trailing+season_length+year_trend,data=yield_evi)
+	+G_AUC_trailing+G_AUC_diff_mn +season_length+year_trend+A_sd+G_sd,data=yield_evi)
   summary(lm1)
-   
+  mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
 
-
-# Ridge regression?
-# https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html
-  library(glmnet)
-  form = as.formula(yield_tn_ha ~i+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
-        +G_AUC_trailing+season_length+year_trend)
-  X = as.matrix(model.frame(form, data=yield_evi))
-  Y = X[,1]
-  X = X[,3:dim(X)[2]]
-
-  fit = glmnet(X, Y)
-
-  cvfit = cv.glmnet(X, Y)
-  plot(cvfit)
-
-  cvfit$lambda.min
-  coef(cvfit, s = "lambda.min")
-  rmse_ridge = mean((Y - predict(cvfit, newx = X, s = "lambda.min"))^2)
-  rmse_ridge
-
-
-# LASSO http://machinelearningmastery.com/penalized-regression-in-r/
-  # load the package
-  library(lars)
-  # fit model
-  fit <- lars(X, Y, type="lasso")
-  # summarize the fit
-  summary(fit)
-  # select a step with a minimum error
-  best_step <- fit$df[which.min(fit$RSS)]
-  # make predictions
-  predictions <- predict(fit, X, s=best_step, type="fit")$fit
-  # summarize accuracy
-  rmse <- mean((Y - predictions)^2)
-  print(rmse)
-
-# OLS
-  lm2=  lm((yield_tn_ha) ~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
-        +G_AUC_trailing+season_length+year_trend,data=yield_evi)
-  summary(lm2)
-
-  rmse_ols = mean((yield_evi$yield_tn_ha - predict(lm2, yield_evi))^2)
-  rmse_ols
 
 
 
 # Basic Scatterplot Matrix
-pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
+  pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
         +G_AUC_trailing+season_length+year_trend, data =yield_evi,main="Simple Scatterplot Matrix")
 
 

@@ -212,10 +212,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
- Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,aggregate=F,return_df=F,num_workers=5,
-        spline_spar = 0){
- 
-
   # Get summary statistics lists
   extr_values=out3
   PlantHarvestTable = PlantHarvest

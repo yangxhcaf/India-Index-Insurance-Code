@@ -347,14 +347,25 @@
             pred_dates=as.Date(dats),spline_spar)})}else{
 	    smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))	}
 
-
-# HARVEST DATE annualminbeforeDOY NOT WORKING FOR  extr_values=out2[[2]]  PlantHarvestTable = PlantHarvest
-
         # estimate planting and harvest dates
+	# is spline_spar ==0, dates need to be set by slightly smoothed data
+	if(spline_spar!=0){
         plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
             dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
         harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
             dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
+	}
+	if(spline_spar==0){
+        smooth_4_dates = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+            x = as.numeric(extr_values[[i]][z,]),
+            dates=as.Date(dats),
+            pred_dates=as.Date(dats),spline_spar=2)})
+	plant_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
+            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
+        harvest_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
+            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
+	rm(smooth_4_dates)
+	}
 
         # correct the number of elements in each date vector (assigns last day if no final harvest date available)
         plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
@@ -443,7 +454,7 @@
 
 spar_find = function(){
   performance_list =list()
-  for(spar in seq(0,1,by=0.1)){
+  for(spar in seq(0,3,by=0.1)){
     evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
           aggregate=T, return_df=T,num_workers=13,spline_spar=spar)
 

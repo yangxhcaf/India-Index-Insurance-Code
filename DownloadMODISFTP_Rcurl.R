@@ -29,41 +29,17 @@ library(maptools)
 library(foreach)
 library(doParallel)
 library(ggplot2)
-registerDoParallel(8)
+library(compiler)
+registerDoParallel(13)
+
+source('/groups/manngroup/India_Index/India-Index-Insurance-Code/Functions.R')
+
+functions_in = lsf.str()
+lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # byte code compile all functions http://adv-r.had.co.nz/Profil$
 
 
-# Functions ---------------------------------------------------------------
-  
-  
-  multi_grep_character <- function(find, inthis){ #returns location of multiple "find' elements in the vector 'inthis'
-    if(class(inthis)!= "character"){break("Error: in this must be a character vector")}
-    return(unlist(lapply(1:length(find), function(x) {grep(find[x],inthis)}   )))
-  }
-  
-  outersect <- function(x, y) {
-    sort(c(x[!x%in%y],
-           y[!y%in%x]))
-  }
 
-  PlantHarvestDates = function(start_date,end_date,PlantingMonth,PlantingDay,HarvestMonth,HarvestDay){
-    # this function takes in date range and returns planting and harvest date for time series
-    # set planting
-    start_end_years = c(strptime(start_date,'%Y-%m-%d'),strptime(end_date,'%Y-%m-%d'))
-    names(unclass(start_end_years[1]))
-    start_end_years[1]$mon=PlantingMonth-1
-    start_end_years[1]$mday=PlantingDay
-    planting = seq(start_end_years[1],
-      length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
-      by='year')
-    # set harvest
-    start_end_years[2]$year=start_end_years[1]$year+1    # set year equal to start year +1
-    start_end_years[2]$mon=HarvestMonth-1
-    start_end_years[2]$mday=HarvestDay
-    harvest = seq(start_end_years[2],
-      length=strptime(end_date,'%Y-%m-%d')$year-strptime(start_date,'%Y-%m-%d')$year,
-      by='year')
-    return(data.frame(planting=planting,harvest=harvest))
-  }
+
 
 # Set up parameters -------------------------------------------------------
 
@@ -76,12 +52,12 @@ registerDoParallel(8)
   # Product Filters 
   products =  c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
-  tiles =   c('h24v05','h24v06')   # India example c('h13v12')
+  tiles =   c('h13v12')   # India example c('h24v05','h24v06'), Uruguay h13v12  
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02') 
-  ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/51/'    # allData/6/ for evi, 
+  ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'    # allData/6/ for evi, 
   # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
   #strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-  out_dir = '/groups/manngroup/India_Index/Data/MODISLandCover/India/'
+  out_dir = '/groups/manngroup/India_Index/Data/Uruguay/'
   setwd(out_dir)
   
  
@@ -218,12 +194,12 @@ registerDoParallel(8)
   
 
 # Stack relevant data -----------------------------------------------------
-  setwd('/groups/manngroup/India_Index/Data/India')  # folder where  EVI .tifs are 
+  setwd('/groups/manngroup/India_Index/Data/Uruguay')  # folder where  EVI .tifs are 
    
   # create data stack for each variable and tile 
   foreach(product =  c('blue_reflectance','MIR_reflectance','NIR_reflectance','red_reflectance',
 	'EVI','NDVI','pixel_reliability')) %dopar% {  
-  for( tile_2_process in c( 'h24v06','h24v05')){
+  for( tile_2_process in tiles){
   	# Set up data
   	flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_',product,'.tif$',sep='')), 
 		full.names = TRUE)
@@ -239,10 +215,11 @@ registerDoParallel(8)
 		file = paste('../Data Stacks/Raw Stacks/',product,'_stack_',tile_2_process,'.RData',sep='') )
   }}
 
+
   # Stack land cover data NOTE: automatically fills missing years with most recent LC available
-  setwd('/groups/manngroup/India_Index/Data/MODISLandCover/India')
+  setwd('/groups/manngroup/India_Index/Data/MODISLandCover/Uruguay')
   for(product in c('MCD12Q1')){
-  for( tile in c( 'h24v06','h24v05')){
+  for( tile in tiles){
         # Set up data
         flist = list.files(".",glob2rx(paste(product,'*',tile,'.Land_Cover_Type_2.tif$',sep='')),
                 full.names = TRUE)
@@ -274,7 +251,7 @@ registerDoParallel(8)
 
   # limit stacks to common elements
   for(product in stack_types_2_load ){  
-  for( tile in c( 'h24v06','h24v05')){
+  for( tile in tiles){
 	 # find dates that exist in all datasets for current tile
          all_dates = lapply(paste(stack_types_2_load,'stack',tile,sep='_'),function(x){names(get(x))})
 	 # restrict to common dates 
@@ -296,7 +273,6 @@ registerDoParallel(8)
   reliability_prefix = 'pixel_reliability'
   products2removeclouds = c('blue_reflectance', 'MIR_reflectance',
         'NIR_reflectance','red_reflectance','EVI','NDVI')
-  tiles = c( 'h24v05','h24v06')
   for(product in products2removeclouds){
   for( tile in tiles){
 	print(paste('Working on',product,tile))
@@ -330,7 +306,6 @@ registerDoParallel(8)
   LandCover_product = 'MCD12Q1'
   products2removeLC = c('blue_reflectance', 'MIR_reflectance',
         'NIR_reflectance','red_reflectance','EVI','NDVI','pixel_reliability')
-  tiles = c( 'h24v05','h24v06')
   for(product in products2removeLC){
   for( tile in tiles){
         print(paste('Working on',product,tile))
@@ -355,7 +330,6 @@ registerDoParallel(8)
 
 
 # Set valid ranges of data  ---------------------------------------------
-  # NOTE: This is run through sbatch with 128gb node 
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
 
   # load data stacks from both directories
@@ -376,7 +350,6 @@ registerDoParallel(8)
 
   # Loop through valid ranges  
   products2clean = unique(valid$stack)
-  tiles = c( 'h24v05','h24v06')
   for(product in products2clean){
   for( tile in tiles){
         print(paste('Working on',product,tile))	
@@ -389,12 +362,13 @@ registerDoParallel(8)
         	x[x==as.numeric(valid_values$fill)]=NA
         	x[x < as.numeric(valid_values$validL)]=NA
         	x[x > as.numeric(valid_values$validU)]=NA
-        	x = x * as.numeric(valid_values$scale)
+        	# DONT SCALE THIS INCREASES DATA SIZE BY HUGE AMOUNT x = x * as.numeric(valid_values$scale)
         	x}
 	
         junk = foreach(i=1:dim(data_stackvalues)[3]) %dopar% {
                 data_stackvalues[[i]]=ScaleClean(data_stackvalues[[i]])
-                return(i)}
+                return(i) # store some junk
+		}
 
         assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
         dir.create(file.path('../Data Stacks/WO Clouds Crops Clean'), showWarnings=F,recursive=$

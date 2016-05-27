@@ -21,7 +21,7 @@ source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProc
 library(RCurl)
 library(raster)
 #library(MODISTools)
-#library(rgdal)
+library(rgdal)
 library(sp)
 library(maptools)
 #library(rts)
@@ -371,13 +371,36 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 		}
 
         assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
-        dir.create(file.path('../Data Stacks/WO Clouds Crops Clean'), showWarnings=F,recursive=$
+        dir.create(file.path('../Data Stacks/WO Clouds Crops Clean'), showWarnings=F,recursive=T)
         save(list=paste(product,'_stack_',tile,sep=''),
-                file = paste('WO Clouds Crops Clean/',product,'_stack_',tile,'_wo_clouds_crops_$
+                file = paste('WO Clouds Crops Clean/',product,'_stack_',tile,'_wo_clouds_crops_clean.RData',sep=''))
 
         rm(list=ls()[grep(product,ls())])
 
   }}
+
+
+
+
+# CHIRPS Rainfall Data ----------------------------------------------------
+
+ #First data downloaded from ftp://ftp.chg.ucsb.edu/pub/org/chg/products/CHIRPS-2.0/global_daily/tifs/p05/
+
+ # crop and reproject
+ files =  list.files(path='/groups/manngroup/India_Index/Data/CHIRPS/', pattern="*.tif", full.names=T, recursive=T)
+ EVI =  list.files(path='/groups/manngroup/India_Index/Data/Uruguay', pattern="*.tif", full.names=T, recursive=T)[1]
+ admin_buff = readOGR('../Admin Boundaries/','PunjabHaryana50kmbuf')
+
+ junk = foreach(file =files) %dopar%  {
+	print(paste(file))
+ 	example = raster(file)
+ 	admin_buff = spTransform(admin_buff, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+ 	example =  crop(example, admin_buff)
+ 	projectRaster(example,crs='+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs',
+	     method="bilinear",  filename=paste(substr(file,1,nchar(file)-4),'_cropped.tif',sep=''),overwrite=T) 
+ }
+
+
 
 
   

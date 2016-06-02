@@ -18,6 +18,7 @@ rm(list=ls())
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
 source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProcessing.R')
 
+
 library(RCurl)
 library(raster)
 #library(MODISTools)
@@ -52,7 +53,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   # Product Filters 
   products =  c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
-  tiles =   c('h13v12')   # India example c('h24v05','h24v06'), Uruguay h13v12  
+  tiles =  c('h24v05','h24v06')  # uruguay c('h13v12')   # India example c('h24v05','h24v06'), Uruguay h13v12  
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02') 
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'    # allData/6/ for evi, 
   # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
@@ -387,46 +388,51 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
  #First data downloaded from ftp://ftp.chg.ucsb.edu/pub/org/chg/products/CHIRPS-2.0/global_daily/tifs/p05/
 
  # ungz any files
- files_gz =  list.files(path='/groups/manngroup/India_Index/Data/CHIRPS/', pattern="*.gz", full.names=T, recursive=T)
- library(R.utils)
+ #files_gz =  list.files(path='/groups/manngroup/India_Index/Data/CHIRPS/', pattern="*.gz", full.names=T, recursive=T)
+ #library(R.utils)
 
- junk = foreach(file =files_gz, .inorder=F) %dopar%  {
- 	gunzip(file)}
+ #junk = foreach(file =files_gz, .inorder=F) %dopar%  {
+ #	gunzip(file)}
 	
 
  # crop and reproject
  setwd('/groups/manngroup/India_Index/Data/CHIRPS/')
 
  files =  list.files(path='/groups/manngroup/India_Index/Data/CHIRPS/', pattern="*.tif", full.names=T, recursive=T)
- #files = files[-c(grep('cropped',files))] # remove any already processed
+ files = files[-c(grep('cropped',files))] # remove any already processed
 
  EVI =  list.files(path='/groups/manngroup/India_Index/Data/Uruguay', pattern="*.tif", full.names=T, recursive=T)[1]
- admin_buff = readOGR('../Admin Boundaries/','PunjabHaryana50kmbuf')
+ if(tiles== "h13v12"){outer_extent = extent(raster(EVI))}
+ h24v05 =raster('/groups/manngroup/India_Index/Data/MODISLandCover/India/MCD12Q1_2012001_h24v05.Land_Cover_Type_1.tif')
+ h24v06 =raster('/groups/manngroup/India_Index/Data/MODISLandCover/India/MCD12Q1_2012001_h24v06.Land_Cover_Type_1.tif')
+ if(identical(tiles,c('h24v05','h24v06'))){outer_extent = union(extent( h24v05),
+    extent(h24v06))}
 
- junk = foreach(file =files, .inorder=F) %dopar%  {
-        out_file_name = paste(basename(substr(file,1,nchar(file)-4)),'_h24v05_h24v06','_cropped.tif',sep='')
+ junk = foreach(file =files, .inorder=F,.packages='raster') %dopar%  {
+        out_file_name = paste(basename(substr(file,1,nchar(file)-4)),'_',paste(tiles,collapse='_'),'_cropped.tif',sep='')
         print(paste(file))
 	#if(file.exists(out_file_name)){return(NA)}
- 	example = raster(file)
- 	admin_buff = spTransform(admin_buff, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
- 	example =  crop(example, admin_buff)
+ 	example = raster(file)  # read in raster
+        outer_extent = extent(projectExtent(raster(outer_extent,crs=
+		CRS('+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs')), 
+		projection(example) ))  #project extent to match EVI data
+ 	example =  crop(example, outer_extent) # crop to EVI data extent
+	example[example==-9999]=NA   # remove missing data 
+	# reproject raster
  	projectRaster(example,crs='+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs',
 	     method="bilinear",  filename=out_file_name,overwrite=T) 
+	return(NA)
  }
 
 
- # Stack 
-  files =  list.files(path='/groups/manngroup/India_Index/Data/CHIRPS/', pattern="*cropped.tif", full.names=T, recursive=T)
+ # Stack rasters & save 
+  files =  list.files(path='/groups/manngroup/India_Index/Data/CHIRPS/', 
+	pattern=paste("*_",paste(tiles,collapse='_'),"_cropped.tif",sep=''), full.names=T, recursive=T)
   rain_stack = stack(files)
   LC_dates = strptime(   # strip dates
       gsub("^.*.([0-9]{4}){1}[.]([0-9]{2})[.]([0-9]{2}).*$",'\\1-\\2-\\3',files,perl = T) ,format='%Y-%m-%d')
   names(rain_stack) = LC_dates
 
-  # remove missing values
-  junk = foreach(i =1:dim(rain_stack)[3], .inorder=F) %dopar%  {
-	print(i) 
-	rain_stack[[i]][rain_stack[[i]]==-9999]=NA
-  }
   dirs = '/groups/manngroup/India_Index/Data/Data Stacks/Rain_Stacks/'
   dir.create(dirs)  
   save(rain_stack,file = paste(dirs,'Rain_Stack_h24v05_h24v06.RData',sep=''))
@@ -434,6 +440,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+
+#######################################################################################################
 
   
 # Visualize examples of smoothed data -------------------------------------

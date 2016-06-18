@@ -20,6 +20,7 @@ RasterChunkProcessing = function(in_stack,in_stack_nm, block_width,
   print('getting values and running custom function')
   result = foreach(i = 1:length(bs_rows), .combine = rbind,.packages='raster') %dopar% {
       # get values, run function, and save
+      print(paste('Get values apply function',i))
       value = getValues(in_stack, row= bs_rows[i], nrow= bs_nrows[i])
       value = FUN(value)
       return(value)
@@ -28,16 +29,26 @@ RasterChunkProcessing = function(in_stack,in_stack_nm, block_width,
   # put back into raster
   print('Putting data back into stacks')
   value_list =  foreach( layer = 1:dim(result)[2],.packages='raster') %dopar% {
+      print(paste('Put back into raster',i))
       r = in_stack[[1]]
       r = setValues(r, matrix(result[,layer],nrow=dim(r)[1],byrow=T))
       names(r) = colnames(result)[layer]
       return(r)
     }
+
+  # Write out rasters  
+    junk =  foreach(j = 1:length(value_list),.packages='raster') %dopar% {
+      print(paste('write out raster ',j))
+      writeRaster(value_list[[j]],paste(out_path,in_stack_nm,'_',out_nm_postfix,
+	   gsub("^.*([0-9]{7}).*$", "\\1",names(value_list[[j]]),perl = T),
+	   '.tif',sep=''),overwrite=T)
+    }
+
   # stack and save rasters
-  print('Saving stacks')
-  out_stack =  stack(value_list)
-  assign(paste(in_stack_nm,'_',out_nm_postfix,sep=''),out_stack)
-  save(out_stack, file = paste(out_path,in_stack_nm,'_',out_nm_postfix,'.RData',sep=''))
+  #print('Saving stacks')
+  #out_stack =  stack(value_list)
+  #assign(paste(in_stack_nm,'_',out_nm_postfix,sep=''),out_stack)
+  #save(out_stack, file = paste(out_path,in_stack_nm,'_',out_nm_postfix,'.RData',sep=''))
 
 }
 

@@ -53,7 +53,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   # Product Filters 
   products =  c('MYD13Q1','MOD13Q1')  #EVI c('MYD13Q1','MOD13Q1')  , land cover = 'MCD12Q1' for 250m and landcover ='MCD12Q2'
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your tiles listed above #India c(-31.467934,-57.101319)  #
-  tiles =  c('h24v05','h24v06')  # uruguay c('h13v12')   # India example c('h24v05','h24v06'), Uruguay h13v12  
+  tiles =   c('h13v12')  # uruguay c('h13v12')   # India example c('h24v05','h24v06'), Uruguay h13v12  
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-day') c('2002-07-04','2016-02-02') 
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'    # allData/6/ for evi, 
   # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
@@ -435,7 +435,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   dirs = '/groups/manngroup/India_Index/Data/Data Stacks/Rain_Stacks/'
   dir.create(dirs)  
-  save(rain_stack,file = paste(dirs,'Rain_Stack_h24v05_h24v06.RData',sep=''))
+  save(rain_stack,file = paste(dirs,'Rain_Stack_',paste(tiles,collapse='_'),'.RData',sep=''))
 
 
 

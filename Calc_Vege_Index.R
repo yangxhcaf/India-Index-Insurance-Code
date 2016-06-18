@@ -266,9 +266,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 	stringsAsFactors=F)
   look_up
   locales_v
-
+  # find mismatches
   locales_v[!(locales_v %in% look_up$locales_v)]
-
+  # change mispelled names to match
   look_up[6,2] = locales_v[13]
   look_up[11,2] = locales_v[4]
   look_up[12,2] = locales_v[21]

@@ -87,43 +87,55 @@
 	dataout
     }
 
-
-
-   GlobalPeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-   	# returns a *single* summary statistic of x for all periods defined by date_range_st, date_range_end
-    	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
-    	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+  PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+        # returns a summary statistic of x for the period defined by date_range_st, date_range_end
+        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+        if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
-    	#Avoid problems with missing plant or harvest dates
-    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
-                break}
-    	# get data for ranges and cbind then run function
-    	dataout=lapply(1:length(date_range_st),function(z){
-        	DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
-        	x[dates_in %in% DateRange]})
-        	dataout = do.call(c,dataout)
-        	FUN(dataout)
+        #Avoid problems with missing plant or harvest dates
+        if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+                    break}
+
+        dataout=lapply(1:length(date_range_st),function(z){
+            DateRange2 = seq(date_range_st[z],date_range_end[z],by=by_in)
+            x2 = x[dates_in %in% DateRange2]
+            dates_in2 = dates_in[dates_in %in% DateRange2]
+            which_max = which(FUN(x2) ==  x2)
+            if(length(which_max)>1){
+		if(length(which_max)>1){
+		   which_max = c(which_max[1],which_max[length(which_max)]) # limit to only 2 
+			if((which_max[2]-which_max[1])==1){
+				which_max=which_max[1]  # favor the first instance of maximum
+			} else if((which_max[2]-which_max[1])==2){
+				which_max=which_max[1]+1 # is seperated by 2 choose middle left
+                	} else if((which_max[2]-which_max[1])==3){
+				which_max=which_max[1]+2} # is seperated by 3 choose middle
+		}
+	    }
+            max_dates = dates_in2[which_max]
+
+                })
+        dataout = do.call(c,dataout)
+        names(dataout)=format(date_range_st,'%Y')
+        dataout
     }
 
 
 
-   PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-    	# returns a summary statistic of x for the period defined by date_range_st, date_range_end
-    	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
-    	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+  GlobalPeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+        # returns a *single* summary statistic of x for all periods defined by date_range_st, date_range_end
+        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+        if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
-    	#Avoid problems with missing plant or harvest dates
-    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
-    	            break}
-    	dataout=lapply(1:length(date_range_st),function(z){
-    	    DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
-    	    x=x[dates_in %in% DateRange]
-    	    dates_in=dates_in[dates_in %in% DateRange]
-    	    dates_in[which(FUN(x) ==  x)]
-		})
-        dataout = do.call(c,dataout)
-        names(dataout)=format(date_range_st,'%Y')
-        dataout
+        #Avoid problems with missing plant or harvest dates
+        if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
+                break}
+        # get data for ranges and cbind then run function
+        dataout=lapply(1:length(date_range_st),function(z){
+                DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+                x[dates_in %in% DateRange]})
+                dataout = do.call(c,dataout)
+                FUN(dataout)
     }
 
 
@@ -202,7 +214,19 @@
         if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
 
          dates_group = rep(0,length(dates_in))    # create storage for factors of periods
-  	 # get sequences of periods of inerest
+
+# DONT USE THIS PORTION trailing leading auc problem... multible maximums for one year
+#  	 # avoid problems with 2002 estimating max value (leading trailing auc function) 
+#	 if(length(DOY_start_in)<length(DOY_end_in) & format(DOY_end_in[1],'%Y')==format(DOY_end_in[2],'%Y') & 
+#		as.numeric(format(DOY_end_in[2],'%Y'))+1==as.numeric(format(DOY_end_in[3],'%Y')) ){
+#		   DOY_end_in = DOY_end_in[2:length(DOY_end_in)]
+#		 }
+#         if(length(DOY_start_in)>length(DOY_end_in) & format(DOY_start_in[1],'%Y')==format(DOY_start_in[2],'%Y') &
+#                as.numeric(format(DOY_start_in[2],'%Y'))+1==as.numeric(format(DOY_start_in[3],'%Y')) ){
+#                   DOY_start_in = DOY_start_in[2:length(DOY_start_in)]
+#                 }
+
+         # get sequences of periods of inerest
          seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
          # switch dates-group to period group
          years_avail = sort(as.numeric(unique(unlist(
@@ -223,10 +247,11 @@
 
 
    PeriodAUC_method2 = function(x_in,dates_in,DOY_start_in,DOY_end_in){
+	 #NOTE SPLINE METHOD 1 SEEMS to WORK BETTER
          # calculate area under the curve by period of the year
          # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
          # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
-        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+         if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
 
          dates_group = rep(0,length(dates_in))    # create storage for factors of periods
          # get sequences of periods of inerest
@@ -237,8 +262,9 @@
          for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
                 dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
                 assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
-         # calculate AUC for periods of interest
-         FUN = function(q,w){auc(q,w,type='spline')}
+ 
+        # calculate AUC for periods of interest
+         FUN = function(q,w){  sum(diff(q)*rollmean(w,2))}
          datesY = format(dates_in,'%Y')
          data.split = split(x_in,dates_group)
          d = do.call(c,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
@@ -247,6 +273,8 @@
          #print(cbind(names(data.split)[2:length(data.split)], d))
          d
         }
+
+
 
  extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
           # Returns list containing values from locations of spatial points or polygons
@@ -326,7 +354,7 @@
      # if spline_spar = 0, doesn't smooth data, as spline_spar increases smoothing decreases
      # iterate between spatial objects
      registerDoParallel(num_workers)
-     result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
+     result_summary=foreach(i = 1:length(extr_values),.packages=c('raster','zoo'),.inorder=T) %dopar%{
         if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
 
         # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
@@ -380,10 +408,19 @@
                 dates_in = dats, FUN=function(x)min(x,na.rm=T))})
         A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
                 dates_in = dats, FUN=function(x)max(x,na.rm=T))})
+        A_max_Qnt = lapply(1:length(A_max),function(z){rep(quantile(x = A_max[[z]],p=Quant_percentile,type=8,na.rm=T),
+                length(A_max[[z]])) }) #quantile of annual max values
+        for(z in 1:length(A_max_Qnt)){names(A_max_Qnt[[z]])=names(A_max[[z]])}  # change names
+
         A_sd = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
                 dates_in = dats, FUN=function(x)sd(x,na.rm=T))})
         A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
-        A_Qnt = lapply(1:length(smooth),function(z){quantile(x = smooth[[z]],p=Quant_percentile,type=8,na.rm=T) })
+        A_AUC_Qnt = lapply(1:length(A_AUC),function(z){rep(quantile(x = A_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
+		length(A_AUC[[z]])) }) #quantile of auc values
+        for(z in 1:length(A_AUC_Qnt)){names(A_AUC_Qnt[[z]])=names(A_AUC[[z]])}  # change names
+ 	A_Qnt = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+                dates_in = dats, FUN=function(x)quantile(x,p=Quant_percentile,type=8,na.rm=T))})
+        for(z in 1:length(A_Qnt)){names(A_Qnt[[z]])=names(A_AUC[[z]])}  # change names
 
 
         # Growing season statistics
@@ -399,34 +436,51 @@
         G_mx =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
+ 	G_mx_Qnt = lapply(1:length(G_mx),function(z){rep(quantile(x = G_mx[[z]],p=Quant_percentile,type=8,na.rm=T),
+                length(G_mx[[z]])) }) #quantile of annual max values
+        for(z in 1:length(G_mx_Qnt)){names(G_mx_Qnt[[z]])=names(G_mx[[z]])}  # change names
+
         G_sd =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) sd(x,na.rm=T)) })
         G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-   G_AUC2 = lapply(1:length(smooth),function(z){ PeriodAUC_method2(x_in = smooth[[z]],dates_in = dats,
+	G_AUC_Qnt = lapply(1:length(G_AUC),function(z){rep(quantile(x = G_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
+                length(G_AUC[[z]])) }) #quantile of annual max values
+        for(z in 1:length(G_AUC_Qnt)){names(G_AUC_Qnt[[z]])=names(G_AUC[[z]])}  # change names
+
+   	G_AUC2 = lapply(1:length(smooth),function(z){ PeriodAUC_method2(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-
-
         G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
         G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+	G_Qnt =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+                dates_in = dats, date_range_st=plant_dates[[z]],
+                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) quantile(x,p=Quant_percentile,type=8,na.rm=T)   ) })
+
+
+
 	# G_AUC_trailing lag by one year if growing season is over new year
 	names(G_AUC_trailing[[1]]) = names(G_AUC_leading[[1]])
-
+	# compare AUC annual to mean AUC and 90th percentile AUC
         G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
+        G_AUC_diff_90th = lapply(1:length(smooth),function(z){ G_AUC[[z]] - quantile(G_AUC[[z]],p=0.9,type=8,na.rm=T) })
 
-        G_Qnt = lapply(1:length(smooth),function(z){ GlobalPeriodAggregator(x = smooth[[z]],
+	# global statistics (whole period) 
+        T_G_Qnt = lapply(1:length(smooth),function(z){ rep(GlobalPeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x)
-                quantile(x,p=Quant_percentile,type=8,na.rm=T)) })
+                quantile(x,p=Quant_percentile,type=8,na.rm=T)),length(G_AUC[[z]])) })
+        for(z in 1:length(T_G_Qnt)){names(T_G_Qnt[[z]])=names(G_AUC[[z]])}  # change names
+
 
         # collect all data products
         out = list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,
-		A_min=A_min,A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,A_sd=A_sd,
-		G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,G_AUC_leading=G_AUC_leading,
-		G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_Qnt=G_Qnt,G_sd=G_sd)
+		A_min=A_min,A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,A_sd=A_sd,A_max_Qnt=A_max_Qnt,A_AUC_Qnt=A_AUC_Qnt,
+		G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,G_Qnt=G_Qnt,G_mx_Qnt=G_mx_Qnt,G_AUC_Qnt=G_AUC_Qnt,G_AUC2=G_AUC2,
+		G_AUC_leading=G_AUC_leading,
+		G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_AUC_diff_90th=G_AUC_diff_90th,T_G_Qnt=T_G_Qnt,G_sd=G_sd)
 	out = lapply(out,unlist) # unlist elements
 	
 	# convert dates back
@@ -442,8 +496,9 @@
 		for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])} # add rowname for join
 		mymerge = function(x,y){merge(x,y,by='row',all=T)}
 		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min",
-			"A_max","A_AUC",'A_sd',"G_mx_dates","G_mn","G_min","G_mx","G_AUC","G_AUC_leading",
-			"G_AUC_trailing","G_AUC_diff_mn",'G_sd') ])
+			"A_max","A_AUC",'A_max_Qnt','A_AUC_Qnt','A_Qnt','A_sd',"G_mx_dates","G_mn","G_min",
+			"G_mx","G_AUC",'G_Qnt','G_mx_Qnt','G_AUC_Qnt','G_AUC2',"G_AUC_leading",
+			"G_AUC_trailing","G_AUC_diff_mn",'G_AUC_diff_90th','G_sd','T_G_Qnt') ])
 		test = cbind(i,test)
 		return(test)
 	} 

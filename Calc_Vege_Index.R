@@ -31,6 +31,7 @@ library(ggplot2)
 library(MESS)
 library(compiler)
 library(plyr)
+library(zoo)
 registerDoParallel(16)
 
 functions_in = lsf.str()
@@ -143,7 +144,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         date_range_st=plant_lines, date_range_end=harvest_lines,
         by_in='days',FUN=function(x)max(x,na.rm=T))
 
-  AnnualMinumumNearDOY(x,dates_in,DOY_in=PlantHarvest$planting[1])
+  AnnualMinumumNearDOY(x=plotdatasmoothed$EVI,dates_in=plotdatasmoothed$dates,DOY_in=PlantHarvest$planting[1])
 
   AnnualAverageDOYvalues(x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates)
 
@@ -190,15 +191,20 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   # extract values croped to point or polygon
 
-  out2 = extract_value_point_polygon(Polys,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
-  out3 = extract_value_point_polygon(crops,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #out2 = extract_value_point_polygon(Polys,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #out3 = extract_value_point_polygon(crops,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #save( out2, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out2.RData',sep='') )
+  #save( out3, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out3.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/out2.RData')
+  load('/groups/manngroup/India_Index/Data/Intermediates/out3.RData')
+
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
         PlantingDay=23,HarvestMonth=4,HarvestDay=30)
 
   # Get summary statistics lists
-  extr_values=out2
+  extr_values=out3
   PlantHarvestTable = PlantHarvest
   Quant_percentile=0.05
   num_workers = 16
@@ -208,9 +214,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   a3 =  Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
  # get quantiles based on polygon values
-  Neighborhood_quantile(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0)
+  Neighborhood_quantile(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=13,spline_spar = 0)
 
 
+  
 
   # Get summary statistics lists
   extr_values=out3
@@ -221,7 +228,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   b3 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
 
-
+###############################################################
 # Extract data to district level 
 
   # Get planting and harvest dates
@@ -239,8 +246,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield$district = as.character(yield$district)
   yield$years_id = as.numeric(substr(yield$year,1,4))
   
-  ggplot(data=yield[yield$season=='Rabi'& yield$crop=='Wheat',],aes(x=years_id,y=yield_tn_ha,colour=district))+
-	geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
+  #  ggplot(data=yield[yield$season=='Rabi'& yield$crop=='Wheat',],aes(x=years_id,y=yield_tn_ha,colour=district))+
+  #	geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
   # remove two outliers
   yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
 
@@ -294,6 +301,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05, 
 	aggregate=T, return_df=T,num_workers=13,spline_spar=0)
 
+ Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,num_workers=13,spline_spar = 0)
+
+
 # Merge EVI data with yields 
   districts$i = 1:length(districts)
   districts$district = districts$NAME_2
@@ -313,7 +323,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
 
   lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
-	+G_AUC_trailing+G_AUC_diff_mn +season_length+year_trend+A_sd+G_sd,data=yield_evi)
+	+G_AUC_trailing+G_AUC_diff_mn+G_AUC_diff_90th +season_length+year_trend+A_sd+G_sd,data=yield_evi)
   summary(lm1)
   mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
 

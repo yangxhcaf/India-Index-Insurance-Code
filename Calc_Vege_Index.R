@@ -249,7 +249,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   #  ggplot(data=yield[yield$season=='Rabi'& yield$crop=='Wheat',],aes(x=years_id,y=yield_tn_ha,colour=district))+
   #	geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
   # remove two outliers
-  yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
+ 
+# DO WE NEED TO DO THIS? 
+ yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
 
 	
   # get names to match
@@ -296,13 +298,38 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   load('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData')
 
   # find the best spar value
-  spar_find()  # returns spar,adj R2, RMSE/meanvalue
+  #spar_find()  # returns spar,adj R2, RMSE/meanvalue
 
   evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05, 
 	aggregate=T, return_df=T,num_workers=13,spline_spar=0)
 
- Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,num_workers=13,spline_spar = 0)
+  # returns quantile for all cells within polygon
+  # neigh_quan =  Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
+  #	 num_workers=16,spline_spar = 0)
+  #save(neigh_quan, file = paste('/groups/manngroup/India_Index/Data/Intermediates/neigh_quan.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/neigh_quan.RData')
+  
+  # make district maps
+  districts@data = cbind(districts@data,unlist(neigh_quan))
+  districts = spTransform(districts, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
+  districts@data$id = rownames(districts@data)
+  source('/groups/manngroup/India_Index/India-Index-Insurance-Code/fortify2.R')
+  districts.df =  fortify(districts) 
+  districts.df =  join(districts.df, districts@data, by="id",type = 'left')
+  names(districts.df)[dim(districts.df)[2]]='neigh_quan'
+  districts.df$neigh_quan = districts.df$neigh_quan * 0.0001
 
+  ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= neigh_quan,group=as.factor(id) )) +
+  coord_equal() +
+  scale_fill_gradient2('5th Percentile EVI ', low = 'red',mid='purple',high = 'green', midpoint=0.17) 
+ 
+  ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= neigh_quan,group=as.factor(id) )) +
+  coord_equal() +
+  scale_fill_gradient2('5th Percentile EVI ', low = 'red',mid='purple',high = 'blue', midpoint=0.17)
+
+
+
+ 
 
 # Merge EVI data with yields 
   districts$i = 1:length(districts)
@@ -320,10 +347,12 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
   yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
   yield_evi$year_trend = as.numeric(  yield_evi$row)
+ 
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
 
   lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
-	+G_AUC_trailing+G_AUC_diff_mn+G_AUC_diff_90th +season_length+year_trend+A_sd+G_sd,data=yield_evi)
+	+G_AUC_trailing+G_AUC_diff_mn+G_AUC_diff_90th +season_length+year_trend+A_sd+G_sd+
+	A_Qnt+A_max_Qnt+A_AUC_Qnt+G_mx_dates+G_Qnt+G_mx_Qnt+G_AUC_Qnt+T_G_Qnt,data=yield_evi)
   summary(lm1)
   mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
 

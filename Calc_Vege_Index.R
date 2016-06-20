@@ -349,6 +349,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_evi$year_trend = as.numeric(  yield_evi$row)
  
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
+  write.csv(yield_evi,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi.csv')
 
   lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
 	+G_AUC_trailing+G_AUC_diff_mn+G_AUC_diff_90th +season_length+year_trend+A_sd+G_sd+

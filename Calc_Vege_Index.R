@@ -308,6 +308,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   #	 num_workers=16,spline_spar = 0)
   #save(neigh_quan, file = paste('/groups/manngroup/India_Index/Data/Intermediates/neigh_quan.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/neigh_quan.RData')
+
   
   # make district maps
   districts@data = cbind(districts@data,unlist(neigh_quan))
@@ -347,7 +348,21 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
   yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
   yield_evi$year_trend = as.numeric(  yield_evi$row)
- 
+
+  yield_evi = yield_evi[,c('i','years_id','NAME_0','NAME_1','district','season','area','production_tonnes','yield_tn_ha',
+	'plant_dates','harvest_dates','season_length','A_mn','A_min','A_max','A_AUC',
+	'A_Qnt','A_sd','A_max_Qnt','A_AUC_Qnt','G_mx_dates',
+	'G_mn','G_min','G_mx','G_AUC','G_Qnt','G_mx_Qnt',
+	'G_AUC_Qnt','G_AUC2','G_AUC_leading','G_AUC_trailing',
+	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd')]
+
+  names(yield_evi)=c('i','years','country','state','district','season','area','production_tonnes','yield_tn_ha',
+        'plant_dates','harvest_dates','season_length','EVI_annual_mean','EVI_annual_min','EVI_annual_max','EVI_annual_AUC',
+	'EVI_annual_5th_prct','EVI_annual_sd','EVI_annual_max_5th_prct','EVI_annual_AUC_5th_prct','EVI_growing_max_date',
+	'EVI_growing_mean','EVI_growing_min','EVI_growing_max','EVI_growing_AUC','EVI_growing_5th_prct','EVI_growing_max_5th_prct',
+	'EVI_growing_AUC_5th_prct','EVI_growing_AUC_v2','EVI_growing_AUC_leading','EVI_growing_AUC_trailing',
+        'EVI_growing_AUC_diff_mn','EVI_growing_AUC_diff_90th','EVI_all_growing_5th_prct','EVI_growing_sd')
+  
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
   write.csv(yield_evi,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi.csv')
 

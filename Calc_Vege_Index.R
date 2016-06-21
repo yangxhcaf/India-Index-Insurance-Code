@@ -1,3 +1,43 @@
+
+# Michael Mann    Calc_Vege_Index.R
+# This script calculates a series of stastics about the wheat growing season
+
+# Run the following in bash before starting R
+ module load proj.4/4.8.0
+ module load gdal/gcc/1.11
+ module load R
+ module load gcc/4.9.0
+ R
+
+
+
+rm(list=ls())
+#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+#source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
+source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
+source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
+
+
+library(RCurl)
+library(raster)
+library(MODISTools)
+library(rgdal)
+library(sp)
+library(maptools)
+#library(rts)
+#library(gdalUtils)
+library(foreach)
+library(doParallel)
+library(ggplot2)
+library(MESS)
+library(compiler)
+library(plyr)
+library(zoo)
+registerDoParallel(16)
+
+functions_in = lsf.str()
+lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # byte code compile all functions http://adv-r.had.co.nz/$
+
 # Michael Mann    Calc_Vege_Index.R
 # This script calculates a series of stastics about the wheat growing season
 
@@ -229,7 +269,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 ###############################################################
-# Extract data to district level 
+# Extract data to district level link with yield data
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
@@ -329,9 +369,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   scale_fill_gradient2('5th Percentile EVI ', low = 'red',mid='purple',high = 'blue', midpoint=0.17)
 
 
-
- 
-
 # Merge EVI data with yields 
   districts$i = 1:length(districts)
   districts$district = districts$NAME_2
@@ -381,6 +418,66 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+#####################################################################
+# Summarize subdistricts 
+
+ # Get planting and harvest dates
+  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
+        PlantingDay=23,HarvestMonth=4,HarvestDay=30)
+
+  # get District outlines
+  ogrInfo('../Admin Boundaries/','PunjabHaryanaDistricts')
+  sub_districts = readOGR('../Admin Boundaries/IND_adm_shp/','IND_adm3')
+  sub_districts = spTransform(sub_districts, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  sub_districts$NAME_2 = toupper(as.character(sub_districts$NAME_2))
+  sub_districts$NAME_3 = toupper(as.character(sub_districts$NAME_3))
+  sub_districts=sub_districts[sub_districts$NAME_1=='Haryana' |sub_districts$NAME_1=='Punjab',]
+  sub_districts=sub_districts[sub_districts$NAME_2 %in% c("FATEHABAD","SIRSA","YAMUNANAGAR",
+	"FATEHGARH SAHIB","LUDHIANA","PATIALA"),]
+
+
+  sub_dist_EVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #save(sub_dist_EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData')
+
+
+  # Get planting and harvest dates
+  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
+        PlantingDay=23,HarvestMonth=4,HarvestDay=30)
+
+  # Get summary statistics lists
+  extr_values=sub_dist_EVI
+  PlantHarvestTable = PlantHarvest
+  Quant_percentile=0.05
+  num_workers = 16
+  spline_spar = 0
+  evi_summary =  Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
+
+
+ # Merge EVI data with yields
+  sub_districts$i = 1:length(sub_districts)
+#  sub_districts$sub_district = sub_districts$NAME_3
+
+  for(i in 1:length(evi_summary)){
+        evi_summary[[i]]=join(evi_summary[[i]], sub_districts@data[,c('i','NAME_0','NAME_1','NAME_2','NAME_3')])
+        evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')
+  }
+
+  evi_summary = na.omit(do.call(rbind,evi_summary))
+  #evi_summary$season_length = as.numeric(evi_summary$harvest_dates -evi_summary$plant_dates)
+  #yield_evi$plant_dates = as.numeric(format(yield_evi$plant_dates,'%j'))
+  #yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
+  #yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
+  #yield_evi$year_trend = as.numeric(  yield_evi$row)
+
+  evi_summary = evi_summary[,c('i','year','NAME_0','NAME_1','NAME_2','NAME_3',
+        'plant_dates','harvest_dates','G_mx','G_mx_dates', 'G_mn')]
+
+  names(evi_summary)=c('i','year','country','state','district','sub_district',
+	'plant_dates','harvest_dates','EVI_growing_max','EVI_growing_max_date','EVI_growing_mean')
+
+
+  write.csv(evi_summary,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi_simplified.csv')
 
 
 

@@ -2,44 +2,6 @@
 # Michael Mann    Calc_Vege_Index.R
 # This script calculates a series of stastics about the wheat growing season
 
-# Run the following in bash before starting R
- module load proj.4/4.8.0
- module load gdal/gcc/1.11
- module load R
- module load gcc/4.9.0
- R
-
-
-
-rm(list=ls())
-#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
-#source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
-source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
-source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
-
-
-library(RCurl)
-library(raster)
-library(MODISTools)
-library(rgdal)
-library(sp)
-library(maptools)
-#library(rts)
-#library(gdalUtils)
-library(foreach)
-library(doParallel)
-library(ggplot2)
-library(MESS)
-library(compiler)
-library(plyr)
-library(zoo)
-registerDoParallel(16)
-
-functions_in = lsf.str()
-lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # byte code compile all functions http://adv-r.had.co.nz/$
-
-# Michael Mann    Calc_Vege_Index.R
-# This script calculates a series of stastics about the wheat growing season
 
 # Run the following in bash before starting R
  module load proj.4/4.8.0
@@ -88,6 +50,12 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   location = c(30.259,75.644)  # Lat Lon of a location of interest within your $
   tiles =   c('h24v05','h24v06')   # India example c('h13v12')
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-$
+  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+
+  # load data stacks from both directories
+  dir1 = list.files('./WO Clouds Crops Clean/','.RData',full.names=T)
+  lapply(dir1, load,.GlobalEnv)
+
 
 
 
@@ -95,10 +63,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 # Load Data Layers 
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
   
-
-  # load data stacks from both directories
-  dir1 = list.files('./WO Clouds Crops Clean/','.RData',full.names=T)
-  lapply(dir1, load,.GlobalEnv)
 
 
   plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$
@@ -418,6 +382,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+
+
+
 #####################################################################
 # Summarize subdistricts 
 
@@ -426,7 +393,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         PlantingDay=23,HarvestMonth=4,HarvestDay=30)
 
   # get District outlines
-  ogrInfo('../Admin Boundaries/','PunjabHaryanaDistricts')
+  ogrInfo('../Admin Boundaries/IND_adm_shp/','IND_adm3')
   sub_districts = readOGR('../Admin Boundaries/IND_adm_shp/','IND_adm3')
   sub_districts = spTransform(sub_districts, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
   sub_districts$NAME_2 = toupper(as.character(sub_districts$NAME_2))
@@ -436,9 +403,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 	"FATEHGARH SAHIB","LUDHIANA","PATIALA"),]
 
 
-  sub_dist_EVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #sub_dist_EVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
   #save(sub_dist_EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData',sep='') )
-  load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData')
+  load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData' )
 
 
   # Get planting and harvest dates
@@ -454,7 +421,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   evi_summary =  Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
 
- # Merge EVI data with yields
+ # Merge EVI data with polygons
   sub_districts$i = 1:length(sub_districts)
 #  sub_districts$sub_district = sub_districts$NAME_3
 
@@ -463,24 +430,34 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')
   }
 
-  evi_summary = na.omit(do.call(rbind,evi_summary))
-  #evi_summary$season_length = as.numeric(evi_summary$harvest_dates -evi_summary$plant_dates)
-  #yield_evi$plant_dates = as.numeric(format(yield_evi$plant_dates,'%j'))
-  #yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
-  #yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
-  #yield_evi$year_trend = as.numeric(  yield_evi$row)
-
+  evi_summary = do.call(rbind,evi_summary)
   evi_summary = evi_summary[,c('i','year','NAME_0','NAME_1','NAME_2','NAME_3',
         'plant_dates','harvest_dates','G_mx','G_mx_dates', 'G_mn')]
 
   names(evi_summary)=c('i','year','country','state','district','sub_district',
 	'plant_dates','harvest_dates','EVI_growing_max','EVI_growing_max_date','EVI_growing_mean')
+  evi_summary$year = as.numeric(substr(evi_summary$year,1,4))
 
 
-  write.csv(evi_summary,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi_simplified.csv')
+  # Export mean 8 day values by subdistrict
+  EVI_mean_sub_dist = lapply(1:length(extr_values), function(x) as.data.frame(colMeans(extr_values[[x]])))
+  EVI_mean_sub_dist = lapply(1:length(EVI_mean_sub_dist), function(x) cbind(EVI_mean_sub_dist[[x]],
+	strptime( gsub("^.*X([0-9]+).*$", "\\1", row.names(EVI_mean_sub_dist[[x]])),format='%Y%j')))   # assign dates
+  for(x in 1:length(EVI_mean_sub_dist)){names(EVI_mean_sub_dist[[x]])=c('EVI_MN','date') # clean names
+  	EVI_mean_sub_dist[[x]]$year =format( EVI_mean_sub_dist[[x]]$date,'%Y')
+	EVI_mean_sub_dist[[x]]$i = x
+	}
+  EVI_mean_sub_dist = na.omit(do.call(rbind,EVI_mean_sub_dist))
+
+  EVI_mean_sub_dist_join = join(EVI_mean_sub_dist,evi_summary)
+  EVI_mean_sub_dist_join = EVI_mean_sub_dist_join[,c('i',"date","year","country","state","district","sub_district",
+	"plant_dates","harvest_dates","EVI_MN","EVI_growing_max","EVI_growing_max_date","EVI_growing_mean")]
+
+  write.csv(EVI_mean_sub_dist_join,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi_simplified.csv')
 
 
 
+##############################################################################################
 
 # Run functions on stacks -----------------------------------------
 

@@ -140,6 +140,8 @@
 
 
   AnnualMinumumNearDOY = function(x,dates_in,DOY_in){
+
+       # I THINK THIS FUNCTION IS NO LONGER USED... I THINK
     	#x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of rain onset as.Date
     	tempDOY = as.POSIXlt(DOY_in)
     	# avoid problems with time class
@@ -179,20 +181,28 @@
     AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_shift,dir){
     	# calculates the annual minimum for days_before days before each DOY for planting season
     	# best to set DOY as the last expected date of planting
+        #x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of planting harvest
+	# dir='before' 'after' 'beforeafter'
+
     	if(days_shift<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
-    	#x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of planting harvest
-    	tempDOY = as.POSIXlt(DOY_in)
+
     	# avoid problems with time class
-    	if(is.na(tempDOY[1])){print('ERROR: convert date format to %Y%j');break}
+    	if(is.na(DOY_in[1])){print('ERROR: convert date format to %Y%j');break}
     	if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
-    	# limit to fixed # of days before DOY
-    	DOY_before = tempDOY
+
+    	# limit to fixed # of days before/after DOY
+        DOY_in = as.POSIXlt(DOY_in)
+	DOY_before = DOY_in
+
     	#names(unclass(DOY_before[1]))
     	if(dir=='before') DOY_before$mday=DOY_before$mday-days_shift      # set days before to doy - days_before
     	if(dir=='after') DOY_before$mday=DOY_before$mday+days_shift      # set days before to doy - days_before
-    	DOY_table = data.frame(DOY_before=DOY_before,DOY_in=as.POSIXlt(DOY_in))   #match DOY with Days_be$
-    	# get all days 'days_before' DOY_in in a list
- 	if(dir=='before'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+        if(dir=='beforeafter'){ DOY_before$mday=DOY_before$mday-days_shift 
+		DOY_in$mday=DOY_in$mday+days_shift}
+    	DOY_table = data.frame(DOY_before=DOY_before,DOY_in=DOY_in)   #join start end search dates
+  
+  	# list all days 'days_before' DOY_in
+ 	if(dir=='before'|dir=='beforeafter'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
 			function(h){format(seq(DOY_table[h,1],
 	                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')}
 	if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
@@ -214,17 +224,6 @@
         if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
 
          dates_group = rep(0,length(dates_in))    # create storage for factors of periods
-
-# DONT USE THIS PORTION trailing leading auc problem... multible maximums for one year
-#  	 # avoid problems with 2002 estimating max value (leading trailing auc function) 
-#	 if(length(DOY_start_in)<length(DOY_end_in) & format(DOY_end_in[1],'%Y')==format(DOY_end_in[2],'%Y') & 
-#		as.numeric(format(DOY_end_in[2],'%Y'))+1==as.numeric(format(DOY_end_in[3],'%Y')) ){
-#		   DOY_end_in = DOY_end_in[2:length(DOY_end_in)]
-#		 }
-#         if(length(DOY_start_in)>length(DOY_end_in) & format(DOY_start_in[1],'%Y')==format(DOY_start_in[2],'%Y') &
-#                as.numeric(format(DOY_start_in[2],'%Y'))+1==as.numeric(format(DOY_start_in[3],'%Y')) ){
-#                   DOY_start_in = DOY_start_in[2:length(DOY_start_in)]
-#                 }
 
          # get sequences of periods of inerest
          seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
@@ -379,9 +378,9 @@
 	# is spline_spar ==0, dates need to be set by slightly smoothed data
 	if(spline_spar!=0){
         plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='before')})
+            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
         harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='after')})
+            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
 	}
 	if(spline_spar==0){
         smooth_4_dates = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(

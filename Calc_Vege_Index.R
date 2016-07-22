@@ -89,11 +89,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 #     extract(NDVI_stack_h24v05,crops[crops$id ==i,])
 #  }
 #  endCluster()
-#  EVI=lapply(EVI, function(x){
-#  	x[x<=-2000]=NA
-#  	#x=x*0.0001
-#	})
-#
+
+
 #  #save( EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/EVIHOLDER.RData')
 
@@ -387,10 +384,11 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 #####################################################################
 # Summarize subdistricts 
+ 
+  load('./WO Clouds Crops Clean/NDVI_stack_h24v05_wo_clouds_crops_clean.RData')
+  load('./WO Clouds Crops Clean/NDVI_stack_h24v06_wo_clouds_crops_clean.RData')
 
- # Get planting and harvest dates
-  PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
-        PlantingDay=23,HarvestMonth=4,HarvestDay=30)
+
 
   # get District outlines
   ogrInfo('../Admin Boundaries/IND_adm_shp/','IND_adm3')
@@ -403,9 +401,11 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 	"FATEHGARH SAHIB","LUDHIANA","PATIALA"),]
 
 
-  #sub_dist_EVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  #sub_dist_NDVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
   #save(sub_dist_EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData' )
+  #save(sub_dist_NDVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_ndvi.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_ndvi.RData' )
 
 
   # Get planting and harvest dates
@@ -455,6 +455,86 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   write.csv(EVI_mean_sub_dist_join,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi_simplified.csv')
 
+
+  # Figure out january outlier issue
+  FATEHABAD = sub_districts[sub_districts$NAME_2=='FATEHABAD'& sub_districts$NAME_3=='FATEHABAD',]
+
+  par(mfrow=c(1,3),oma=c(0,0,2,0))
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2002361')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2002361')
+ 
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2003001')]],add=T) 
+  plot(FATEHABAD,add=T)
+  title('2003001')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2003009')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2003009')
+  title("FATEHABAD,FATEHABAD", outer=TRUE)
+  
+  #----
+  FATEHABAD = sub_districts[sub_districts$NAME_2=='FATEHABAD'& sub_districts$NAME_3=="FATEHABAD",]
+
+  par(mfrow=c(1,3),oma=c(0,0,2,0))
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2015353')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2015353')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2015361')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2015361')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2016001')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2016001')
+  title("FATEHABAD,FATEHABAD", outer=TRUE)
+
+ #----
+  FATEHABAD = sub_districts[sub_districts$NAME_2=='FATEHABAD'& sub_districts$NAME_3=="TOHANA",]
+
+  par(mfrow=c(1,3),oma=c(0,0,2,0))
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2002361')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2015353')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2003001')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2015361')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2003009')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2016001')
+  title("FATEHABAD,TOHANA", outer=TRUE)
+
+#----
+  FATEHABAD = sub_districts[sub_districts$NAME_2=='FATEHABAD'& sub_districts$NAME_3=="TOHANA",]
+
+  par(mfrow=c(1,3),oma=c(0,0,2,0))
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2008353')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2015353')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2008361')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2015361')
+
+  plot(FATEHABAD)
+  plot(EVI_stack_h24v06[[which(names(EVI_stack_h24v06)=='X2009001')]],add=T)
+  plot(FATEHABAD,add=T)
+  title('2016001')
+  title("FATEHABAD,TOHANA", outer=TRUE)
 
 
 ##############################################################################################

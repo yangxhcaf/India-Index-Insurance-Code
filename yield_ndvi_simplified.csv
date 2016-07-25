@@ -1,4 +1,4 @@
-"","i","date","year","country","state","district","sub_district","plant_dates","harvest_dates","EVI_MN","EVI_growing_max","EVI_growing_max_date","EVI_growing_mean"
+"","i","date","year","country","state","district","sub_district","plant_dates","harvest_dates","NDVI_MN","NDVI_growing_max","NDVI_growing_max_date","NDVI_growing_mean"
 "1",1,2002-07-04,"2002","India","Haryana","FATEHABAD","FATEHABAD",2002-11-17,2003-05-17,2096.81346446552,6473.17967451118,2003-02-10,3721.07432605173
 "2",1,2002-07-12,"2002","India","Haryana","FATEHABAD","FATEHABAD",2002-11-17,2003-05-17,2445.42943449245,6473.17967451118,2003-02-10,3721.07432605173
 "3",1,2002-07-20,"2002","India","Haryana","FATEHABAD","FATEHABAD",2002-11-17,2003-05-17,1788.57346914881,6473.17967451118,2003-02-10,3721.07432605173

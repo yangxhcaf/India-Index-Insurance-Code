@@ -387,7 +387,7 @@
         smooth_4_dates = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
             x = as.numeric(extr_values[[i]][z,]),
             dates=as.Date(dats),
-            pred_dates=as.Date(dats),spline_spar=2)})
+            pred_dates=as.Date(dats),spline_spar=0.2)})
 	plant_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
             dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
         harvest_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],

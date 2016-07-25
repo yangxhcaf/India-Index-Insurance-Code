@@ -100,7 +100,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
                         dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI')
 
   plotdata = rbind(plotdata, data.frame(EVI = SplineAndOutlierRemoval(x = EVI_v1,
-                        dates=plot_dates, pred_dates=plot_dates,spline_spar = 0.2),
+                        dates=plot_dates, pred_dates=plot_dates,spline_spar = 0.2),  
                         dates =as.Date(strptime(plot_dates,'%Y-%m-%d')),class = 'EVI Smoothed'))
 
   # Get planting and harvest dates
@@ -384,7 +384,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 #####################################################################
 # Summarize subdistricts 
- 
   load('./WO Clouds Crops Clean/NDVI_stack_h24v05_wo_clouds_crops_clean.RData')
   load('./WO Clouds Crops Clean/NDVI_stack_h24v06_wo_clouds_crops_clean.RData')
 
@@ -413,7 +412,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         PlantingDay=23,HarvestMonth=4,HarvestDay=30)
 
   # Get summary statistics lists
-  extr_values=sub_dist_EVI
+  extr_values=sub_dist_NDVI
   PlantHarvestTable = PlantHarvest
   Quant_percentile=0.05
   num_workers = 16
@@ -427,7 +426,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   for(i in 1:length(evi_summary)){
         evi_summary[[i]]=join(evi_summary[[i]], sub_districts@data[,c('i','NAME_0','NAME_1','NAME_2','NAME_3')])
-        evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')
+        evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),
+	format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')
   }
 
   evi_summary = do.call(rbind,evi_summary)

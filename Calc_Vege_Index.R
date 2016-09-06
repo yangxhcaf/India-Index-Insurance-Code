@@ -384,6 +384,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 #####################################################################
 # Summarize subdistricts 
+  load('./WO Clouds Crops Clean/EVI_stack_h24v05_wo_clouds_crops_clean.RData')
+  load('./WO Clouds Crops Clean/EVI_stack_h24v06_wo_clouds_crops_clean.RData')
+
   load('./WO Clouds Crops Clean/NDVI_stack_h24v05_wo_clouds_crops_clean.RData')
   load('./WO Clouds Crops Clean/NDVI_stack_h24v06_wo_clouds_crops_clean.RData')
 
@@ -400,10 +403,12 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 	"FATEHGARH SAHIB","LUDHIANA","PATIALA"),]
 
 
-  #sub_dist_NDVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
-  #save(sub_dist_EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData',sep='') )
+  # extract raster data for districts and save
+  sub_dist_NDVI = extract_value_point_polygon(sub_districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
+  save(sub_dist_NDVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_ndvi.RData',sep='') )
+  sub_dist_EVI = extract_value_point_polygon(sub_districts,list(EVI_stack_h24v06,EVI_stack_h24v05),16)
+  save(sub_dist_EVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_evi.RData' )
-  #save(sub_dist_NDVI, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_ndvi.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/out_subdistricts_ndvi.RData' )
 
 
@@ -453,7 +458,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   EVI_mean_sub_dist_join = EVI_mean_sub_dist_join[,c('i',"date","year","country","state","district","sub_district",
 	"plant_dates","harvest_dates","EVI_MN","EVI_growing_max","EVI_growing_max_date","EVI_growing_mean")]
 
-  write.csv(EVI_mean_sub_dist_join,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi_simplified.csv')
+  #names(EVI_mean_sub_dist_join)=c('i',"date","year","country","state","district","sub_district",
+        "plant_dates","harvest_dates","NDVI_MN","NDVI_growing_max","NDVI_growing_max_date","NDVI_growing_mean")
+
+  write.csv(EVI_mean_sub_dist_join,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_ndvi_simplified.csv')
 
 
   # Figure out january outlier issue

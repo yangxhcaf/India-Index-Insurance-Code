@@ -4,13 +4,14 @@
 #SBATCH -o testing%j.out
 #SBATCH -e testing%j.err 
 
-# single node in the "short" partition
+# single node in the "short or defq" partition
 #SBATCH -N 1
-#SBATCH -p short
+#SBATCH -p defq,short
 #SBATCH -D /groups/manngroup/India_Index/India-Index-Insurance-Code
 # half hour timelimit
-#SBATCH -t 8:00:00
-
+#SBATCH -t 20:00:00
+#SBATCH --mail-user=mmann1123@gwu.edu
+#SBATCH --mail-type=ALL
 
 # Run the following in bash before starting R
 module load proj.4/4.8.0

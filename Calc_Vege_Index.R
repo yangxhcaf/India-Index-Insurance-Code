@@ -367,19 +367,74 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
   write.csv(yield_evi,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi.csv')
 
-  lm1=  lm(yield_tn_ha ~factor(i)+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
-        EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-        EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
-        EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-        EVI_growing_AUC_diff_mn+EVI_growing_AUC_diff_90th+EVI_all_growing_5th_prct+EVI_growing_sd,data=yield_evi)
+  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
+  formula_lm = yield_tn_ha ~factor(i)+plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
+    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
+    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+    EVI_growing_AUC_diff_mn+EVI_growing_AUC_diff_90th+EVI_all_growing_5th_prct+EVI_growing_sd
+  
+  lm1=  lm(formula_lm,data=yield_evi)
   summary(lm1)
   mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
 
   lm_0=  lm(yield_tn_ha ~factor(i),data=yield_evi)
   summary(lm_0)
 
+  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
+    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
+    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+    EVI_all_growing_5th_prct+EVI_growing_sd
+  
+  library(plm) # works on desktop at school
+  fixed <- plm(formula, data=yield_evi, index=c("district", "years"), model="within")
+  summary(fixed)  
 
+  random <- plm(formula, data=yield_evi, index=c("district", "years"), model="random")
+  summary(random)  
+  
+  phtest(fixed, random) # use fixed if significant
+  
+  formula2 = yield_tn_ha ~ plant_dates+season_length+EVI_annual_mean+I(EVI_annual_mean^2)+EVI_annual_min+EVI_annual_max+
+    EVI_annual_AUC+I(EVI_annual_AUC^2)+ 
+    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
+    EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+    EVI_all_growing_5th_prct+EVI_growing_sd
+  
+  #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
+  
+  random <- plm(formula2, data=yield_evi, index=c("district", "years"), model="random")
+  summary(random) 
+  
+  library(rms)
+  formula3 = yield_tn_ha ~  plant_dates +season_length+rcs(EVI_annual_mean,4)+EVI_annual_min+rcs(EVI_annual_max,4)+
+    rcs(EVI_annual_AUC,4)+ 
+    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
+    EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+    EVI_all_growing_5th_prct+EVI_growing_sd
+  
+  #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
+  
+  random <- plm(formula3, data=yield_evi, index=c("district", "years"), model="random")
+  summary(random)  
+  
+  # plot fitted vs actual
+  fitted = data.frame(fitted = random$model[[1]] - random$residuals)
+  model_data = cbind(random$model,fitted)
+  model_data = cbind(model_data,na.omit(yield_evi))  
+  model_data$district = as.character(model_data$district)
+  model_data$years_id = as.numeric(substr(model_data$year,1,4))
+  model_data = model_data[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data = melt(model_data,id = c('years_id','district'))
+  
+  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable))+
+  geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
 
+  
+  
 # Basic Scatterplot Matrix
   pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
         +G_AUC_trailing+season_length+year_trend, data =yield_evi,main="Simple Scatterplot Matrix")

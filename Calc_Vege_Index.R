@@ -6,7 +6,9 @@
 # Run the following in bash before starting R
  module load proj.4/4.8.0
  module load gdal/gcc/1.11
- module load R
+# module load R
+ module use /home/mmann1123/local/modulefiles 
+ module load R/3.2.2
  module load gcc/4.9.0
  R
 
@@ -34,6 +36,7 @@ library(MESS)
 library(compiler)
 library(plyr)
 library(zoo)
+library(plm)
 registerDoParallel(16)
 
 functions_in = lsf.str()
@@ -251,8 +254,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   #	geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
   # remove two outliers
  
-# DO WE NEED TO DO THIS? 
- yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
+# DO WE NEED TO DO THIS?  They seem like outliers, but maybe not? 
+# yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
 
 	
   # get names to match
@@ -364,12 +367,16 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
   write.csv(yield_evi,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi.csv')
 
-  lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
-	+G_AUC_trailing+G_AUC_diff_mn+G_AUC_diff_90th +season_length+year_trend+A_sd+G_sd+
-	A_Qnt+A_max_Qnt+A_AUC_Qnt+G_mx_dates+G_Qnt+G_mx_Qnt+G_AUC_Qnt+T_G_Qnt,data=yield_evi)
+  lm1=  lm(yield_tn_ha ~factor(i)+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
+        EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+        EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
+        EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+        EVI_growing_AUC_diff_mn+EVI_growing_AUC_diff_90th+EVI_all_growing_5th_prct+EVI_growing_sd,data=yield_evi)
   summary(lm1)
   mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
 
+  lm_0=  lm(yield_tn_ha ~factor(i),data=yield_evi)
+  summary(lm_0)
 
 
 

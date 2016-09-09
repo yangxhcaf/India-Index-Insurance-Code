@@ -1,0 +1,41 @@
+---
+title: "Untitled"
+
+bibliography: MyCollection.bib
+output: word_document
+---
+```{r setup, include=FALSE}
+# citation styles can be managed here: http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
+# http://rmarkdown.rstudio.com
+```
+
+The main objectives of these projects are to test novel insurance products for weather-related risks in developing countries to increase farmers' resilience to weather shocks and to enhance farmers' adaptive capacity by developing 'climate-smart insurance' (CSI) products. The project develops and tests a novel theory to analyze what type of novel insurance products can have high take up by themselves and when they complement policies promoting climate-smart agriculture (CSA). The resulting portfolio of sustainable novel products and climate-smart insurance products will be implemented in selected sites in i) Punjab and Haryana in India and in ii) Uruguay (Canelones and Salto) where IFPRI has implemented and index insurance project since 2012. The project will develop a portfolio of high-potential insurance products some of which complement with CSA technologies and collect empirical evidence regarding the take-up of these products through experiments and auctions. 
+
+To develop novel insurance products IFPRI will work with remote sensing imagery to proxy for crop losses and estimate triggers to compensate farmers. For this purpose IFPRI seeks to hire a remote sensing expert as a collaborator to analyze remote sensing imagery and provide advice on how to incorporate such information in insurance product design.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+ 
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+Here are two sample references: @Abatzoglou2013 [@Abatzoglou2013].
+
+
+
+References {#references .unnumbered}
+==========

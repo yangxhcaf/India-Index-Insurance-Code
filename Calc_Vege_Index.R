@@ -6,17 +6,17 @@
 # Run the following in bash before starting R
  module load proj.4/4.8.0
  module load gdal/gcc/1.11
-# module load R
- module use /home/mmann1123/local/modulefiles 
- module load R/3.2.2
+ module load R
+# module use /home/mmann1123/local/modulefiles 
+# module load R/3.2.2
  module load gcc/4.9.0
  R
 
 
 
 rm(list=ls())
-#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
-#source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
+#source('H:\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+#source('H:\\scripts/SplineAndOutlierRemoval.R')
 source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
 
@@ -37,7 +37,7 @@ library(compiler)
 library(plyr)
 library(zoo)
 library(plm)
-registerDoParallel(16)
+registerDoParallel(7)
 
 functions_in = lsf.str()
 lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # byte code compile all functions http://adv-r.had.co.nz/Profiling.html#vectorise
@@ -54,7 +54,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   tiles =   c('h24v05','h24v06')   # India example c('h13v12')
   dates = c('2002-01-01','2016-02-02') # example c('year-month-day',year-month-$
   setwd('/groups/manngroup/India_Index/Data/Data Stacks')
-
+  #setwd('H:/Projects/India_Index_Insurance/Data/Data Stacks')
+  
   # load data stacks from both directories
   dir1 = list.files('./WO Clouds Crops Clean/','.RData',full.names=T)
   lapply(dir1, load,.GlobalEnv)
@@ -64,8 +65,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 # Check functions ----------------------------------------------
 # Load Data Layers 
-  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
-  
 
 
   plot_dates = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(NDVI_stack_h24v05)),format='%Y%j') # create dates to in$

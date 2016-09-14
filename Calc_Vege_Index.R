@@ -7,8 +7,8 @@
  module load proj.4/4.8.0
  module load gdal/gcc/1.11
  module load R
-# module use /home/mmann1123/local/modulefiles 
-# module load R/3.2.2
+ #module use /home/mmann1123/local/modulefiles 
+ #module load R/3.2.2
  module load gcc/4.9.0
  R
 
@@ -19,6 +19,22 @@ rm(list=ls())
 #source('H:\\scripts/SplineAndOutlierRemoval.R')
 source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
+
+#install.packages("RCurl",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("raster",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("MODISTools",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("rgdal",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("sp",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("maptools",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("foreach",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("doParallel",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("ggplot2",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("MESS",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("compiler",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("plyr",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("plm",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("zoo",repos="http://cran.cnr.berkeley.edu/")
+#install.packages("rgeos",repos="http://cran.cnr.berkeley.edu/")
 
 
 library(RCurl)
@@ -37,6 +53,7 @@ library(compiler)
 library(plyr)
 library(zoo)
 library(plm)
+
 registerDoParallel(7)
 
 functions_in = lsf.str()
@@ -177,16 +194,22 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         date_range_st=plant_lines, date_range_end=harvest_lines,
         by_in='days',FUN=function(x)quantile(x,0.05,type=8,na.rm=T))
 
+  # extracted data is actually NDVI from above So changing names
+  names(plotdata) = c('NDVI','Dates','Legend')
+  plotdata$Legend=as.character(plotdata$Legend)
+  plotdata$Legend[plotdata$Legend=='EVI'] ='NDVI'
+  plotdata$Legend[plotdata$Legend=='EVI Smoothed'] ='NDVI Smoothed'
 
   ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
         ymin = -Inf, ymax = Inf), alpha = 0.4)+
-        geom_point(data= plotdata, aes(x=dates,y=EVI,group=class,colour=class))+
+        geom_point(data= plotdata, aes(x=Dates,y=NDVI,group=Legend,colour=Legend))+
         geom_vline(colour='blue',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+
         geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
         geom_vline(colour='orange',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
-        annotate("text", x =(PlantHarvest$planting[1]+60), y = 0.375, label = "Wheat")+
-        annotate("text", x =(PlantHarvest$harvest[1]+90), y = 0.3, label = "Rice")
+        annotate("text", x =(PlantHarvest$planting[1]+61), y = 0.37, label = "Wheat")+
+        annotate("text", x =(PlantHarvest$harvest[1]+93), y = 0.31, label = "Rice")
 
+ # ggsave(file="../../India-Index-Insurance-Code/WriteUp/PlantHarvestDates_NDVI.png")
 
 
 # Extract polygon or points data from stacks ------------------------
@@ -253,7 +276,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   #	geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
   # remove two outliers
  
-# DO WE NEED TO DO THIS?  They seem like outliers, but maybe not? 
+# DO WE NEED TO DO THIS?  They seem like outliers, but maybe not?  Can remove them later if needed
 # yield$yield_tn_ha[yield$yield_tn_ha<1 |yield$yield_tn_ha>6]=NA
 
 	
@@ -293,8 +316,54 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   sort(unique(yield$district))
   sort(unique(districts$NAME_2))
 
+
+# Import second wheat yeild data (punjab only)
+
+  yield_punjab = read.csv('/groups/manngroup/India_Index/Data/YieldData/Chandigarh Wheat Yields for Punjab.csv',stringsAsFactors=F)
+  yield_punjab$district = toupper(yield_punjab$Districts)
+  yield_punjab$state = toupper(yield_punjab$State)
+  yield_punjab$years_id = as.numeric(substr(yield_punjab$Year,1,4))
+  yield_punjab$year = yield_punjab$Year
+
+  # get names to match
+  locales = sort(unique(districts$NAME_2[districts$NAME_1=='Punjab']))
+  locales_v = sort(unique(yield_punjab$district))
+
+  # change names to match
+  # find partial matches
+  for(i in 1:length(unique(districts$NAME_2))){
+        print(paste(locales[i],' -MATCH- ',locales_v[pmatch(locales[i], locales_v)]))}
+  # fill in holes create a dataframe as a lookup table
+  look_up = data.frame(locales =locales,
+        locales_v = apply(data.frame(locales),1,function(x) locales_v[pmatch(x, locales_v)]),
+        stringsAsFactors=F)
+
+  lookmeup = function(){ print(look_up)
+	  print(locales_v)
+ 	  print('++++++++still missing++++++++')
+	  print(locales_v[!(locales_v %in% look_up$locales_v)])}# find mismatches
+
+  lookmeup()
+  # change mispelled names to match
+  look_up[5,2] = locales_v[5]
+  look_up[18,2] = locales_v[17]
+  look_up[19,2] = locales_v[19] # found this on wikipedia
+  look_up[21,2] = locales_v[15] # found this on google maps 
   
-# Extract data for yeild districts
+  lookmeup()
+
+  # switch names out use district data names
+  for(i in 1:length(look_up$locales)){
+        yield_punjab$district[yield_punjab$district == look_up$locales_v[i] ] = look_up$locales[i]
+  }
+
+  # double check that spellings are same on both sheets
+  sort(unique(yield_punjab$district))
+  sort(unique(districts$NAME_2[districts$NAME_1=='Punjab']))
+
+
+
+# Extract data for yeild districts for NDVI
 
   #evi_district = extract_value_point_polygon(districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
   #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData',sep='') )
@@ -306,6 +375,11 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05, 
 	aggregate=T, return_df=T,num_workers=13,spline_spar=0)
 
+  # get mean of all variables for all years all districts
+  evi_summary_annual_av = lapply(evi_summary,function(x) aggregate(A_mn ~i,data=x,function(y){mean(y,na.rm=T) }))
+  evi_summary_annual_av = lapply(evi_summary_annual_av,function(x) x[2] ) # drop id
+
+
   # returns quantile for all cells within polygon
   # neigh_quan =  Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
   #	 num_workers=16,spline_spar = 0)
@@ -315,34 +389,43 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   
   # make district maps
   districts@data = cbind(districts@data,unlist(neigh_quan))
+  districts@data = cbind(districts@data,unlist(evi_summary_annual_av))
   districts = spTransform(districts, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
   districts@data$id = rownames(districts@data)
   source('/groups/manngroup/India_Index/India-Index-Insurance-Code/fortify2.R')
   districts.df =  fortify(districts) 
   districts.df =  join(districts.df, districts@data, by="id",type = 'left')
-  names(districts.df)[dim(districts.df)[2]]='neigh_quan'
+  names(districts.df)[dim(districts.df)[2]]='A_mn'
+  names(districts.df)[dim(districts.df)[2]-1]='neigh_quan'
   districts.df$neigh_quan = districts.df$neigh_quan * 0.0001
+  districts.df$A_mn = districts.df$A_mn * 0.0001
 
+  # create plots of NDVI stats 
   ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= neigh_quan,group=as.factor(id) )) +
   coord_equal() +
   scale_fill_gradient2('5th Percentile EVI ', low = 'red',mid='purple',high = 'green', midpoint=0.17) 
  
-  ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= neigh_quan,group=as.factor(id) )) +
+  ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= A_mn,group=as.factor(id) )) +
   coord_equal() +
-  scale_fill_gradient2('5th Percentile EVI ', low = 'red',mid='purple',high = 'blue', midpoint=0.17)
+  scale_fill_gradient2('Mean NDVI', low = 'red',mid='purple',high = 'green', midpoint=0.42)
+
+  #ggsave(file="../../India-Index-Insurance-Code/WriteUp/Mean_district_NDVI.png")
 
 
-# Merge EVI data with yields 
+# Merge EVI data with yields
+ 
   districts$i = 1:length(districts)
   districts$district = districts$NAME_2
 
   for(i in 1:length(evi_summary)){
-   	evi_summary[[i]]=join(evi_summary[[i]], districts@data[,c('i','district','NAME_0','NAME_1','NAME_2')])
-	evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-') 
+   	evi_summary[[i]]=join(evi_summary[[i]], districts@data[,c('i','district','NAME_0','NAME_1','NAME_2')]) # join shp to vegetation data
+	evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')  #
         evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='Wheat'& yield$season=="Rabi",],type='left') #Rabi Kharif Rice Wheat
+        evi_summary[[i]]=join(evi_summary[[i]], yield_punjab[,c('state','district','year','Whe_Yeild_kgha')],by=c('state','district','year'),type='left') #Rabi Kharif Rice Wheat
+
   }
 
-  yield_evi = na.omit(do.call(rbind,evi_summary))
+  yield_evi = (do.call(rbind,evi_summary)) # merge all evi list elements
   yield_evi$season_length = as.numeric(yield_evi$harvest_dates -yield_evi$plant_dates)
   yield_evi$plant_dates = as.numeric(format(yield_evi$plant_dates,'%j'))
   yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
@@ -354,17 +437,56 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 	'A_Qnt','A_sd','A_max_Qnt','A_AUC_Qnt','G_mx_dates',
 	'G_mn','G_min','G_mx','G_AUC','G_Qnt','G_mx_Qnt',
 	'G_AUC_Qnt','G_AUC2','G_AUC_leading','G_AUC_trailing',
-	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd')]
+	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd','Whe_Yeild_kgha')]
 
   names(yield_evi)=c('i','years','country','state','district','season','area','production_tonnes','yield_tn_ha',
         'plant_dates','harvest_dates','season_length','EVI_annual_mean','EVI_annual_min','EVI_annual_max','EVI_annual_AUC',
 	'EVI_annual_5th_prct','EVI_annual_sd','EVI_annual_max_5th_prct','EVI_annual_AUC_5th_prct','EVI_growing_max_date',
 	'EVI_growing_mean','EVI_growing_min','EVI_growing_max','EVI_growing_AUC','EVI_growing_5th_prct','EVI_growing_max_5th_prct',
 	'EVI_growing_AUC_5th_prct','EVI_growing_AUC_v2','EVI_growing_AUC_leading','EVI_growing_AUC_trailing',
-        'EVI_growing_AUC_diff_mn','EVI_growing_AUC_diff_90th','EVI_all_growing_5th_prct','EVI_growing_sd')
+        'EVI_growing_AUC_diff_mn','EVI_growing_AUC_diff_90th','EVI_all_growing_5th_prct','EVI_growing_sd','Whe_Yeild_kgha')
   
-  write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_evi.csv')
-  write.csv(yield_evi,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_evi.csv')
+  # evi or ndvi determined by original extracted data 
+  write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_ndvi.csv')
+  write.csv(yield_evi,'/groups/manngroup/India_Index/India-Index-Insurance-Code/yield_ndvi.csv')
+
+  # plot yields
+  # aggregate yields by district
+  yield_evi$country_state_district = paste(yield_evi$country,yield_evi$state,yield_evi$district,sep='')
+  yield_tn_ha_dist = aggregate(yield_tn_ha~ country_state_district, data = yield_evi,FUN=mean)
+  yield_tn_ha_dist2 = aggregate(Whe_Yeild_kgha~ country_state_district, data = yield_evi,FUN=function(x){mean(x,na.rm=T)})
+
+
+
+  # make district maps
+  districts@data$country_state_district = paste(districts@data$NAME_0,districts@data$NAME_1,districts@data$NAME_2,sep='')
+  districts@data =  join(districts@data, yield_tn_ha_dist, by="country_state_district",type = 'left')
+  districts@data =  join(districts@data, yield_tn_ha_dist2, by="country_state_district",type = 'left')
+  districts.df2 =  fortify(districts)
+  districts.df2 =  join(districts.df2, districts@data, by="id",type = 'left')
+
+  # create plots of yield stats
+  ggplot() +  geom_polygon(data=districts.df2[districts.df2$hole==F,],aes(long,lat,fill= yield_tn_ha,group=as.factor(id) )) +
+  coord_equal() +
+  scale_fill_gradient2('Yields (tons per hectare)', low = 'red',mid='orange',high = 'green', midpoint=4.25)
+
+  ggplot() +  geom_polygon(data=districts.df2[districts.df2$hole==F,],aes(long,lat,fill= Whe_Yeild_kgha,group=as.factor(id) )) +
+  coord_equal() +
+  scale_fill_gradient2('Yields (tons per hectare)', low = 'red',mid='orange',high = 'green', midpoint=4250)
+
+
+
+  #ggsave(file="../../India-Index-Insurance-Code/WriteUp/Yield_tn_ha.png")
+
+  # plot yields
+  ggplot() +  geom_polygon(data=yield_evi,aes(long,lat,fill= yield_tn_ha,group=as.factor(id) )) +
+  coord_equal() +
+  scale_fill_gradient2('Yields (tons per hectare)', low = 'red',mid='orange',high = 'green', midpoint=3.5)
+
+  
+
+###########################################
+# regressions on yeilds
 
   yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
   formula_lm = yield_tn_ha ~factor(i)+plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+

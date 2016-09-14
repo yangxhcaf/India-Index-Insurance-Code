@@ -53,6 +53,8 @@ library(compiler)
 library(plyr)
 library(zoo)
 library(plm)
+library(randomForest)
+library(e1071)
 
 registerDoParallel(7)
 
@@ -319,7 +321,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 # Import second wheat yeild data (punjab only)
 
-  yield_punjab = read.csv('/groups/manngroup/India_Index/Data/YieldData/Chandigarh Wheat Yields for Punjab.csv',stringsAsFactors=F)
+  yield_punjab = read.csv('/groups/manngroup/India_Index/Data/YieldData/Chandigarh Wheat Yields for Punjab.csv',
+	stringsAsFactors=F)
   yield_punjab$district = toupper(yield_punjab$Districts)
   yield_punjab$state = toupper(yield_punjab$State)
   yield_punjab$years_id = as.numeric(substr(yield_punjab$Year,1,4))
@@ -478,12 +481,31 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   #ggsave(file="../../India-Index-Insurance-Code/WriteUp/Yield_tn_ha.png")
 
-  # plot yields
-  ggplot() +  geom_polygon(data=yield_evi,aes(long,lat,fill= yield_tn_ha,group=as.factor(id) )) +
-  coord_equal() +
-  scale_fill_gradient2('Yields (tons per hectare)', low = 'red',mid='orange',high = 'green', midpoint=3.5)
 
-  
+################################################ 
+# machine learning 
+source('..//..//India-Index-Insurance-Code//mctune.R')
+
+set.seed(10)
+yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi$district,sep='')
+
+
+  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
+    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
+    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+    EVI_all_growing_5th_prct+EVI_growing_sd +i
+
+rf_ranges = list(ntree=seq(1,100,5),mtry=seq(5,25,1))
+
+tuned.rf = tune(randomForest, train.x = formula, data = na.omit(model.frame(formula,yield_evi)),
+         tunecontrol = tune.control(sampling = "cross",cross = 5), ranges=rf_ranges,
+         mc.control=list(mc.cores=16, mc.preschedule=T),confusionmatrizes=T )
+
+
+tuned.rf$best.model
+plot(tuned.rf)
+
 
 ###########################################
 # regressions on yeilds

@@ -256,6 +256,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   b3 = Annual_Summary_Functions(extr_values, PlantHarvestTable,Quant_percentile, aggregate=T, return_df=T)
 
 
+
+
 ###############################################################
 # Extract data to district level link with yield data
 
@@ -288,7 +290,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   # change names to match 
   # find partial matches
-  for(i in 1:length(unique(voltage$location))){
+  for(i in 1:length(unique(locales))){
   	print(paste(locales[i],' -MATCH- ',locales_v[pmatch(locales[i], locales_v)]))}
   # fill in holes create a dataframe as a lookup table
   look_up = data.frame(locales =locales,
@@ -326,6 +328,37 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   sort(unique(yield$district))
   sort(unique(districts$NAME_2))
 
+  # convert to uppercast
+  library(dplyr)
+  upper_it = function(X){X %>% mutate_each_( funs(as.character(.)), names( .[sapply(., is.factor)] )) %>%
+       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then upperca
+
+
+  districts@data = upper_it(districts@data) 
+  yield2 = upper_it(yield)
+  sapply(yield,class)
+  sapply(yield2,class) # PROBLEM CLASS SWITCH FOR NUMERIC DATA EVEN THOUGH IT WORKS PERFECTLY FOR EXAMPLE BELOW
+
+df <- data.frame(v1=letters[1:5],v2=1:5,v3=letters[10:14],v4=as.factor(letters[1:5]),v5=runif(5),stringsAsFactors=FALSE)
+sapply(df,class)
+
+df
+
+ upper_it = function(X){X %>% mutate_each_( funs(as.character(.)), names( .[sapply(., is.factor)] )) %>%
+       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then uppercase
+
+
+df =   upper_it(df)
+df
+sapply(df,class)
+
+df$v1
+df$v2
+df$v3
+df$v4
+df$v5
+
+
 
 # Import second wheat yeild data (punjab only)
 
@@ -337,7 +370,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_punjab$year = yield_punjab$Year
 
   # get names to match
-  locales = sort(unique(districts$NAME_2[districts$NAME_1=='Punjab']))
+  locales = sort(unique(districts$NAME_2[districts$NAME_1=='PUNJAB']))
   locales_v = sort(unique(yield_punjab$district))
 
   # change names to match
@@ -365,7 +398,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   # double check that spellings are same on both sheets
   sort(unique(yield_punjab$district))
-  sort(unique(districts$NAME_2[districts$NAME_1=='Punjab']))
+  sort(unique(districts$NAME_2[districts$NAME_1=='PUNJAB']))
+
+  # upper case all characters
+  yield_punjab  =  upper_it(yield_punjab)
 
 
 
@@ -409,7 +445,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   # create plots of NDVI stats 
   ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= neigh_quan,group=as.factor(id) )) +
   coord_equal() +
-  scale_fill_gradient2('5th Percentile EVI ', low = 'red',mid='purple',high = 'green', midpoint=0.17) 
+  scale_fill_gradient2('5th Percentile NDVI ', low = 'red',mid='purple',high = 'green', midpoint=0.17) 
  
   ggplot() +  geom_polygon(data=districts.df[districts.df$hole==F,],aes(long,lat,fill= A_mn,group=as.factor(id) )) +
   coord_equal() +
@@ -426,7 +462,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   for(i in 1:length(evi_summary)){
    	evi_summary[[i]]=join(evi_summary[[i]], districts@data[,c('i','district','NAME_0','NAME_1','NAME_2')]) # join shp to vegetation data
 	evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')  #
-        evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='Wheat'& yield$season=="Rabi",],type='left') #Rabi Kharif Rice Wheat
+        evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='WHEAT'& yield$season=="RABI",],type='left') #Rabi Kharif Rice Wheat
+        evi_summary[[i]]$state =  evi_summary[[i]]$NAME_1  # deal with missing state and district names
+        evi_summary[[i]]$district =  evi_summary[[i]]$NAME_2  # deal with missing state and district names
         evi_summary[[i]]=join(evi_summary[[i]], yield_punjab[,c('state','district','year','Whe_Yeild_kgha')],by=c('state','district','year'),type='left') #Rabi Kharif Rice Wheat
 
   }
@@ -439,7 +477,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_evi$year_trend = as.numeric(  yield_evi$row)
   # generate yield that combines both datasets National/PunjabState yeilds
   yield_evi$yield_tn_ha_dual = yield_evi$yield_tn_ha 
-  yield_evi$yield_tn_ha_dual[yield_evi$NAME_1=='Punjab'] = yield_evi$Whe_Yeild_kgha[yield_evi$NAME_1=='Punjab'] / 1000 # convert from kg to m tons
+  yield_evi$yield_tn_ha_dual[yield_evi$NAME_1=='PUNJAB'] = yield_evi$Whe_Yeild_kgha[yield_evi$NAME_1=='PUNJAB'] / 1000 # convert from kg to m tons
 
   yield_evi = yield_evi[,c('i','years_id','NAME_0','NAME_1','district','season','area','production_tonnes','yield_tn_ha',
 	'plant_dates','harvest_dates','season_length','A_mn','A_min','A_max','A_AUC',

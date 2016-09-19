@@ -219,12 +219,12 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   # extract values croped to point or polygon
 
-  #out2 = extract_value_point_polygon(Polys,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
-  #out3 = extract_value_point_polygon(crops,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
-  #save( out2, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out2.RData',sep='') )
-  #save( out3, file = paste('/groups/manngroup/India_Index/Data/Intermediates/out3.RData',sep='') )
-  load('/groups/manngroup/India_Index/Data/Intermediates/out2.RData')
-  load('/groups/manngroup/India_Index/Data/Intermediates/out3.RData')
+  #out2 = extract_value_point_polygon(Polys,list(EVI_stack_h24v06,EVI_stack_h24v05),16)
+  #out3 = extract_value_point_polygon(crops,list(EVI_stack_h24v06,EVI_stack_h24v05),16)
+  #save( out2, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVI2.RData',sep='') )
+  #save( out3, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVI3.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/EVI2.RData')
+  load('/groups/manngroup/India_Index/Data/Intermediates/EVI3.RData')
 
 
   # Get planting and harvest dates
@@ -294,8 +294,14 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   look_up = data.frame(locales =locales,
   	locales_v = apply(data.frame(locales),1,function(x) locales_v[pmatch(x, locales_v)]),
 	stringsAsFactors=F)
-  look_up
-  locales_v
+  
+  lookmeup = function(){ print(look_up)
+          print(locales_v)
+          print('++++++++still missing++++++++')
+          print(locales_v[!(locales_v %in% look_up$locales_v)])}# find mismatches
+  lookmeup()
+
+
   # find mismatches
   locales_v[!(locales_v %in% look_up$locales_v)]
   # change mispelled names to match
@@ -308,6 +314,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   look_up[34,2] = locales_v[30]
   look_up[36,2] = locales_v[32]
   look_up[39,2] = locales_v[35]
+
+  lookmeup()
 
   # switch names out use non-voltage data names 
   for(i in 1:length(look_up$locales)){
@@ -341,11 +349,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
         locales_v = apply(data.frame(locales),1,function(x) locales_v[pmatch(x, locales_v)]),
         stringsAsFactors=F)
 
-  lookmeup = function(){ print(look_up)
-	  print(locales_v)
- 	  print('++++++++still missing++++++++')
-	  print(locales_v[!(locales_v %in% look_up$locales_v)])}# find mismatches
-
   lookmeup()
   # change mispelled names to match
   look_up[5,2] = locales_v[5]
@@ -368,9 +371,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 # Extract data for yeild districts for NDVI
 
-  #evi_district = extract_value_point_polygon(districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),16)
-  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData',sep='') )
-  load('/groups/manngroup/India_Index/Data/Intermediates/evi_district.RData')
+  #evi_district = extract_value_point_polygon(districts,list(EVI_stack_h24v06,EVI_stack_h24v05),25)
+  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVI_district.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/NDVI_district.RData')
 
   # find the best spar value
   #spar_find()  # returns spar,adj R2, RMSE/meanvalue
@@ -385,13 +388,13 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
   # returns quantile for all cells within polygon
   # neigh_quan =  Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
-  #	 num_workers=16,spline_spar = 0)
-  #save(neigh_quan, file = paste('/groups/manngroup/India_Index/Data/Intermediates/neigh_quan.RData',sep='') )
-  load('/groups/manngroup/India_Index/Data/Intermediates/neigh_quan.RData')
+  #	 num_workers=25,spline_spar = 0)
+  #save(neigh_quan, file = paste('/groups/manngroup/India_Index/Data/Intermediates/NDVI_neigh_quan.RData',sep='') )
+  load('/groups/manngroup/India_Index/Data/Intermediates/NDVI_neigh_quan.RData')
 
   
   # make district maps
-  districts@data = cbind(districts@data,unlist(neigh_quan))
+  districts@data = cbind(districts@data,unlist(neigh_quan))   # import neighborhood quantile values
   districts@data = cbind(districts@data,unlist(evi_summary_annual_av))
   districts = spTransform(districts, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
   districts@data$id = rownames(districts@data)
@@ -434,20 +437,23 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
   yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
   yield_evi$year_trend = as.numeric(  yield_evi$row)
+  # generate yield that combines both datasets National/PunjabState yeilds
+  yield_evi$yield_tn_ha_dual = yield_evi$yield_tn_ha 
+  yield_evi$yield_tn_ha_dual[yield_evi$NAME_1=='Punjab'] = yield_evi$Whe_Yeild_kgha[yield_evi$NAME_1=='Punjab'] / 1000 # convert from kg to m tons
 
   yield_evi = yield_evi[,c('i','years_id','NAME_0','NAME_1','district','season','area','production_tonnes','yield_tn_ha',
 	'plant_dates','harvest_dates','season_length','A_mn','A_min','A_max','A_AUC',
 	'A_Qnt','A_sd','A_max_Qnt','A_AUC_Qnt','G_mx_dates',
 	'G_mn','G_min','G_mx','G_AUC','G_Qnt','G_mx_Qnt',
 	'G_AUC_Qnt','G_AUC2','G_AUC_leading','G_AUC_trailing',
-	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd','Whe_Yeild_kgha')]
+	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd','Whe_Yeild_kgha','yield_tn_ha_dual')]
 
   names(yield_evi)=c('i','years','country','state','district','season','area','production_tonnes','yield_tn_ha',
-        'plant_dates','harvest_dates','season_length','EVI_annual_mean','EVI_annual_min','EVI_annual_max','EVI_annual_AUC',
-	'EVI_annual_5th_prct','EVI_annual_sd','EVI_annual_max_5th_prct','EVI_annual_AUC_5th_prct','EVI_growing_max_date',
-	'EVI_growing_mean','EVI_growing_min','EVI_growing_max','EVI_growing_AUC','EVI_growing_5th_prct','EVI_growing_max_5th_prct',
-	'EVI_growing_AUC_5th_prct','EVI_growing_AUC_v2','EVI_growing_AUC_leading','EVI_growing_AUC_trailing',
-        'EVI_growing_AUC_diff_mn','EVI_growing_AUC_diff_90th','EVI_all_growing_5th_prct','EVI_growing_sd','Whe_Yeild_kgha')
+        'plant_dates','harvest_dates','season_length','VEG_annual_mean','VEG_annual_min','VEG_annual_max','VEG_annual_AUC',
+	'VEG_annual_5th_prct','VEG_annual_sd','VEG_annual_max_5th_prct','VEG_annual_AUC_5th_prct','VEG_growing_max_date',
+	'VEG_growing_mean','VEG_growing_min','VEG_growing_max','VEG_growing_AUC','VEG_growing_5th_prct','VEG_growing_max_5th_prct',
+	'VEG_growing_AUC_5th_prct','VEG_growing_AUC_v2','VEG_growing_AUC_leading','VEG_growing_AUC_trailing',
+        'VEG_growing_AUC_diff_mn','VEG_growing_AUC_diff_90th','VEG_all_growing_5th_prct','VEG_growing_sd','Whe_Yeild_kgha','yield_tn_ha_dual')
   
   # evi or ndvi determined by original extracted data 
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_ndvi.csv')
@@ -458,8 +464,6 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   yield_evi$country_state_district = paste(yield_evi$country,yield_evi$state,yield_evi$district,sep='')
   yield_tn_ha_dist = aggregate(yield_tn_ha~ country_state_district, data = yield_evi,FUN=mean)
   yield_tn_ha_dist2 = aggregate(Whe_Yeild_kgha~ country_state_district, data = yield_evi,FUN=function(x){mean(x,na.rm=T)})
-
-
 
   # make district maps
   districts@data$country_state_district = paste(districts@data$NAME_0,districts@data$NAME_1,districts@data$NAME_2,sep='')
@@ -488,23 +492,31 @@ source('..//..//India-Index-Insurance-Code//mctune.R')
 
 set.seed(10)
 yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi$district,sep='')
+#yield_evi$yield_tn_ha[yield_evi$yield_tn_ha<1 |yield_evi$yield_tn_ha>6]=NA  # remove possible outliers
 
 
-  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd +i
+  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+VEG_annual_mean+VEG_annual_min+VEG_annual_max+VEG_annual_AUC+
+    VEG_annual_5th_prct+VEG_annual_sd+VEG_annual_max_5th_prct+VEG_annual_AUC_5th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_5th_prct+VEG_growing_max_5th_prct+
+    VEG_growing_AUC_5th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
+    VEG_all_growing_5th_prct+VEG_growing_sd +i
 
-rf_ranges = list(ntree=seq(1,100,5),mtry=seq(5,25,1))
+  set.seed(10)
+  fit <- randomForest(formula, data= na.omit(model.frame(formula,yield_evi)), importance=T, ntree=2000)
+  fit
+  varImpPlot(fit)
 
-tuned.rf = tune(randomForest, train.x = formula, data = na.omit(model.frame(formula,yield_evi)),
+  rf_ranges = list(ntree=c(seq(1,100,5),seq(1000,5000,500)),mtry=seq(5,25,1))
+  set.seed(10)
+  tuned.rf = tune(randomForest, train.x = formula, data = na.omit(model.frame(formula,yield_evi)),
          tunecontrol = tune.control(sampling = "cross",cross = 5), ranges=rf_ranges,
          mc.control=list(mc.cores=16, mc.preschedule=T),confusionmatrizes=T )
 
 
-tuned.rf$best.model
-plot(tuned.rf)
+  tuned.rf$best.model
+  plot(tuned.rf)
+  #EVI % Var explained: 40.86  # 44.42 if punjab data is inserted   or if outliers removed 49.31
+  #NDVI % Var explained: 46.94
 
 
 ###########################################

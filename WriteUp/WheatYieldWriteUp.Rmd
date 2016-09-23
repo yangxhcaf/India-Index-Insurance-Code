@@ -1,0 +1,112 @@
+---
+title: "Modeling Wheat Yields in India: Describing & Exploiting Spatio-Temporal Variability with Panel Regression"
+
+bibliography: MyCollection.bib
+output: word_document
+---
+```{r setup, include=FALSE}
+# citation styles can be managed here: http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
+# http://rmarkdown.rstudio.com
+
+# http://rmarkdown.rstudio.com/authoring_pandoc_markdown.html#headers
+setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
+library(pander)
+library(knitr)
+library(plyr)
+yield_ndvi = read.csv('..//yield_ndvi.csv')
+Table_number = 1
+Figure_number = 1
+Appendix_Table_number =1
+
+```
+
+#Introduction
+
+The ability to monitor and predict crop yields in developing countries is critical to the sucessful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Althought much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide new avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments  common to many developing countries [@Mann2015]. 
+
+One primary thrust of these efforts has evolved out of the index insurance space. Index insurance is...   
+
+The main objectives of this project is to apply and compare statstical methods commonly applied these problems outside of the field of geography. In particular we will focus on the application of spatial panel regression to monitor spatio-temporal variability in wheat yields for Punjab and Haryana India.
+
+#Methods
+$$\sum_{i=1}^n X_i$$
+$\sum_{i=1}^n X_i$
+
+##Study Area and Period
+
+We examine wheat yields at the district level for Punjab and Haryana India for Rabi season (roughly Nov-Apr) for the period of `r paste(range(yield_ndvi$years, na.rm=T),collapse=' to ')`. Both Punjab and Haryana are extensively cropped but is comprised of a large number of smaller heterogenous plots. Both states are also extensively double-cropped with rice planting in the Kharif season (roughly May-Oct) and Wheat planted in the Rabi season. Rabi season wheat yeild range from `r paste(range(yield_ndvi$yield_tn_ha, na.rm=T),collapse=' to ')` metric tons per hectare (Table `r paste(Table_number)`, Figure `r paste(Figure_number)`).
+
+*Figure `r paste(Figure_number)`: Mean Rabi Season Wheat Yields Metric Tons per Hectare by District `r Figure_number =Figure_number+1 `*
+ ![Yields](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\Yield_tn_ha.png)
+
+
+
+
+##Data
+
+
+```{r, echo=FALSE}
+panderOptions('table.split.table', Inf)
+panderOptions('big.mark', ",")
+panderOptions('keep.trailing.zeros', F)
+table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
+table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
+pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
+```
+
+###Remote sensing
+
+
+###Agricultural Surveys
+
+
+##Compressing Time: Summarizing Remotely Sensed Data
+
+ 
+###To smooth or not to smooth
+ ![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
+
+##Exploiting Time: (Spatial) Panel Regression Methods and Models
+
+###Panel Regression
+
+###Spatial Panel Regression
+####Defining the neighborhood
+
+
+#Results
+
+
+#Discussion
+
+
+#Conclusions
+
+
+ 
+
+```{r pressure, echo=FALSE}
+# plot(pressure)
+# library(stargazer)
+# stargazer(yield_ndvi[,8:10] ,  title="Descriptive statistics", digits=2,summary = T,font.size='small')
+
+```
+
+ 
+
+#Appendix A
+## Yield Data
+*Table A`r paste(Appendix_Table_number)`: Rabi Season Wheat Yields Metric Tons per Hectare by State `r Appendix_Table_number =Appendix_Table_number+1 `*
+```{r, include=T,echo=F,warning=F}
+panderOptions('table.split.table', Inf)
+panderOptions('big.mark', ",")
+panderOptions('keep.trailing.zeros', F)
+state_yeilds = ddply(yield_ndvi,~state+district,summarise,Min=min(yield_tn_ha,na.rm=T),Mean=mean(yield_tn_ha,na.rm=T),Max=max(yield_tn_ha,na.rm=T))
+names(state_yeilds)[1]="State"
+pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'))
+```
+
+References {#references .unnumbered}
+==========
+
+

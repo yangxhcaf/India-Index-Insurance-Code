@@ -13,10 +13,10 @@
 
 
 rm(list=ls())
-#source('G:\\Faculty\\Mann\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
-#source('G:\\Faculty\\Mann/scripts/SplineAndOutlierRemoval.R')
-source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
-source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProcessing.R')
+source('H:\\Projects\\India_Index_Insurance\\India_Index_Insurance_Code\\ModisDownload.R')
+source('H:\\scripts/SplineAndOutlierRemoval.R')
+#source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
+#source('/groups/manngroup/India_Index/India-Index-Insurance-Code/RasterChuckProcessing.R')
 
 
 library(RCurl)
@@ -31,9 +31,10 @@ library(foreach)
 library(doParallel)
 library(ggplot2)
 library(compiler)
-registerDoParallel(13)
+registerDoParallel(5)
 
-source('/groups/manngroup/India_Index/India-Index-Insurance-Code/Functions.R')
+source('H:\\Projects\\India_Index_Insurance/India_Index_Insurance_Code/Functions.R')
+#source('/groups/manngroup/India_Index/India-Index-Insurance-Code/Functions.R')
 
 functions_in = lsf.str()
 lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # byte code compile all functions http://adv-r.had.co.nz/Profil$
@@ -45,7 +46,7 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 # Set up parameters -------------------------------------------------------
 
   # give path to Modis Reproduction Tool
-  MRT = 'G:/Faculty/Mann/Projects/MRT/bin'
+  MRT = 'H:/Projects/MRT/bin'
   
   # get list of all available modis products
   #GetProducts()
@@ -58,7 +59,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   ftp = 'ftp://ladsweb.nascom.nasa.gov/allData/6/'    # allData/6/ for evi, 
   # allData/51/ for landcover DOESn't WORK jUST PULL FROM FTP
   #strptime(gsub("^.*A([0-9]+).*$", "\\1",GetDates(location[1], location[2],products[1])),'%Y%j') # get list of all available dates for products[1]
-  out_dir = '/groups/manngroup/India_Index/Data/India/' #/groups/manngroup/India_Index/Data/Uruguay/
+  #out_dir = '/groups/manngroup/India_Index/Data/India/' #/groups/manngroup/India_Index/Data/Uruguay/
+  out_dir = 'H:\\Projects\\India_Index_Insurance/Data/India/' #/groups/manngroup/India_Index/Data/Uruguay/
+  
   setwd(out_dir)
   
  
@@ -195,18 +198,17 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   
 
 # Stack relevant data -----------------------------------------------------
-  setwd('/groups/manngroup/India_Index/Data/Uruguay')  # folder where  EVI .tifs are 
+ # setwd('/groups/manngroup/India_Index/Data/Uruguay')  # folder where  EVI .tifs are 
    
-  # create data stack for each variable and tile 
-  foreach(product =  c('blue_reflectance','MIR_reflectance','NIR_reflectance','red_reflectance',
-	'EVI','NDVI','pixel_reliability')) %dopar% {  
+  # create data stack for each variable and tile  'blue_reflectance','MIR_reflectance','NIR_reflectance','red_reflectance', 'EVI','NDVI','pixel_reliability'
+  foreach(product =  c( 'EVI','NDVI','pixel_reliability')) %dopar% {  
   for( tile_2_process in tiles){
   	# Set up data
   	flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_',product,'.tif$',sep='')), 
 		full.names = TRUE)
-        flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
+    flist_dates = gsub("^.*_([0-9]{7})_.*$", "\\1",flist,perl = T)  # Strip dates
   	flist = flist[order(flist_dates)]  # file list in order
-        flist_dates = flist_dates[order(flist_dates)]  # file_dates list in order
+    flist_dates = flist_dates[order(flist_dates)]  # file_dates list in order
 
   	# stack data and save
   	stacked = stack(flist)

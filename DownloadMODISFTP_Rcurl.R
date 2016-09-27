@@ -201,7 +201,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
  # setwd('/groups/manngroup/India_Index/Data/Uruguay')  # folder where  EVI .tifs are 
    
   # create data stack for each variable and tile  'blue_reflectance','MIR_reflectance','NIR_reflectance','red_reflectance', 'EVI','NDVI','pixel_reliability'
-  foreach(product =  c( 'EVI','NDVI','pixel_reliability')) %dopar% {  
+  foreach(product =  c( 'blue_reflectance','MIR_reflectance','NIR_reflectance','red_reflectance' )) %dopar% {
+    
   for( tile_2_process in tiles){
   	# Set up data
   	flist = list.files(".",glob2rx(paste('*',tile_2_process,'.250m_16_days_',product,'.tif$',sep='')), 
@@ -220,7 +221,9 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
   # Stack land cover data NOTE: automatically fills missing years with most recent LC available
-  setwd('/groups/manngroup/India_Index/Data/MODISLandCover/Uruguay')
+  #setwd('/groups/manngroup/India_Index/Data/MODISLandCover/Uruguay')
+  setwd('H:/Projects/India_Index_Insurance/Data/MODISLandCover/India/')
+  
   for(product in c('MCD12Q1')){
   for( tile in tiles){
         # Set up data

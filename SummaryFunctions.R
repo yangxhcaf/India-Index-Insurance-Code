@@ -49,8 +49,8 @@
 
 
   AnnualAggregator = function(x,dates_in,FUN){
-    # returns an annual summary statistic of any function
-    # Example AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
+    # returns an annual summary statistic of any function FUN
+    # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
     datesY = format(dates_in,'%Y')
     do.call(c,lapply(split(x,datesY),FUN))}
 
@@ -179,11 +179,13 @@
 
 
     AnnualMinumumBeforeDOY = function(x,dates_in,DOY_in,days_shift,dir){
-    	# calculates the annual minimum for days_before days before each DOY for planting season
-    	# best to set DOY as the last expected date of planting
-        #x = EVI values, dates=dates of observation POSIX, DOY_in = DOY of planting harvest
-	# dir='before' 'after' 'beforeafter'
-
+      # calculates the globala minimum for days before,after,both of expected planting date
+      # best to set DOY as the last expected date of planting
+      
+      # x = vegetation index, dates_in = dates of observation POSIX, DOY_in = expected planting or harvest date
+      # days_shift = # days to search around DOY_in,  dir='before' 'after' 'beforeafter'
+    	
+ 
     	if(days_shift<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
 
     	# avoid problems with time class
@@ -508,8 +510,8 @@
 
 
 spar_find = function(){
-  performance_list =list()
-  for(spar in seq(0,3,by=0.1)){
+  performance_list =list() 
+  for(spar in seq(0,3,by=0.1)){  #smoothing parameter, typically (but not necessarily) in (0,1]. FROM HELP FILE
     evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
           aggregate=T, return_df=T,num_workers=13,spline_spar=spar)
 
@@ -535,7 +537,7 @@ spar_find = function(){
     lm1=  lm((yield_tn_ha) ~factor(i)+A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
           +G_AUC_trailing+G_AUC_diff_mn +season_length+year_trend+A_sd+G_sd,data=yield_evi)
     performance_list = c(performance_list,spar,summary(lm1)$adj.r.squared,
-       mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha))
+       mean(sqrt((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2))/mean(yield_evi$yield_tn_ha))
   }
    matrix(unlist(performance_list),ncol=3,byrow=T)
 }

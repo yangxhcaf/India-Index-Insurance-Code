@@ -1,50 +1,161 @@
 ---
 title: "Modeling Wheat Yields in India: Describing & Exploiting Spatio-Temporal Variability with Panel Regression"
-
 bibliography: MyCollection.bib
 output: word_document
 ---
+
 ```{r setup, include=FALSE}
 # citation styles can be managed here: http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
 # http://rmarkdown.rstudio.com
 
 # http://rmarkdown.rstudio.com/authoring_pandoc_markdown.html#headers
-setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
+setwd('C:\\Users\\mmann\\Desktop\\India-Index-Insurance-Code\\WriteUp')
+source('H:/Scripts/multi_grep_character.R')
 library(pander)
 library(knitr)
 library(plyr)
 yield_ndvi = read.csv('..//yield_ndvi.csv')
+focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
 Table_number = 1
 Figure_number = 1
 Appendix_Table_number =1
-
+Appendix_Function_number =1
 ```
 
 #Introduction
 
-The ability to monitor and predict crop yields in developing countries is critical to the sucessful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Althought much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide new avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments  common to many developing countries [@Mann2015]. 
+The ability to monitor and predict crop yields in developing countries is critical to the successful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Although much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide new avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments  common to many developing countries [@Mann2015]. 
 
 One primary thrust of these efforts has evolved out of the index insurance space. Index insurance is...   
 
-The main objectives of this project is to apply and compare statstical methods commonly applied these problems outside of the field of geography. In particular we will focus on the application of spatial panel regression to monitor spatio-temporal variability in wheat yields for Punjab and Haryana India.
+The main objectives of this project is to apply and compare statistical methods commonly applied these problems outside of the field of geography. In particular we will focus on the application of spatial panel regression to monitor spatio-temporal variability in wheat yields for Punjab and Haryana India.
 
 #Methods
-$$\sum_{i=1}^n X_i$$
-$\sum_{i=1}^n X_i$
+##Overview and Study Area
 
-##Study Area and Period
-
-We examine wheat yields at the district level for Punjab and Haryana India for Rabi season (roughly Nov-Apr) for the period of `r paste(range(yield_ndvi$years, na.rm=T),collapse=' to ')`. Both Punjab and Haryana are extensively cropped but is comprised of a large number of smaller heterogenous plots. Both states are also extensively double-cropped with rice planting in the Kharif season (roughly May-Oct) and Wheat planted in the Rabi season. Rabi season wheat yeild range from `r paste(range(yield_ndvi$yield_tn_ha, na.rm=T),collapse=' to ')` metric tons per hectare (Table `r paste(Table_number)`, Figure `r paste(Figure_number)`).
+We examine wheat yields at the district level for Punjab and Haryana India for Rabi season (roughly Nov-Apr) for the period of `r paste(range(yield_ndvi$years, na.rm=T),collapse=' to ')`. Both Punjab and Haryana are extensively cropped but is comprised of a large number of smaller heterogeneous plots. Both states are also extensively double-cropped with rice planting in the Kharif season (roughly May-Oct) and Wheat planted in the Rabi season. Rabi season wheat yield range from `r paste(range(yield_ndvi$yield_tn_ha, na.rm=T),collapse=' to ')` metric tons per hectare (Table `r paste(Table_number)`, Figure `r paste(Figure_number)`).
 
 *Figure `r paste(Figure_number)`: Mean Rabi Season Wheat Yields Metric Tons per Hectare by District `r Figure_number =Figure_number+1 `*
  ![Yields](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\Yield_tn_ha.png)
 
-
-
+Here we develop a (non)spatial panel regression model to estimate wheat output per hectare using the open-source programming language R. This model utilizes historical data on plant phenology statistics obtained from the Moderate Resolution Imaging Spectroradiometer (MODIS) satellite. The objective is to develop a handful of metrics that can be used to accurate predict inter-annual variability in wheat yields at the district level. 
 
 ##Data
+The full model is comprised of `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` indicators of plant phenology. District level statistics are then generated from pixel level plant indicators.
+
+###Focus Group Interviews
+To help better characterize the physical properties and identify challenges, field visits and focus group interviews were conducted in the winter of 2015. These interviews were conducted in 12 villages with 71 participants in Haryana and Pubjab states, in person with International Food Policy Research Institute (IFPRI) staff.  Questions focused on farm characteristics, adopted technologies, Rabi crop calendar dates, and identifying the timing of risks to crops. 
+
+###Remote Sensing Data
+Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres, range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of aquisition these products are treated as partially overlapping windows representing 8 days periods [@Doraiswamy2007]. 
+
+In particular we examine both the predictive power of the Enhanced Vegetation Index (EVI) and the Normalized Difference Vegetation Index (NDVI) **EVI AND NDVI**. Both are sensitive to the amount of chlorophyll in any given pixel and are commonly used to estimate plant productivity and health in agricultural applications [@Mann2015unpublished]. After removal of snow, cloud and other flagged loq quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover prduct (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commision as agriculture should have a minimial effect at the district level. 
+
+ 
+In addition to cloud cover MODIS data products suffer from four additional sources of error including atmopheric interferience, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@Doraiswamy2007]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
+
+*Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r Figure_number =Figure_number+1 `*
+![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
+*Time series of NDVI (unsmoothed -red, smoothed with outlier removal -blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey.*
+
+To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yeilds) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\R^n$ and root mean squared error divided by mean yeilds is reported. 
+
+###Agricultural Survey Data
+Agricultural survey data at the district level was obtained from _________. INCLUDE DESCRIPTION OF SWAPPING PUNJAB STATE DATA.
+
+##Summarizing Time: Summarizing Remotely Sensed Data
+One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yeilds is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yeilds in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning a full calendar year including the summer rains of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
+
+Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r paste(Appendix_Function_number)` below. 
+
+###Growing Season Metrics
+*Function A`r paste(Appendix_Function_number)`: Planting/Harvest date functions `r Appendix_Function_number =Appendix_Function_number+1 `*
+```{r, include=T,echo=F,warning=F}
+PlantHarvestDates = function(start_date,end_date,PlantingMonth,PlantingDay,HarvestMonth,HarvestDay){
+    # this function takes in date range and returns planting and harvest date for time series as a data.frame 
+    # for all years of interest. Handles growing periods overlaping a new year properly.
+    # NOTE: This is used to create dataframe of planting / harvest dates for many other functions
+    #  
+    # e.g. PlantHarvest = PlantHarvestDates('2002-01-01','2016-02-02',PlantingMonth=11, PlantingDay=23,HarvestMonth=4,HarvestDay=30)
+     
+    start_end_years = c(strptime(start_date,'%Y-%m-%d'),strptime(end_date,'%Y-%m-%d'))
+    names(unclass(start_end_years[1]))
+    start_end_years[1]$mon=PlantingMonth-1
+    start_end_years[1]$mday=PlantingDay
+    planting = as.Date(seq(start_end_years[1],
+      length=strptime(dates[2],'%Y-%m-%d')$year-strptime(dates[1],'%Y-%m-%d')$year,
+      by='year'))
+    # set harvest
+    start_end_years[2]$year=start_end_years[1]$year+1    # set year equal to start year +1
+    start_end_years[2]$mon=HarvestMonth-1
+    start_end_years[2]$mday=HarvestDay
+    harvest = as.Date(seq(start_end_years[2],
+      length=strptime(end_date,'%Y-%m-%d')$year-strptime(start_date,'%Y-%m-%d')$year,
+      by='year'))
+    return(data.frame(planting=planting,harvest=harvest))
+  }
+
+SearchMinumumBeforeAfterDOY = function(x,dates_in,DOY_in,days_shift,dir){
+  	# calculates the global minimum for days before,after,both of expected planting date
+    # best to set DOY as the last expected date of planting
+    # x = vegetation index, dates_in = dates of observation POSIX, DOY_in = expected planting or harvest date
+    # days_shift = # days to search around DOY_in,  dir='before' 'after' 'beforeafter'
+  
+  	if(days_shift<=8){print('Using less than 8 days is dangerous, 15-30 stable')}
+  
+  	# avoid problems with time class
+  	if(is.na(DOY_in[1])){print('ERROR: convert date format to %Y%j');break}
+  	if(class(dates_in)[1]!= 'POSIXlt' ){dates_in=as.POSIXlt(dates_in)}
+  
+  	# limit to fixed # of days before/after DOY
+      DOY_in = as.POSIXlt(DOY_in)
+      DOY_before = DOY_in
+  
+  	#names(unclass(DOY_before[1]))
+  	if(dir=='before') DOY_before$mday=DOY_before$mday-days_shift      # set days before to doy - days_before
+  	if(dir=='after') DOY_before$mday=DOY_before$mday+days_shift      # set days before to doy - days_before
+      if(dir=='beforeafter'){ DOY_before$mday=DOY_before$mday-days_shift 
+        DOY_in$mday=DOY_in$mday+days_shift}
+  	DOY_table = data.frame(DOY_before=DOY_before,DOY_in=DOY_in)   #join start end search dates
+  
+    # list all days 'days_before' DOY_in
+     if(dir=='before'|dir=='beforeafter'){ DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+  	  function(h){format(seq(DOY_table[h,1],
+                DOY_table[h,2],by='day'),'%Y-%m-%d')})),tz='UTC')}
+    if(dir=='after'){DOY_interest = as.POSIXlt(unlist(lapply(1:dim(DOY_table)[1],
+  	  function(h){format(seq(DOY_table[h,2],
+                DOY_table[h,1],by='day'),'%Y-%m-%d')})),tz='UTC')}
+  
+    # find all local minima, and match with DOY
+    x_DOY_interest = x[dates_in %in% DOY_interest]
+    dates_DOY_interest = dates_in[dates_in %in% DOY_interest]
+    # get min value for this period for each year
+    sort(AnnualMaxima(x_DOY_interest*-1,as.Date(dates_DOY_interest)))
+}
+```
+
+###Annual Metrics
+Basic annual summary statics including minimum, maximum, standard deviations can be calcuated using `r paste(Appendix_Function_number)` below.
+
+*Function A`r paste(Appendix_Function_number)`: Flexible annual vegetion metrics`r Appendix_Function_number =Appendix_Function_number+1 `*
+```{r, include=T,echo=F,warning=F}
+  AnnualAggregator = function(x,dates_in,FUN){
+    # returns an annual summary statistic of any function
+    # x = vegetation index data, dates_in = dates of observation POSIX,
+    # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
+    datesY = format(dates_in,'%Y')
+    do.call(c,lapply(split(x,datesY),FUN))}
+```
 
 
+##Summarizing Space: Spatial Aggregation of Remotely Sensed Data
+ 
+
+
+
+##Exploiting Time: (Spatial) Panel Regression Methods and Models
+
+###Panel Regression
 ```{r, echo=FALSE}
 panderOptions('table.split.table', Inf)
 panderOptions('big.mark', ",")
@@ -53,29 +164,14 @@ table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
 table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
 pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
 ```
-
-###Remote sensing
-
-
-###Agricultural Surveys
-
-
-##Compressing Time: Summarizing Remotely Sensed Data
-
- 
-###To smooth or not to smooth
- ![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
-
-##Exploiting Time: (Spatial) Panel Regression Methods and Models
-
-###Panel Regression
-
 ###Spatial Panel Regression
 ####Defining the neighborhood
 
 
 #Results
+##Focus Group Interviews
 
+##Panel Regression
 
 #Discussion
 
@@ -92,10 +188,11 @@ pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
 
 ```
 
- 
+ $$\sum_{i=1}^n X_i$$
+$\sum_{i=1}^n X_i$
 
 #Appendix A
-## Yield Data
+##Yield Data
 *Table A`r paste(Appendix_Table_number)`: Rabi Season Wheat Yields Metric Tons per Hectare by State `r Appendix_Table_number =Appendix_Table_number+1 `*
 ```{r, include=T,echo=F,warning=F}
 panderOptions('table.split.table', Inf)
@@ -105,6 +202,12 @@ state_yeilds = ddply(yield_ndvi,~state+district,summarise,Min=min(yield_tn_ha,na
 names(state_yeilds)[1]="State"
 pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'))
 ```
+
+##Functions
+
+
+
+
 
 References {#references .unnumbered}
 ==========

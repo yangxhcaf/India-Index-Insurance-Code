@@ -1,0 +1,44 @@
+,CSV,Non-CSV
+Number of Villages,6,6
+Number of farmers interviewed,36,35
+Average age (years),44,39.2
+Farming experience (years),22.3,17.5
+Plot size (acres),,
+Average,17.2,13.6
+Median,13.5,10
+Min,2,2
+Max,65,65
+CS technologies adopted (% of farmers),,
+Zero-Tillage,64%,29%
+Simple Zero-tillage Drill = ZT,19%,29%
+Turbo Happy Seeder = HS,56%,-
+Direct Seeded Rice = DSR,36%,3%
+Residue Management = RM,69%,20%
+Land-Laser Leveler = LLL,97%,66%
+Green Seeker = GS,-,-
+,,
+Costs,,
+"Machinery (avg.)
+[min-max]","Rs. 1537
+[1000-3000]","Rs. 1898
+[600-3200]"
+"Labor (avg.)
+[min-max]","Rs. 1275
+[500-2300]","Rs. 1244
+[250-3000]"
+"Seeds, Fert., Herb., Pest. (avg.)
+[min-max]","Rs. 4545
+[2800-5500]","Rs. 4762
+[3400-7000]"
+,,
+Normal yield (quintals/acre),,
+Average,16.5,17.6
+Median,16,18
+Min,12,12
+Max,21,20
+,,
+Practiced ZT last season (% of 'yes'),63%,26%
+Rice crop residue was:,,
+Burnt,19%,83%
+Collected,44%,17%
+Left in field,36%,0%

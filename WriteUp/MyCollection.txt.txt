@@ -56,7 +56,7 @@ year = {1993}
 }
 
 
-@article {Lobell616,
+@article{Lobell616,
 	author = {Lobell, David B. and Schlenker, Wolfram and Costa-Roberts, Justin},
 	title = {Climate Trends and Global Crop Production Since 1980},
 	volume = {333},
@@ -91,4 +91,47 @@ booktitle = {Research for Ethiopia's Agricultural Policy},
 institution = {International Food Policy Research Institute},
 title = {{Ethiopian Wheat Yield and Yield Gap Estimation: A Small Area Integrated Data Approach}},
 year = {2015}
+}
+
+
+@misc{Robles2015,
+address = {India},
+author = {Robles, Miguel and Ceballos, Francisco and Kramer, Berber},
+publisher = {IFPRI},
+title = {{Focus Group Interviews: Haryana and Punjab India}},
+year = {2015}
+}
+
+
+@article{Didan2006,
+address = {Tucson, Arizona},
+author = {Didan, K and Huete, A},
+title = {{MODIS Vegetation Index Product Series  Collection 5 Change Summary}},
+year = {2006}
+}
+
+
+
+@article{Friedl2010,
+annote = {doi: DOI: 10.1016/j.rse.2009.08.016},
+author = {Friedl, Mark A and Sulla-Menashe, Damien and Tan, Bin and Schneider, Annemarie and Ramankutty, Navin and Sibley, Adam and Huang, Xiaoman},
+isbn = {0034-4257},
+journal = {Remote Sensing of Environment},
+keywords = {Classification,Global land cover,MODIS},
+number = {1},
+pages = {168--182},
+title = {{MODIS Collection 5 global land cover: Algorithm refinements and characterization of new datasets}},
+url = {http://www.sciencedirect.com/science/article/B6V6V-4XFNCW6-1/2/926cb3ceff79aa59819a94aa7fa4d00e},
+volume = {114},
+year = {2010}
+}
+
+
+
+@book{hastie1990generalized,
+  title={Generalized additive models},
+  author={Hastie, Trevor J and Tibshirani, Robert J},
+  volume={43},
+  year={1990},
+  publisher={CRC Press}
 }

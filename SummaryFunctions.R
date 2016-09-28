@@ -49,8 +49,9 @@
 
 
   AnnualAggregator = function(x,dates_in,FUN){
-    # returns an annual summary statistic of any function FUN
-    # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
+    # returns an annual summary statistic of any function
+    # x = vegetation index data, dates_in = dates of observation POSIX,
+    # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean(y,na.rm=T)})
     datesY = format(dates_in,'%Y')
     do.call(c,lapply(split(x,datesY),FUN))}
 
@@ -70,25 +71,26 @@
 
 
   PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-    	# returns a summary statistic of x for the period defined by date_range_st, date_range_end
+    	# returns a summary statistic of x for any function FUN, over the period defined by date_range_st, date_range_end
+      # x = vegetation index data, dates_in = dates of observation POSIX, dates_in,date_range_st = start end dates of period, FUN = function
+      # E.g. PeriodAggregator(x=plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,date_range_st=plotdatasmoothed$dates[1],date_range_end=plotdatasmoothed$dates[20], FUN = function(y){mean(y,na.rm=T)})
     	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
     	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
     	#Avoid problems with missing plant or harvest dates
-    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');
-		break}
+    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');	break}
     	dataout=lapply(1:length(date_range_st),function(z){
-    		DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
-    		x=x[dates_in %in% DateRange]
-    		dates_in=dates_in[dates_in %in% DateRange]
-    		FUN(x)})
+      		DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+      		x=x[dates_in %in% DateRange]
+      		dates_in=dates_in[dates_in %in% DateRange]
+      		FUN(x)})
     	dataout = do.call(c,dataout)
-	names(dataout)=format(date_range_st,'%Y')
-	dataout
+      names(dataout)=format(date_range_st,'%Y')
+  	  dataout
     }
 
   PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
-        # returns a summary statistic of x for the period defined by date_range_st, date_range_end
+        # returns a date of summary statistic like max date of x for the period defined by date_range_st, date_range_end
         if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
         if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
                                              date_range_end = as.Date(date_range_end)}
@@ -102,16 +104,16 @@
             dates_in2 = dates_in[dates_in %in% DateRange2]
             which_max = which(FUN(x2) ==  x2)
             if(length(which_max)>1){
-		if(length(which_max)>1){
-		   which_max = c(which_max[1],which_max[length(which_max)]) # limit to only 2 
-			if((which_max[2]-which_max[1])==1){
-				which_max=which_max[1]  # favor the first instance of maximum
-			} else if((which_max[2]-which_max[1])==2){
-				which_max=which_max[1]+1 # is seperated by 2 choose middle left
-                	} else if((which_max[2]-which_max[1])==3){
-				which_max=which_max[1]+2} # is seperated by 3 choose middle
-		}
-	    }
+    		if(length(which_max)>1){
+    		   which_max = c(which_max[1],which_max[length(which_max)]) # limit to only 2 
+    			if((which_max[2]-which_max[1])==1){
+    				which_max=which_max[1]  # favor the first instance of maximum
+    			} else if((which_max[2]-which_max[1])==2){
+    				which_max=which_max[1]+1 # is seperated by 2 choose middle left
+                    	} else if((which_max[2]-which_max[1])==3){
+    				which_max=which_max[1]+2} # is seperated by 3 choose middle
+    		}
+    	    }
             max_dates = dates_in2[which_max]
 
                 })
@@ -220,35 +222,32 @@
 
 
    PeriodAUC = function(x_in,dates_in,DOY_start_in,DOY_end_in){
-         # calculate area under the curve by period of the year
-         # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
-         # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
+         # calculate area under the curve by period of the year using spline estimation
+         # x = data, dates_in=asDate(dates),DOY_start_in=asDate(list of start periods),DOY_end_in=asDate(list of end per
+         # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start_in= plant_dates ,DOY_end_in=harvest_dates)
         if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
-
          dates_group = rep(0,length(dates_in))    # create storage for factors of periods
-
          # get sequences of periods of inerest
          seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
          # switch dates-group to period group
          years_avail = sort(as.numeric(unique(unlist(
                 lapply(seq_interest,function(z) format(z,'%Y'))))))
          for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
-		dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
+		            dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
                 assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
-	 # calculate AUC for periods of interest
+	      # calculate AUC for periods of interest
          FUN = function(q,w){auc(q,w,type='spline')}
          datesY = format(dates_in,'%Y')
          data.split = split(x_in,dates_group)
          d = do.call(c,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
-		FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
+	          	FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
          names(d) = names(data.split)[2:length(data.split)]
-	 #print(cbind(names(data.split)[2:length(data.split)], d))
          d
 	}
 
 
    PeriodAUC_method2 = function(x_in,dates_in,DOY_start_in,DOY_end_in){
-	 #NOTE SPLINE METHOD 1 SEEMS to WORK BETTER
+	        #NOTE SPLINE METHOD 1 SEEMS to WORK BETTER
          # calculate area under the curve by period of the year
          # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
          # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
@@ -277,55 +276,59 @@
 
 
 
- extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
-          # Returns list containing values from locations of spatial points or polygons
- 	  # if polygons are too small reverts to centroid 
-          if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
-          lapply(c('raster','foreach','doParallel'), require, character.only = T)
-          registerDoParallel(num_workers)
-          ptm <- proc.time()
-          # iterate between points or polygons
-          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
-                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
-                get_class= class(point_or_polygon)[1]
-                # switch rasterstack according to which point or polygon is %over%
-                for(z in 1:length(raster_stack)){
-                        # set raster to use
-                        raster_stack_use = raster_stack[[z]]
-                        # get cell numbers of point of polygon, repeat if missing
-                        if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                            cell = as.numeric(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]])
-                            # if polygon is too small to find cells, convert to centroid and get cellfromXY
-                           if(length(cell)==0){                                       #coord(poly) returns centroid
-                                cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
-                        if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
-                            cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
-                        # if cells found keep raster_stack_use = raster_stack[[z]]
-                        if(length(cell)!=0){break}
-                        # if cells not found repeat for different stack or return NA
-                        if(length(cell)==0 & z!=length(raster_stack)){next}else{return(NA)}
-                }
-                # create raster mask from cell numbers
-                r = rasterFromCells(raster_stack_use, cell,values=F)
-                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
-                   crop(raster_stack_use[[i]],r)
-                }
-                result=as.data.frame(getValues(stack(result)))
-                return(result)
-          }
-          print( proc.time() - ptm)
-          endCluster()
-          return(ply_result)
+ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers=1){
+  # Returns list containing values from locations of spatial points or polygons from a raster stack object
+ 	# if polygons are too small reverts to centroid 
+      require(doParallel)
+      require(parallel)
+      if(num_workers==1){registerDoParallel(detectCores() - 1)}else{registerDoParallel(num_workers)}
+      if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
+      lapply(c('raster','foreach','doParallel'), require, character.only = T)
+      registerDoParallel(num_workers)
+      ptm <- proc.time()
+      # iterate between points or polygons
+      ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %dopar%{
+            print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
+            get_class= class(point_or_polygon)[1]
+            # switch rasterstack according to which point or polygon is %over%
+            for(z in 1:length(raster_stack)){
+                    # set raster to use
+                    raster_stack_use = raster_stack[[z]]
+                    # get cell numbers of point of polygon, repeat if missing
+                    if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
+                        cell = as.numeric(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]])
+                        # if polygon is too small to find cells, convert to centroid and get cellfromXY
+                       if(length(cell)==0){                                       #coord(poly) returns centroid
+                            cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
+                    if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
+                        cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
+                    # if cells found keep raster_stack_use = raster_stack[[z]]
+                    if(length(cell)!=0){break}
+                    # if cells not found repeat for different stack or return NA
+                    if(length(cell)==0 & z!=length(raster_stack)){next}else{return(NA)}
+            }
+            # create raster mask from cell numbers
+            r = rasterFromCells(raster_stack_use, cell,values=F)
+            result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
+               crop(raster_stack_use[[i]],r)
+            }
+            result=as.data.frame(getValues(stack(result)))
+            return(result)
+      }
+      print( proc.time() - ptm)
+      endCluster()
+      return(ply_result)
  }
 
 
 
- Neighborhood_quantile=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
+ Neighborhood_quantile=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=1,spline_spar = 0){
      # take in values from extract_value_polygon and returns quantile for all raster values wihtin poly
      # if spline_spar = 0, doesn't smooth data, as spline_spar increases smoothing decreases
-
      # iterate between spatial objects
-     registerDoParallel(num_workers)
+     require(doParallel)
+     require(parallel)
+     if(num_workers==1){registerDoParallel(detectCores() - 1)}else{registerDoParallel(num_workers)}
      result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
         if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
 
@@ -338,7 +341,7 @@
             dates=as.Date(dats),
             pred_dates=as.Date(dats),spline_spar)})}else{
             smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))    }
-	# calculate quantile for all values over polygon 
+	      # calculate quantile for all values over polygon 
         N_Qnt = quantile(x = unlist(smooth),p=Quant_percentile,type=8,na.rm=T)
         N_Qnt     
       }
@@ -346,6 +349,9 @@
  }
 
 
+ ######### Quant_percentile SHOULD BE 0.95 
+ 
+ 
  Annual_Summary_Functions=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,aggregate=F,return_df=F,num_workers=5,
 	spline_spar = 0){
      # take in values from extract_value_point_polygon and create annual and global summary statistics
@@ -360,42 +366,42 @@
 
         # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
         # create a mean value for input data
-	if(aggregate == T){
-        row_names = names(extr_values[[i]])
-        extr_values[[i]] = t(as.data.frame(colMeans( extr_values[[i]],na.rm=T )))
-	names(extr_values[[i]]) = row_names
-	row.names( extr_values[[i]] ) = NULL}
-
-        # Get dates from stack names
-        dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
-        # Calculate smoothed values
-	if(spline_spar!=0){
-        smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
-            x = as.numeric(extr_values[[i]][z,]),
-            dates=as.Date(dats),
-            pred_dates=as.Date(dats),spline_spar)})}else{
-	    smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))	}
-
-        # estimate planting and harvest dates
-	# is spline_spar ==0, dates need to be set by slightly smoothed data
-	if(spline_spar!=0){
-        plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
-        harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
-	}
-	# if no smoothing, still need to smooth for harvest and plant dates 
-	if(spline_spar==0){
-        smooth_4_dates = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
-            x = as.numeric(extr_values[[i]][z,]),
-            dates=as.Date(dats),
-            pred_dates=as.Date(dats),spline_spar=0.2)})
-	plant_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
-        harvest_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
-            dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
-	rm(smooth_4_dates)
-	}
+      	if(aggregate == T){
+              row_names = names(extr_values[[i]])
+              extr_values[[i]] = t(as.data.frame(colMeans( extr_values[[i]],na.rm=T )))
+      	names(extr_values[[i]]) = row_names
+      	row.names( extr_values[[i]] ) = NULL}
+      
+              # Get dates from stack names
+              dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
+              # Calculate smoothed values
+      	if(spline_spar!=0){
+              smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+                  x = as.numeric(extr_values[[i]][z,]),
+                  dates=as.Date(dats),
+                  pred_dates=as.Date(dats),spline_spar)})}else{
+      	    smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))	}
+      
+              # estimate planting and harvest dates
+      	# is spline_spar ==0, dates need to be set by slightly smoothed data
+      	if(spline_spar!=0){
+              plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+                  dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
+              harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+                  dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
+      	}
+      	# if no smoothing, still need to smooth for harvest and plant dates 
+      	if(spline_spar==0){
+              smooth_4_dates = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+                  x = as.numeric(extr_values[[i]][z,]),
+                  dates=as.Date(dats),
+                  pred_dates=as.Date(dats),spline_spar=0.2)})
+      	plant_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
+                  dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
+              harvest_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
+                  dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
+      	rm(smooth_4_dates)
+      	}
 
         # correct the number of elements in each date vector (assigns last day if no final harvest date available)
         plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
@@ -418,9 +424,9 @@
                 dates_in = dats, FUN=function(x)sd(x,na.rm=T))})
         A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
         A_AUC_Qnt = lapply(1:length(A_AUC),function(z){rep(quantile(x = A_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
-		length(A_AUC[[z]])) }) #quantile of auc values
+		        length(A_AUC[[z]])) }) #quantile of auc values
         for(z in 1:length(A_AUC_Qnt)){names(A_AUC_Qnt[[z]])=names(A_AUC[[z]])}  # change names
- 	A_Qnt = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+ 	      A_Qnt = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
                 dates_in = dats, FUN=function(x)quantile(x,p=Quant_percentile,type=8,na.rm=T))})
         for(z in 1:length(A_Qnt)){names(A_Qnt[[z]])=names(A_AUC[[z]])}  # change names
 
@@ -438,7 +444,7 @@
         G_mx =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
- 	G_mx_Qnt = lapply(1:length(G_mx),function(z){rep(quantile(x = G_mx[[z]],p=Quant_percentile,type=8,na.rm=T),
+ 	      G_mx_Qnt = lapply(1:length(G_mx),function(z){rep(quantile(x = G_mx[[z]],p=Quant_percentile,type=8,na.rm=T),
                 length(G_mx[[z]])) }) #quantile of annual max values
         for(z in 1:length(G_mx_Qnt)){names(G_mx_Qnt[[z]])=names(G_mx[[z]])}  # change names
 
@@ -447,17 +453,17 @@
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) sd(x,na.rm=T)) })
         G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-	G_AUC_Qnt = lapply(1:length(G_AUC),function(z){rep(quantile(x = G_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
+	      G_AUC_Qnt = lapply(1:length(G_AUC),function(z){rep(quantile(x = G_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
                 length(G_AUC[[z]])) }) #quantile of annual max values
         for(z in 1:length(G_AUC_Qnt)){names(G_AUC_Qnt[[z]])=names(G_AUC[[z]])}  # change names
 
-   	G_AUC2 = lapply(1:length(smooth),function(z){ PeriodAUC_method2(x_in = smooth[[z]],dates_in = dats,
+      	G_AUC2 = lapply(1:length(smooth),function(z){ PeriodAUC_method2(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
         G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
         G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
                 DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
-	G_Qnt =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+	      G_Qnt =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) quantile(x,p=Quant_percentile,type=8,na.rm=T)   ) })
 

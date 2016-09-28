@@ -47,29 +47,165 @@ The full model is comprised of `r paste(length(multi_grep_character(c('VEG','dat
 To help better characterize the physical properties and identify challenges, field visits and focus group interviews were conducted in the winter of 2015. These interviews were conducted in 12 villages with 71 participants in Haryana and Pubjab states, in person with International Food Policy Research Institute (IFPRI) staff.  Questions focused on farm characteristics, adopted technologies, Rabi crop calendar dates, and identifying the timing of risks to crops. 
 
 ###Remote Sensing Data
-Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres, range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of aquisition these products are treated as partially overlapping windows representing 8 days periods [@doraiswamy2007crop]. 
+Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres, range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of acquisition these products are treated as partially overlapping windows representing 8 days periods [@doraiswamy2007crop]. 
 
-In particular we examine both the predictive power of the Enhanced Vegetation Index (EVI) and the Normalized Difference Vegetation Index (NDVI) **EVI AND NDVI**. Both are sensitive to the amount of chlorophyll in any given pixel and are commonly used to estimate plant productivity and health in agricultural applications [@Mann2015]. After removal of snow, cloud and other flagged loq quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover prduct (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commision as agriculture should have a minimial effect at the district level. 
+In particular we examine both the predictive power of the Enhanced Vegetation Index (EVI) and the Normalized Difference Vegetation Index (NDVI) **EVI AND NDVI**. Both are sensitive to the amount of chlorophyll in any given pixel and are commonly used to estimate plant productivity and health in agricultural applications [@Mann2015]. After removal of snow, cloud and other flagged low quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover product (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commission as agriculture should have a minimal effect at the district level. 
 
  
-In addition to cloud cover MODIS data products suffer from four additional sources of error including atmopheric interferience, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
+In addition to cloud cover MODIS data products suffer from four additional sources of error including atmospheric interference, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
 
 *Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r Figure_number =Figure_number+1 `*
 ![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
 *Time series of NDVI (unsmoothed -red, smoothed with outlier removal -blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey.*
 
-To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yeilds) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\R^n$ and root mean squared error divided by mean yeilds is reported. 
+To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yields) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\R^n$ and root mean squared error divided by mean yields is reported. 
 
 ###Agricultural Survey Data
 Agricultural survey data at the district level was obtained from _________. INCLUDE DESCRIPTION OF SWAPPING PUNJAB STATE DATA.
 
 ##Summarizing Time: Summarizing Remotely Sensed Data
-One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yeilds is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yeilds in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning a full calendar year including the summer rains of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
-
-Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r paste(Appendix_Function_number)` below. 
+One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning a full calendar year including the summer rains of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
 
 ###Growing Season Metrics
-*Function A`r paste(Appendix_Function_number)`: Planting/Harvest date functions `r Appendix_Function_number =Appendix_Function_number+1 `*
+Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r A=Appendix_Function_number; paste(A);Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Basic growing season summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r B=Appendix_Function_number; paste(B);Appendix_Function_number=Appendix_Function_number+1` in the appendix below. 
+
+To estimate the cumulative impact of high or low vegetation indices across as season we calculate a variety of integration metrics. These include area under the curve (AUC) of the growing season, the AUC of the increasing portion of the curve (from estimated planting date to growing season maximum), and the AUC of the declining portion of the curve (from growing season maximum to estimated harvest date). For comparision, these values are calculate using two methods, the first using integration using smoothing splines (appendix formula `r C=Appendix_Function_number; paste(C);Appendix_Function_number=Appendix_Function_number+1`) and second using trapeziodal estimation (appendix formula `r D=Appendix_Function_number; paste(D);Appendix_Function_number=Appendix_Function_number+1`). 
+
+We develop a series of metrics to test if modeled yields could be improved through comparisons to 'ideal' years. This includes calculating the 95th percentile (based on sample quantile where the resulting quantile estimates are approximately median-unbiased regardless of the distribution of x [@hyndman1996sample]) of all NDVI **EVI** values, of maximum values, and of the integral (area under the curve) of NDVI **EVI** values.  These use the built in functionality of R's base stat function show formula `r E=Appendix_Function_number; paste(E);Appendix_Function_number=Appendix_Function_number+1`) in the appedix. 
+
+Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI** (see formula `r F=Appendix_Function_number; paste(F);Appendix_Function_number=Appendix_Function_number+1` in the appendix). Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number; paste(G);Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University `r H=Appendix_Function_number; paste(H);Appendix_Function_number=Appendix_Function_number+1` in the appendix).
+
+###Annual Metrics
+Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r I=Appendix_Function_number; paste(I);Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Alternatively most functions described above can be used to calculate annual vegetation metrics. 
+
+##Summarizing Space: Spatial Aggregation of Remotely Sensed Data
+One major hurdle for this study was the rapid extraction of raster values bases on vector data. Function `r J=Appendix_Function_number; paste(J);Appendix_Function_number=Appendix_Function_number+1` in the appendix, processing times were better that 1/10th that of the default raster::extract() function with the use of a 16-core linux server.
+ 
+ 
+ 
+ 
+```{r, echo=FALSE}
+
+extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
+          # Returns list containing values from locations of spatial points or polygons
+ 	  # if polygons are too small reverts to centroid 
+          if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
+          lapply(c('raster','foreach','doParallel'), require, character.only = T)
+          registerDoParallel(num_workers)
+          ptm <- proc.time()
+          # iterate between points or polygons
+          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
+                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
+                get_class= class(point_or_polygon)[1]
+                # switch rasterstack according to which point or polygon is %over%
+                for(z in 1:length(raster_stack)){
+                        # set raster to use
+                        raster_stack_use = raster_stack[[z]]
+                        # get cell numbers of point of polygon, repeat if missing
+                        if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
+                            cell = as.numeric(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]])
+                            # if polygon is too small to find cells, convert to centroid and get cellfromXY
+                           if(length(cell)==0){                                       #coord(poly) returns centroid
+                                cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
+                        if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
+                            cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
+                        # if cells found keep raster_stack_use = raster_stack[[z]]
+                        if(length(cell)!=0){break}
+                        # if cells not found repeat for different stack or return NA
+                        if(length(cell)==0 & z!=length(raster_stack)){next}else{return(NA)}
+                }
+                # create raster mask from cell numbers
+                r = rasterFromCells(raster_stack_use, cell,values=F)
+                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
+                   crop(raster_stack_use[[i]],r)
+                }
+                result=as.data.frame(getValues(stack(result)))
+                return(result)
+          }
+          print( proc.time() - ptm)
+          endCluster()
+          return(ply_result)
+ }
+
+# not sure we include this one 
+ Neighborhood_quantile=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
+     # take in values from extract_value_polygon and returns quantile for all raster values wihtin poly
+     # if spline_spar = 0, doesn't smooth data, as spline_spar increases smoothing decreases
+
+     # iterate between spatial objects
+     registerDoParallel(num_workers)
+     result_summary=foreach(i = 1:length(extr_values),.packages='raster',.inorder=T) %dopar%{
+        if(is.na(extr_values[[i]])){ print('Empty Object');return(NA)} # avoid empties
+
+        # Get dates from stack names
+        dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
+        # Calculate smoothed values
+        if(spline_spar!=0){
+        smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+            x = as.numeric(extr_values[[i]][z,]),
+            dates=as.Date(dats),
+            pred_dates=as.Date(dats),spline_spar)})}else{
+            smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))    }
+	# calculate quantile for all values over polygon 
+        N_Qnt = quantile(x = unlist(smooth),p=Quant_percentile,type=8,na.rm=T)
+        N_Qnt     
+      }
+    result_summary
+ }
+```
+
+##Exploiting Time: (Spatial) Panel Regression Methods and Models
+
+###Panel Regression
+```{r, echo=FALSE}
+panderOptions('table.split.table', Inf)
+panderOptions('big.mark', ",")
+panderOptions('keep.trailing.zeros', F)
+table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
+table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
+pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
+```
+###Spatial Panel Regression
+####Defining the neighborhood
+
+
+#Results
+##Focus Group Interviews
+
+##Panel Regression
+
+#Discussion
+
+
+#Conclusions
+
+
+ 
+
+```{r pressure, echo=FALSE}
+# plot(pressure)
+# library(stargazer)
+# stargazer(yield_ndvi[,8:10] ,  title="Descriptive statistics", digits=2,summary = T,font.size='small')
+
+```
+
+ $$\sum_{i=1}^n X_i$$
+$\sum_{i=1}^n X_i$
+
+#Appendix A
+##Yield Data
+*Table A`r paste(Appendix_Table_number)`: Rabi Season Wheat Yields Metric Tons per Hectare by State `r Appendix_Table_number =Appendix_Table_number+1 `*
+```{r, include=T,echo=F,warning=F}
+panderOptions('table.split.table', Inf)
+panderOptions('big.mark', ",")
+panderOptions('keep.trailing.zeros', F)
+state_yeilds = ddply(yield_ndvi,~state+district,summarise,Min=min(yield_tn_ha,na.rm=T),Mean=mean(yield_tn_ha,na.rm=T),Max=max(yield_tn_ha,na.rm=T))
+names(state_yeilds)[1]="State"
+pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'))
+```
+
+##Functions
+*Functions `r paste(A)`: Planting/Harvest date functions*
 ```{r, include=T,echo=T,warning=F}
 PlantHarvestDates = function(start_date,end_date,PlantingMonth,PlantingDay,HarvestMonth,HarvestDay){
     # this function takes in date range and returns planting and harvest date for time series as a data.frame 
@@ -134,79 +270,209 @@ SearchMinumumBeforeAfterDOY = function(x,dates_in,DOY_in,days_shift,dir){
 }
 ```
 
-###Annual Metrics
-Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calcuated using function `r paste(Appendix_Function_number)` below.
+*Functions `r paste(B)`: Flexible growing season vegetation metrics*
+```{r, include=T,echo=T,warning=F}
+PeriodAggregator = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+    	# returns a summary statistic of x for any function FUN, over the period defined by date_range_st, date_range_end
+      # x = vegetation index data, dates_in = dates of observation POSIX, dates_in,date_range_st = start end dates of period, FUN = function
+      # E.g. PeriodAggregator(x=plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates,date_range_st=plotdatasmoothed$dates[1],date_range_end=plotdatasmoothed$dates[20], FUN = function(y){mean(y,na.rm=T)})
+    	if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+    	if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+                                             date_range_end = as.Date(date_range_end)}
+    	#Avoid problems with missing plant or harvest dates
+    	if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');	break}
+    	dataout=lapply(1:length(date_range_st),function(z){
+      		DateRange = seq(date_range_st[z],date_range_end[z],by=by_in)
+      		x=x[dates_in %in% DateRange]
+      		dates_in=dates_in[dates_in %in% DateRange]
+      		FUN(x)})
+    	dataout = do.call(c,dataout)
+      names(dataout)=format(date_range_st,'%Y')
+  	  dataout
+  }
+```
 
-*Function A`r paste(Appendix_Function_number)`: Flexible annual vegetion metrics`r Appendix_Function_number =Appendix_Function_number+1 `*
+*Functions `r paste(C)`: Area under the curve estimation - smoothing splines*
+```{r, include=T,echo=T,warning=F}
+PeriodAUC = function(x_in,dates_in,DOY_start_in,DOY_end_in){
+         # calculate area under the curve by period of the year using spline estimation
+         # x = data, dates_in=asDate(dates),DOY_start_in=asDate(list of start periods),DOY_end_in=asDate(list of end per
+         # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start_in= plant_dates ,DOY_end_in=harvest_dates)
+        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+         dates_group = rep(0,length(dates_in))    # create storage for factors of periods
+         # get sequences of periods of inerest
+         seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
+         # switch dates-group to period group
+         years_avail = sort(as.numeric(unique(unlist(
+                lapply(seq_interest,function(z) format(z,'%Y'))))))
+         for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
+		            dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
+                assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
+	      # calculate AUC for periods of interest
+         FUN = function(q,w){auc(q,w,type='spline')}
+         datesY = format(dates_in,'%Y')
+         data.split = split(x_in,dates_group)
+         d = do.call(c,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
+	          	FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
+         names(d) = names(data.split)[2:length(data.split)]
+         d
+	}
+```
+*Functions `r paste(D)`: Area under the curve estimation - trapazoidal estimation*
+```{r, include=T,echo=T,warning=F}
+PeriodAUC_method2 = function(x_in,dates_in,DOY_start_in,DOY_end_in){
+	        #NOTE SPLINE METHOD 1 SEEMS to WORK BETTER
+         # calculate area under the curve by period of the year
+         # x = data, dates_in=asDate(dates),DOY_start=asDate(list of start periods),DOY_end=asDate(list of end per$
+         # x = plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates , DOY_start=annualMinumumBeforeDOY(x = plotd$
+         if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+
+         dates_group = rep(0,length(dates_in))    # create storage for factors of periods
+         # get sequences of periods of inerest
+         seq_interest = lapply(1:length(DOY_start_in),function(z){seq(DOY_start_in[z],DOY_end_in[z],by='days')})
+         # switch dates-group to period group
+         years_avail = sort(as.numeric(unique(unlist(
+                lapply(seq_interest,function(z) format(z,'%Y'))))))
+         for(z in 1:length(seq_interest)){        #assigns year for beginging of planting season
+                dates_group[dates_in %in% seq_interest[[z]]]=years_avail[z]
+                assign('dates_group',dates_group,envir = .GlobalEnv) }  # assign doesn't work in lapply using for loop instead
+ 
+        # calculate AUC for periods of interest
+         FUN = function(q,w){  sum(diff(q)*rollmean(w,2))}
+         datesY = format(dates_in,'%Y')
+         data.split = split(x_in,dates_group)
+         d = do.call(c,lapply(2:length(data.split),function(z){   # start at 2 to avoid group=0
+                FUN(q=1:length(data.split[[z]]),w=data.split[[z]]) }))
+         names(d) = names(data.split)[2:length(data.split)]
+         #print(cbind(names(data.split)[2:length(data.split)], d))
+         d
+        }
+```
+
+*Functions `r paste(E)`: Base function used for estimating sample quantiles*
+```{r, include=T,echo=F,warning=F}
+quantile(x ,p=Quant_percentile,type=8,na.rm=T)
+```
+
+*Functions `r paste(F)`: Function to return date of any given phenomenon*
+```{r, include=T,echo=F,warning=F}
+PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
+        # returns a date of summary statistic defined by FUN
+        # like the date of the maximum value of x for the period defined by date_range_st, date_range_end
+        # other parameters identical to other functions show above
+        if(class(dates_in)[1]== "POSIXct"|class(dates_in)[1]== "POSIXlt" )dates_in = as.Date(dates_in)
+        if(class(date_range_st)[1]== "POSIXct" ){date_range_st = as.Date(date_range_st)
+                                             date_range_end = as.Date(date_range_end)}
+        #Avoid problems with missing plant or harvest dates
+        if(length(date_range_st)!=length(date_range_end)){print('number of elements in start end dates dont match');break}
+
+        dataout=lapply(1:length(date_range_st),function(z){
+            DateRange2 = seq(date_range_st[z],date_range_end[z],by=by_in)
+            x2 = x[dates_in %in% DateRange2]
+            dates_in2 = dates_in[dates_in %in% DateRange2]
+            which_max = which(FUN(x2) ==  x2)
+         		if(length(which_max)>1){
+          		    which_max = c(which_max[1],which_max[length(which_max)]) # limit to only 2 
+          			if((which_max[2]-which_max[1])==1){
+          				which_max=which_max[1]  # favor the first instance of maximum
+          			  } else if((which_max[2]-which_max[1])==2){
+          				which_max=which_max[1]+1 # is seperated by 2 choose middle left
+                  } else if((which_max[2]-which_max[1])==3){
+          				which_max=which_max[1]+2} # is seperated by 3 choose middle
+        		}
+            max_dates = dates_in2[which_max]
+                })
+        dataout = do.call(c,dataout)
+        names(dataout)=format(date_range_st,'%Y')
+        dataout
+    }
+```
+
+*Functions `r paste(G)`: Mean day of the year values*
+```{r, include=T,echo=F,warning=F}
+  AnnualAverageDOYvalues = function(x,dates_in){
+    	# calculates the average value for DOY for the whole series
+    	datesj = format(dates_in,'%j')
+    	do.call(c,lapply(split(x,datesj),function(y){mean(y,na.rm=T)}))}
+```
+
+*Functions `r paste(H)`: Smoothing splines with outlier removal*
+```{r, include=T,echo=F,warning=F}
+#---------------------------------------------------------------------
+# This function takes a time series w/ dates (x, dates) and returns a spline smoothed time series with outliers removed.
+# Outliers are identified as points with absolute value more than out_sigma * sd, where sd is the residual
+# standard deviation between the input data and the initial spline fit, and out_sigma is a variable
+# coefficient. The spline smoothing parameter spline_spar controls the smoothness of the fit (see spline.smooth help)
+# and out_iterations controls the number of times that outliers are checked and removed w/ subsequent spline refit
+# pred_dates is a vector of dates where spline smoothed predictions of x are desired. If NA, then a daily series spanning
+# min(dates)-max(dates) is returned
+SplineAndOutlierRemoval <- function(x, dates, out_sigma=3, spline_spar=0.3, out_iterations=1,pred_dates){
+  dates <- as.numeric(dates) # spline doesn't work with dates
+  pred_dates = as.numeric(pred_dates)
+  # if prediction dates aren't provided, we assume we want daily ones
+  if(is.na(pred_dates[1])){
+    pred_dates <- min(dates, na.rm=T):max(dates, na.rm=T)}
+  # eliminate outliers and respline
+  for(i in 1:out_iterations){
+    # fit a smoothing spline to non-missing data
+    spl <- try(smooth.spline(dates[!is.na(x)], x[!is.na(x)], spar=spline_spar), silent=T)
+    if(inherits(spl, 'try-error')){
+      print("Failed to fit smoothing spline")
+      return(NA)
+    }
+    smooth_x <- try(predict(spl, dates)$y, silent=T) # calculate spline smoothed values
+    if(inherits(smooth_x, 'try-error')){
+      print("Failed to predict with spline")
+      return(NA)
+    }
+    smooth_x_resid <- x - smooth_x # calculate residuals from spline
+    smooth_x_resid_sd <- try(sd(smooth_x_resid, na.rm=T), silent=T) # standard dev of absolute value of residuals
+    if(inherits(smooth_x_resid_sd, 'try-error')){
+      print("Failed to get sd of residuals")
+      return(NA)
+    }
+    outliers <- abs(smooth_x_resid) > out_sigma * smooth_x_resid_sd
+    outliers[is.na(outliers)] <- F
+    if(sum(outliers) > 0){
+      # if we found outliers, eliminate them in x and refit up to iterations
+      x[outliers] <- NA
+    }else{
+      # if we didn't find any outliers, we abandon the iteration and return the smoothed values
+      smooth_x_return <- try(predict(spl, pred_dates)$y, silent=T)
+      if(inherits(smooth_x_return, 'try-error')){
+        print("No outliers, but failed to predict with final spline")
+        return(NA)
+      }else{
+        return(smooth_x_return)
+      }
+    }
+  }
+  # fit the spline to the outlier screened data, then return the predicted series
+  spl <- try(smooth.spline(dates[!is.na(x)], x[!is.na(x)], spar=spline_spar), silent=T)
+  if(inherits(spl, 'try-error')){
+    print("Failed to predict with final spline")
+    return(NA)
+  }else{
+    smooth_x_return <- try(predict(spl, pred_dates)$y, silent=T)
+    if(inherits(smooth_x_return, 'try-error')){
+      return(NA)
+    }else{
+      return(smooth_x_return)
+    }
+  }
+}
+
+```
+
+*Function `r paste(I)`: Flexible annual vegetation metrics*
 ```{r, include=T,echo=T,warning=F}
   AnnualAggregator = function(x,dates_in,FUN){
     # returns an annual summary statistic of any function
     # x = vegetation index data, dates_in = dates of observation POSIX,
-    # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean($
+    # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean(y,na.rm=T)})
     datesY = format(dates_in,'%Y')
     do.call(c,lapply(split(x,datesY),FUN))}
 ```
-
-
-##Summarizing Space: Spatial Aggregation of Remotely Sensed Data
- 
-
-
-
-##Exploiting Time: (Spatial) Panel Regression Methods and Models
-
-###Panel Regression
-```{r, echo=FALSE}
-panderOptions('table.split.table', Inf)
-panderOptions('big.mark', ",")
-panderOptions('keep.trailing.zeros', F)
-table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
-table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
-pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
-```
-###Spatial Panel Regression
-####Defining the neighborhood
-
-
-#Results
-##Focus Group Interviews
-
-##Panel Regression
-
-#Discussion
-
-
-#Conclusions
-
-
- 
-
-```{r pressure, echo=FALSE}
-# plot(pressure)
-# library(stargazer)
-# stargazer(yield_ndvi[,8:10] ,  title="Descriptive statistics", digits=2,summary = T,font.size='small')
-
-```
-
- $$\sum_{i=1}^n X_i$$
-$\sum_{i=1}^n X_i$
-
-#Appendix A
-##Yield Data
-*Table A`r paste(Appendix_Table_number)`: Rabi Season Wheat Yields Metric Tons per Hectare by State `r Appendix_Table_number =Appendix_Table_number+1 `*
-```{r, include=T,echo=F,warning=F}
-panderOptions('table.split.table', Inf)
-panderOptions('big.mark', ",")
-panderOptions('keep.trailing.zeros', F)
-state_yeilds = ddply(yield_ndvi,~state+district,summarise,Min=min(yield_tn_ha,na.rm=T),Mean=mean(yield_tn_ha,na.rm=T),Max=max(yield_tn_ha,na.rm=T))
-names(state_yeilds)[1]="State"
-pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'))
-```
-
-##Functions
-
-
-
 
 
 References {#references .unnumbered}

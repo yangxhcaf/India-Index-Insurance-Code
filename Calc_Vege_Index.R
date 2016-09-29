@@ -37,9 +37,7 @@ source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
 #install.packages("rgeos",repos="http://cran.cnr.berkeley.edu/")
 
 
-library(RCurl)
 library(raster)
-library(MODISTools)
 library(rgdal)
 library(sp)
 library(maptools)
@@ -226,6 +224,25 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   load('/groups/manngroup/India_Index/Data/Intermediates/EVI2.RData')
   load('/groups/manngroup/India_Index/Data/Intermediates/EVI3.RData')
 
+  # test performance of extract 
+  extract_times = list()
+       # check default extract time for comparison
+        ptm <- proc.time()
+        a = extract(EVI_stack_h24v06, Polys)
+        times = proc.time() - ptm
+        extract_times=c(extract_times,times[1])
+        remove(a)
+  for(worker in seq(1,32,by=2)){ 
+	ptm <- proc.time()
+	print(worker)
+   	a=extract_value_point_polygon(Polys,list(EVI_stack_h24v06),worker)
+	times = proc.time() - ptm
+	extract_times=c(extract_times,times[1]) # get user time
+  	remove(a)
+  }
+
+  bench = data.frame(times = unlist(extract_times), cores=c('Extract',seq(1,32,by=2)))
+  write.csv(bench,'/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/benchmark_extract.csv')
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,

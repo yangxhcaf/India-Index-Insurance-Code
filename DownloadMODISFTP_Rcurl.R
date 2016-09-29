@@ -274,26 +274,26 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   
 # Remove low quality cells & assign projection ------------------------------------------------
   # load data in previous section and run common dates
-  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
-
+  #setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+  setwd('H:\\Projects\\India_Index_Insurance/Data/Data Stacks/')
   reliability_prefix = 'pixel_reliability'
   products2removeclouds = c('blue_reflectance', 'MIR_reflectance',
         'NIR_reflectance','red_reflectance','EVI','NDVI')
   for(product in products2removeclouds){
   for( tile in tiles){
-	print(paste('Working on',product,tile))
-	# load quality flag
-        reliability_stackvalues = get(paste(reliability_prefix,'_stack_',tile,sep=''))
-
-	# remove clouds from produt
-        data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
-        crs(data_stackvalues) ='+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'
-
-	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { 
-		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
-        assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
-	save(list=paste(product,'_stack_',tile,sep=''),
-		file = paste('WO Clouds/',product,'_stack_',tile,'_wo_clouds.RData',sep=''))
+  	print(paste('Working on',product,tile))
+  	# load quality flag
+    reliability_stackvalues = get(paste(reliability_prefix,'_stack_',tile,sep=''))
+  
+  	# remove clouds from produt
+    data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
+    crs(data_stackvalues) ='+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'
+  
+  	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { 
+  		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
+          assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
+  	save(list=paste(product,'_stack_',tile,sep=''),
+  		file = paste('WO Clouds/',product,'_stack_',tile,'_wo_clouds.RData',sep=''))
   }} 
   
 

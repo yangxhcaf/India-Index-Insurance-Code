@@ -13,6 +13,7 @@ source('H:/Scripts/multi_grep_character.R')
 library(pander)
 library(knitr)
 library(plyr)
+library(ggplot2)
 yield_ndvi = read.csv('..//yield_ndvi.csv')
 focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
 Table_number = 1
@@ -50,7 +51,6 @@ To help better characterize the physical properties and identify challenges, fie
 Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres, range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of acquisition these products are treated as partially overlapping windows representing 8 days periods [@doraiswamy2007crop]. 
 
 In particular we examine both the predictive power of the Enhanced Vegetation Index (EVI) and the Normalized Difference Vegetation Index (NDVI) **EVI AND NDVI**. Both are sensitive to the amount of chlorophyll in any given pixel and are commonly used to estimate plant productivity and health in agricultural applications [@Mann2015]. After removal of snow, cloud and other flagged low quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover product (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commission as agriculture should have a minimal effect at the district level. 
-
  
 In addition to cloud cover MODIS data products suffer from four additional sources of error including atmospheric interference, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
 
@@ -77,17 +77,27 @@ Additional functions were developed to extract the timing of particular phenomen
 
 ###Annual Metrics
 Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r I=Appendix_Function_number` `r paste(I)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Alternatively most functions described above can be used to calculate annual vegetation metrics. 
-##Summarizing Space: Spatial Aggregation of Remotely Sensed Data
-One major hurdle for this study was the rapid extraction of raster values bases on vector data. Function `r J=Appendix_Function_number` `r paste(J)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix, processing times were better that 1/10th that of the default raster::extract() function with the use of a 16-core linux server.
+
+##Summarizing Space & Time: Extraction and Aggregation of Remotely Sensed Data
+One major hurdle for this study was the rapid extraction of raster values bases on vector data while maintaining meaningful time stamps. In response we developed the function *extract_value_point_polygon* `r J=Appendix_Function_number` `r paste(J)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix to enhance the performance of the the default raster::extract() function . User processing times were better that 1/6000th that of extract() with the use of a 16-core linux server. Additionally the function can take a list of adjacent rasters to perform data extraction, thereby avoiding vector datasets that span more than the extent of one raster. 
  
- 
- 
- 
+*Figure `r paste(Figure_number)`: Benchmark test comparing raster::extract() and the new parrallelized extract functions`r Figure_number =Figure_number+1`*
+
 ```{r, echo=FALSE}
+bench = read.csv('FigureTableData/benchmark_extract.csv',stringsAsFactors = F)
+bench_extract_time = bench[1,2] # remove text data
+bench = bench[2:dim(bench)[1],]
+bench$cores = as.numeric(bench$cores)
+ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(yintercept=bench_extract_time,colour='red',size=1)+xlab('Cores')+ylab('User Time')+ annotate("text", x = 7, y = 150, label = "extract_value_point_polygon")+ annotate("text", x = 7, y = 287, label = "raster::extract", col='red')
+```
 
 
+
+
+
+```{r, echo=FALSE}
 # not sure we include this one 
- Neighborhood_quantile=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
+ Neighborhood_quantile=function(extr_values,PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
      # take in values from extract_value_polygon and returns quantile for all raster values wihtin poly
      # if spline_spar = 0, doesn't smooth data, as spline_spar increases smoothing decreases
 
@@ -124,6 +134,7 @@ table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
 table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
 pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
 ```
+
 ###Spatial Panel Regression
 ####Defining the neighborhood
 

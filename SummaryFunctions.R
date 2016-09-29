@@ -366,6 +366,7 @@
 
         # if aggregate = T, summarize multiple pixels per polygon into one smooth time series
         # create a mean value for input data
+<<<<<<< Updated upstream
       	if(aggregate == T){
               row_names = names(extr_values[[i]])
               extr_values[[i]] = t(as.data.frame(colMeans( extr_values[[i]],na.rm=T )))
@@ -445,9 +446,93 @@
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
  	      G_mx_Qnt = lapply(1:length(G_mx),function(z){rep(quantile(x = G_mx[[z]],p=Quant_percentile,type=8,na.rm=T),
-                length(G_mx[[z]])) }) #quantile of annual max values
-        for(z in 1:length(G_mx_Qnt)){names(G_mx_Qnt[[z]])=names(G_mx[[z]])}  # change names
+=======
+  	if(aggregate == T){
+          row_names = names(extr_values[[i]])
+          extr_values[[i]] = t(as.data.frame(colMeans( extr_values[[i]],na.rm=T )))
+  	      names(extr_values[[i]]) = row_names
+  	      row.names( extr_values[[i]] ) = NULL
+      }
+  
+          # Get dates from stack names
+    dats = strptime( gsub("^.*X([0-9]+).*$", "\\1", names(extr_values[[i]])),format='%Y%j')
+          # Calculate smoothed values
+  	if(spline_spar!=0){
+          smooth = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+              x = as.numeric(extr_values[[i]][z,]),
+              dates=as.Date(dats),
+              pred_dates=as.Date(dats),spline_spar)})}else{
+  	      smooth = lapply(1:dim(extr_values[[i]])[1],function(z) as.numeric(extr_values[[i]][z,]))	
+      }
 
+        # estimate planting and harvest dates
+  	# is spline_spar ==0, dates need to be set by slightly smoothed data
+  	if(spline_spar!=0){
+          plant_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+              dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
+          harvest_dates = lapply(1:length(smooth),function(z){ AnnualMinumumBeforeDOY(x = smooth[[z]],
+              dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
+  	}
+  	# if no smoothing, still need to smooth for harvest and plant dates 
+  	if(spline_spar==0){
+          smooth_4_dates = lapply(1:dim(extr_values[[i]])[1],function(z){SplineAndOutlierRemoval(
+              x = as.numeric(extr_values[[i]][z,]),
+              dates=as.Date(dats),
+              pred_dates=as.Date(dats),spline_spar=0.2)})
+  	plant_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
+              dates_in = dats, DOY_in=PlantHarvestTable$planting,days_shift=30,dir='beforeafter')})
+          harvest_dates = lapply(1:length(smooth_4_dates),function(z){ AnnualMinumumBeforeDOY(x = smooth_4_dates[[z]],
+              dates_in = dats, DOY_in=PlantHarvestTable$harvest,days_shift=30,dir='beforeafter')})
+  	rm(smooth_4_dates)
+  	}
+
+    # correct the number of elements in each date vector (assigns last day if no final harvest date available)
+    plant_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
+            dates_end=harvest_dates[[z]])[[1]] })
+    harvest_dates = lapply(1:length(plant_dates),function(z){ correct_dates(dates_in= dats, dates_str=plant_dates[[z]],
+            dates_end=harvest_dates[[z]])[[2]] })
+
+    # Annual statistics
+    A_mn = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+            dates_in = dats, FUN=function(x)mean(x,na.rm=T))})
+    A_min = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+            dates_in = dats, FUN=function(x)min(x,na.rm=T))})
+    A_max = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+            dates_in = dats, FUN=function(x)max(x,na.rm=T))})
+    A_max_Qnt = lapply(1:length(A_max),function(z){rep(quantile(x = A_max[[z]],p=Quant_percentile,type=8,na.rm=T),
+            length(A_max[[z]])) }) #quantile of annual max values
+    for(z in 1:length(A_max_Qnt)){names(A_max_Qnt[[z]])=names(A_max[[z]])}  # change names
+
+    A_sd = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+            dates_in = dats, FUN=function(x)sd(x,na.rm=T))})
+    A_AUC = lapply(1:length(smooth),function(z){ AnnualAUC(x = smooth[[z]],dates_in = dats) })
+    A_AUC_Qnt = lapply(1:length(A_AUC),function(z){rep(quantile(x = A_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
+	  	length(A_AUC[[z]])) }) #quantile of auc values
+    for(z in 1:length(A_AUC_Qnt)){names(A_AUC_Qnt[[z]])=names(A_AUC[[z]])}  # change names
+            A_Qnt = lapply(1:length(smooth),function(z){AnnualAggregator(x = smooth[[z]],
+            dates_in = dats, FUN=function(x)quantile(x,p=Quant_percentile,type=8,na.rm=T))})
+    for(z in 1:length(A_Qnt)){names(A_Qnt[[z]])=names(A_AUC[[z]])}  # change names
+
+
+    # Growing season statistics
+    G_mx_dates = lapply(1:length(smooth),function(z){ PeriodAggregatorDates(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T))})
+    G_mn = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) mean(x,na.rm=T)) })
+    G_min = lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) min(x,na.rm=T)) })
+    G_mx =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) max(x,na.rm=T)) })
+  	G_mx_Qnt = lapply(1:length(G_mx),function(z){rep(quantile(x = G_mx[[z]],p=Quant_percentile,type=8,na.rm=T),
+>>>>>>> Stashed changes
+                length(G_mx[[z]])) }) #quantile of annual max values
+    for(z in 1:length(G_mx_Qnt)){names(G_mx_Qnt[[z]])=names(G_mx[[z]])}  # change names
+
+<<<<<<< Updated upstream
         G_sd =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) sd(x,na.rm=T)) })
@@ -467,50 +552,70 @@
                 dates_in = dats, date_range_st=plant_dates[[z]],
                 date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) quantile(x,p=Quant_percentile,type=8,na.rm=T)   ) })
 
+=======
+    G_sd =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) sd(x,na.rm=T)) })
+    G_AUC = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+            DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+	  G_AUC_Qnt = lapply(1:length(G_AUC),function(z){rep(quantile(x = G_AUC[[z]],p=Quant_percentile,type=8,na.rm=T),
+            length(G_AUC[[z]])) }) #quantile of annual max values
+    for(z in 1:length(G_AUC_Qnt)){names(G_AUC_Qnt[[z]])=names(G_AUC[[z]])}  # change names
+
+   	G_AUC2 = lapply(1:length(smooth),function(z){ PeriodAUC_method2(x_in = smooth[[z]],dates_in = dats,
+            DOY_start_in=plant_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+    G_AUC_leading  = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+            DOY_start_in=plant_dates[[z]],DOY_end_in=G_mx_dates[[z]]) })
+        G_AUC_trailing = lapply(1:length(smooth),function(z){ PeriodAUC(x_in = smooth[[z]],dates_in = dats,
+            DOY_start_in=G_mx_dates[[z]],DOY_end_in=harvest_dates[[z]]) })
+    G_Qnt =  lapply(1:length(smooth),function(z){ PeriodAggregator(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x) quantile(x,p=Quant_percentile,type=8,na.rm=T)   ) })
+>>>>>>> Stashed changes
 
 
-	# G_AUC_trailing lag by one year if growing season is over new year
-	names(G_AUC_trailing[[1]]) = names(G_AUC_leading[[1]])
-	# compare AUC annual to mean AUC and 90th percentile AUC
-        G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
-        G_AUC_diff_90th = lapply(1:length(smooth),function(z){ G_AUC[[z]] - quantile(G_AUC[[z]],p=0.9,type=8,na.rm=T) })
+    # G_AUC_trailing lag by one year if growing season is over new year
+    names(G_AUC_trailing[[1]]) = names(G_AUC_leading[[1]])
+    # compare AUC annual to mean AUC and 90th percentile AUC
+    G_AUC_diff_mn = lapply(1:length(smooth),function(z){ G_AUC[[z]] - mean(G_AUC[[z]],na.rm=T) })
+    G_AUC_diff_90th = lapply(1:length(smooth),function(z){ G_AUC[[z]] - quantile(G_AUC[[z]],p=0.9,type=8,na.rm=T) })
 
-	# global statistics (whole period) 
-        T_G_Qnt = lapply(1:length(smooth),function(z){ rep(GlobalPeriodAggregator(x = smooth[[z]],
-                dates_in = dats, date_range_st=plant_dates[[z]],
-                date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x)
-                quantile(x,p=Quant_percentile,type=8,na.rm=T)),length(G_AUC[[z]])) })
-        for(z in 1:length(T_G_Qnt)){names(T_G_Qnt[[z]])=names(G_AUC[[z]])}  # change names
+    # global statistics (whole period) 
+    T_G_Qnt = lapply(1:length(smooth),function(z){ rep(GlobalPeriodAggregator(x = smooth[[z]],
+            dates_in = dats, date_range_st=plant_dates[[z]],
+            date_range_end=harvest_dates[[z]], by_in='days',FUN=function(x)
+            quantile(x,p=Quant_percentile,type=8,na.rm=T)),length(G_AUC[[z]])) })
+    for(z in 1:length(T_G_Qnt)){names(T_G_Qnt[[z]])=names(G_AUC[[z]])}  # change names
 
 
-        # collect all data products
-        out = list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,
+    # collect all data products
+    out = list(smooth_stat = smooth,plant_dates=plant_dates,harvest_dates=harvest_dates,A_mn=A_mn,
 		A_min=A_min,A_max=A_max,A_AUC=A_AUC,A_Qnt=A_Qnt,A_sd=A_sd,A_max_Qnt=A_max_Qnt,A_AUC_Qnt=A_AUC_Qnt,
 		G_mx_dates=G_mx_dates,G_mn=G_mn,G_min=G_min,G_mx=G_mx,G_AUC=G_AUC,G_Qnt=G_Qnt,G_mx_Qnt=G_mx_Qnt,G_AUC_Qnt=G_AUC_Qnt,G_AUC2=G_AUC2,
 		G_AUC_leading=G_AUC_leading,
 		G_AUC_trailing=G_AUC_trailing,G_AUC_diff_mn=G_AUC_diff_mn,G_AUC_diff_90th=G_AUC_diff_90th,T_G_Qnt=T_G_Qnt,G_sd=G_sd)
-	out = lapply(out,unlist) # unlist elements
+  	out = lapply(out,unlist) # unlist elements
 	
-	# convert dates back
-	out$plant_dates = as.Date(out$plant_dates,origin=as.Date('1970-01-01'))
-        out$harvest_dates = as.Date(out$harvest_dates,origin=as.Date('1970-01-01'))
-        out$G_mx_dates = as.Date(out$G_mx_dates,origin=as.Date('1970-01-01'))
-        names(out$plant_dates)=format( out$plant_dates,'%Y') # add year names
-	names(out$harvest_dates) = names(out$plant_dates)
-	# check if data frame or list should be returned
-	if(return_df ==F)return(out)
-	if(return_df ==T){
-		test = lapply(1:length(out),function(x) as.data.frame(out[x]))
-		for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])} # add rowname for join
-		mymerge = function(x,y){merge(x,y,by='row',all=T)}
-		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min",
-			"A_max","A_AUC",'A_max_Qnt','A_AUC_Qnt','A_Qnt','A_sd',"G_mx_dates","G_mn","G_min",
-			"G_mx","G_AUC",'G_Qnt','G_mx_Qnt','G_AUC_Qnt','G_AUC2',"G_AUC_leading",
-			"G_AUC_trailing","G_AUC_diff_mn",'G_AUC_diff_90th','G_sd','T_G_Qnt') ])
-		test = cbind(i,test)
-		return(test)
-	} 
-     }
+  	# convert dates back
+  	out$plant_dates = as.Date(out$plant_dates,origin=as.Date('1970-01-01'))
+          out$harvest_dates = as.Date(out$harvest_dates,origin=as.Date('1970-01-01'))
+          out$G_mx_dates = as.Date(out$G_mx_dates,origin=as.Date('1970-01-01'))
+          names(out$plant_dates)=format( out$plant_dates,'%Y') # add year names
+  	names(out$harvest_dates) = names(out$plant_dates)
+  	# check if data frame or list should be returned
+  	if(return_df ==F)return(out)
+  	if(return_df ==T){
+    		test = lapply(1:length(out),function(x) as.data.frame(out[x]))
+    		for(j in 1:length(test)){test[[j]]$row = row.names(test[[j]])} # add rowname for join
+    		mymerge = function(x,y){merge(x,y,by='row',all=T)}
+    		test = Reduce(mymerge,test[names(out) %in% c("plant_dates","harvest_dates","A_mn","A_min",
+    			"A_max","A_AUC",'A_max_Qnt','A_AUC_Qnt','A_Qnt','A_sd',"G_mx_dates","G_mn","G_min",
+    			"G_mx","G_AUC",'G_Qnt','G_mx_Qnt','G_AUC_Qnt','G_AUC2',"G_AUC_leading",
+    			"G_AUC_trailing","G_AUC_diff_mn",'G_AUC_diff_90th','G_sd','T_G_Qnt') ])
+    		test = cbind(i,test)
+    		return(test)
+  	  } 
+    } 
   }
 
 

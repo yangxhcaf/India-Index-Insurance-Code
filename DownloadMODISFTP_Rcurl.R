@@ -31,7 +31,7 @@ library(foreach)
 library(doParallel)
 library(ggplot2)
 library(compiler)
-registerDoParallel(5)
+registerDoParallel(2)
 
 source('H:\\Projects\\India_Index_Insurance/India_Index_Insurance_Code/Functions.R')
 #source('/groups/manngroup/India_Index/India-Index-Insurance-Code/Functions.R')
@@ -247,8 +247,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   
 
 # Limit stacks to common dates -------------------------------------------
-  setwd('/groups/manngroup/India_Index/Data')
-
+#  setwd('/groups/manngroup/India_Index/Data')
+  
   # load data stacks from both directories
   stack_types_2_load =c('blue_reflectance', 'MIR_reflectance',
 	'NIR_reflectance','red_reflectance','EVI','NDVI','pixel_reliability')
@@ -276,31 +276,36 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   # load data in previous section and run common dates
   #setwd('/groups/manngroup/India_Index/Data/Data Stacks')
   setwd('H:\\Projects\\India_Index_Insurance/Data/Data Stacks/')
+
   reliability_prefix = 'pixel_reliability'
   products2removeclouds = c('blue_reflectance', 'MIR_reflectance',
         'NIR_reflectance','red_reflectance','EVI','NDVI')
   for(product in products2removeclouds){
-  for( tile in tiles){
+    for( tile in tiles){
+  
   	print(paste('Working on',product,tile))
   	# load quality flag
-    reliability_stackvalues = get(paste(reliability_prefix,'_stack_',tile,sep=''))
-  
-  	# remove clouds from produt
-    data_stackvalues = get(paste(product,'_stack_',tile,sep=''))
+    reliability_stackvalues = load(paste('./Raw Stacks/',reliability_prefix,'_stack_',tile,'.RData',sep='')) #open file
+    reliability_stackvalues = get(reliability_stackvalues)  # load to memory
+    # load product 
+    data_stackvalues = load(paste('./Raw Stacks/',product,'_stack_',tile,'.RData',sep='')) 
+    data_stackvalues = get(data_stackvalues)
     crs(data_stackvalues) ='+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'
-  
-  	foreach(i=1:dim(data_stackvalues)[3]) %dopar% { 
+    # remove clouds from produt
+  	for(i in 1:dim(data_stackvalues)[3]){ 
   		data_stackvalues[[i]][reliability_stackvalues[[i]]!=0]=NA}
-          assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
+    
+    assign(paste(product,'_stack_',tile,sep=''),data_stackvalues)
   	save(list=paste(product,'_stack_',tile,sep=''),
   		file = paste('WO Clouds/',product,'_stack_',tile,'_wo_clouds.RData',sep=''))
+  	remove(list=c('reliability_stackvalues','data_stackvalues'))
   }} 
   
 
 # Remove non-agricultural lands ---------------------------------------------
 # use MCD12Q1 landcover classification 2 (less exclusion of built up areas) 
 
-  setwd('/groups/manngroup/India_Index/Data/Data Stacks')
+  #setwd('/groups/manngroup/India_Index/Data/Data Stacks')
 
   # load data stacks from both directories
   dir1 = list.files('./WO Clouds/','.RData',full.names=T)

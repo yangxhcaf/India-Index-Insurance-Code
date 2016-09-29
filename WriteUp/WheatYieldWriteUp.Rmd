@@ -58,7 +58,7 @@ In addition to cloud cover MODIS data products suffer from four additional sourc
 ![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
 *Time series of NDVI (unsmoothed -red, smoothed with outlier removal -blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey.*
 
-To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yields) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\R^n$ and root mean squared error divided by mean yields is reported. 
+To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yields) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\ R^2$ and root mean squared error divided by mean yields is reported. 
 
 ###Agricultural Survey Data
 Agricultural survey data at the district level was obtained from _________. INCLUDE DESCRIPTION OF SWAPPING PUNJAB STATE DATA.
@@ -67,65 +67,24 @@ Agricultural survey data at the district level was obtained from _________. INCL
 One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning a full calendar year including the summer rains of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
 
 ###Growing Season Metrics
-Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r A=Appendix_Function_number; paste(A);Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Basic growing season summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r B=Appendix_Function_number; paste(B);Appendix_Function_number=Appendix_Function_number+1` in the appendix below. 
+Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r A=Appendix_Function_number` `r paste(A)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Basic growing season summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r B=Appendix_Function_number` `r paste(B)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. 
 
-To estimate the cumulative impact of high or low vegetation indices across as season we calculate a variety of integration metrics. These include area under the curve (AUC) of the growing season, the AUC of the increasing portion of the curve (from estimated planting date to growing season maximum), and the AUC of the declining portion of the curve (from growing season maximum to estimated harvest date). For comparision, these values are calculate using two methods, the first using integration using smoothing splines (appendix formula `r C=Appendix_Function_number; paste(C);Appendix_Function_number=Appendix_Function_number+1`) and second using trapeziodal estimation (appendix formula `r D=Appendix_Function_number; paste(D);Appendix_Function_number=Appendix_Function_number+1`). 
+To estimate the cumulative impact of high or low vegetation indices across as season we calculate a variety of integration metrics. These include area under the curve (AUC) of the growing season, the AUC of the increasing portion of the curve (from estimated planting date to growing season maximum), and the AUC of the declining portion of the curve (from growing season maximum to estimated harvest date). For comparision, these values are calculate using two methods, the first using integration using smoothing splines (appendix formula `r C=Appendix_Function_number` `r paste(C)` `r Appendix_Function_number=Appendix_Function_number+1`) and second using trapeziodal estimation (appendix formula `r D=Appendix_Function_number` `r paste(D)` `r Appendix_Function_number=Appendix_Function_number+1`). 
 
-We develop a series of metrics to test if modeled yields could be improved through comparisons to 'ideal' years. This includes calculating the 95th percentile (based on sample quantile where the resulting quantile estimates are approximately median-unbiased regardless of the distribution of x [@hyndman1996sample]) of all NDVI **EVI** values, of maximum values, and of the integral (area under the curve) of NDVI **EVI** values.  These use the built in functionality of R's base stat function show formula `r E=Appendix_Function_number; paste(E);Appendix_Function_number=Appendix_Function_number+1`) in the appedix. 
+We develop a series of metrics to test if modeled yields could be improved through comparisons to 'ideal' years. This includes calculating the 95th percentile (based on sample quantile where the resulting quantile estimates are approximately median-unbiased regardless of the distribution of x [@hyndman1996sample]) of all NDVI **EVI** values, of maximum values, and of the integral (area under the curve) of NDVI **EVI** values.  These use the built in functionality of R's base stat function show formula `r E=Appendix_Function_number` `r paste(E)` `r Appendix_Function_number=Appendix_Function_number+1`) in the appedix. 
 
-Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI** (see formula `r F=Appendix_Function_number; paste(F);Appendix_Function_number=Appendix_Function_number+1` in the appendix). Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number; paste(G);Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University `r H=Appendix_Function_number; paste(H);Appendix_Function_number=Appendix_Function_number+1` in the appendix).
+Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI** (see formula `r F=Appendix_Function_number` `r paste(F)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number` `r paste(G)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University `r H=Appendix_Function_number` `r paste(H)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix).
 
 ###Annual Metrics
-Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r I=Appendix_Function_number; paste(I);Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Alternatively most functions described above can be used to calculate annual vegetation metrics. 
-
+Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r I=Appendix_Function_number` `r paste(I)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Alternatively most functions described above can be used to calculate annual vegetation metrics. 
 ##Summarizing Space: Spatial Aggregation of Remotely Sensed Data
-One major hurdle for this study was the rapid extraction of raster values bases on vector data. Function `r J=Appendix_Function_number; paste(J);Appendix_Function_number=Appendix_Function_number+1` in the appendix, processing times were better that 1/10th that of the default raster::extract() function with the use of a 16-core linux server.
+One major hurdle for this study was the rapid extraction of raster values bases on vector data. Function `r J=Appendix_Function_number` `r paste(J)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix, processing times were better that 1/10th that of the default raster::extract() function with the use of a 16-core linux server.
  
  
  
  
 ```{r, echo=FALSE}
 
-extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
-          # Returns list containing values from locations of spatial points or polygons
- 	  # if polygons are too small reverts to centroid 
-          if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
-          lapply(c('raster','foreach','doParallel'), require, character.only = T)
-          registerDoParallel(num_workers)
-          ptm <- proc.time()
-          # iterate between points or polygons
-          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
-                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
-                get_class= class(point_or_polygon)[1]
-                # switch rasterstack according to which point or polygon is %over%
-                for(z in 1:length(raster_stack)){
-                        # set raster to use
-                        raster_stack_use = raster_stack[[z]]
-                        # get cell numbers of point of polygon, repeat if missing
-                        if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
-                            cell = as.numeric(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]])
-                            # if polygon is too small to find cells, convert to centroid and get cellfromXY
-                           if(length(cell)==0){                                       #coord(poly) returns centroid
-                                cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
-                        if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
-                            cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
-                        # if cells found keep raster_stack_use = raster_stack[[z]]
-                        if(length(cell)!=0){break}
-                        # if cells not found repeat for different stack or return NA
-                        if(length(cell)==0 & z!=length(raster_stack)){next}else{return(NA)}
-                }
-                # create raster mask from cell numbers
-                r = rasterFromCells(raster_stack_use, cell,values=F)
-                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
-                   crop(raster_stack_use[[i]],r)
-                }
-                result=as.data.frame(getValues(stack(result)))
-                return(result)
-          }
-          print( proc.time() - ptm)
-          endCluster()
-          return(ply_result)
- }
 
 # not sure we include this one 
  Neighborhood_quantile=function(extr_values, PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
@@ -351,7 +310,9 @@ PeriodAUC_method2 = function(x_in,dates_in,DOY_start_in,DOY_end_in){
 
 *Functions `r paste(E)`: Base function used for estimating sample quantiles*
 ```{r, include=T,echo=F,warning=F}
-quantile(x ,p=Quant_percentile,type=8,na.rm=T)
+quantile_type8 = function(x){
+  quantile(x ,p=Quant_percentile,type=8,na.rm=T)
+}
 ```
 
 *Functions `r paste(F)`: Function to return date of any given phenomenon*
@@ -461,7 +422,6 @@ SplineAndOutlierRemoval <- function(x, dates, out_sigma=3, spline_spar=0.3, out_
     }
   }
 }
-
 ```
 
 *Function `r paste(I)`: Flexible annual vegetation metrics*
@@ -472,6 +432,50 @@ SplineAndOutlierRemoval <- function(x, dates, out_sigma=3, spline_spar=0.3, out_
     # E.g. AnnualAggregator(x=  plotdatasmoothed$EVI,dates_in = plotdatasmoothed$dates, FUN = function(y){mean(y,na.rm=T)})
     datesY = format(dates_in,'%Y')
     do.call(c,lapply(split(x,datesY),FUN))}
+```
+
+*Function `r paste(J)`: Rapid multicore extract raster data by point or polygon*
+```{r, include=T,echo=T,warning=F}
+extract_value_point_polygon = function(point_or_polygon, raster_stack, num_workers){
+          # Returns list containing values from locations of spatial points or polygons
+ 	  # if polygons are too small reverts to centroid 
+          if(class(raster_stack)!='list'){raster_stack=list(raster_stack)}
+          lapply(c('raster','foreach','doParallel'), require, character.only = T)
+          registerDoParallel(num_workers)
+          ptm <- proc.time()
+          # iterate between points or polygons
+          ply_result = foreach(j = 1:length(point_or_polygon),.inorder=T) %do%{
+                print(paste('Working on feature: ',j,' out of ',length(point_or_polygon)))
+                get_class= class(point_or_polygon)[1]
+                # switch rasterstack according to which point or polygon is %over%
+                for(z in 1:length(raster_stack)){
+                        # set raster to use
+                        raster_stack_use = raster_stack[[z]]
+                        # get cell numbers of point of polygon, repeat if missing
+                        if(get_class=='SpatialPolygons'|get_class=='SpatialPolygonsDataFrame'){
+                            cell = as.numeric(cellFromPolygon(raster_stack_use, point_or_polygon[j,], weights=F)[[1]])
+                            # if polygon is too small to find cells, convert to centroid and get cellfromXY
+                           if(length(cell)==0){                                       #coord(poly) returns centroid
+                                cell = as.numeric(na.omit(cellFromXY(raster_stack_use, coordinates(point_or_polygon[j,]) )))}}
+                        if(get_class=='SpatialPointsDataFrame'|get_class=='SpatialPoints'){
+                            cell = as.numeric(na.omit(cellFromXY(raster_stack_use, point_or_polygon[j,])))}
+                        # if cells found keep raster_stack_use = raster_stack[[z]]
+                        if(length(cell)!=0){break}
+                        # if cells not found repeat for different stack or return NA
+                        if(length(cell)==0 & z!=length(raster_stack)){next}else{return(NA)}
+                }
+                # create raster mask from cell numbers
+                r = rasterFromCells(raster_stack_use, cell,values=F)
+                result = foreach(i = 1:dim(raster_stack_use)[3],.packages='raster',.inorder=T) %dopar% {
+                   crop(raster_stack_use[[i]],r)
+                }
+                result=as.data.frame(getValues(stack(result)))
+                return(result)
+          }
+          print( proc.time() - ptm)
+          endCluster()
+          return(ply_result)
+ }
 ```
 
 

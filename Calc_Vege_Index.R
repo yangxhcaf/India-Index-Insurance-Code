@@ -200,14 +200,22 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   plotdata$Legend[plotdata$Legend=='EVI'] ='NDVI'
   plotdata$Legend[plotdata$Legend=='EVI Smoothed'] ='NDVI Smoothed'
 
-  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
-        ymin = -Inf, ymax = Inf), alpha = 0.4)+
-        geom_point(data= plotdata, aes(x=Dates,y=NDVI,group=Legend,colour=Legend))+
-        geom_vline(colour='blue',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+
-        geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
-        geom_vline(colour='orange',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
-        annotate("text", x =(PlantHarvest$planting[1]+61), y = 0.37, label = "Wheat")+
-        annotate("text", x =(PlantHarvest$harvest[1]+93), y = 0.31, label = "Rice")
+  # Write out data for publication figure
+  write.csv(plotdata, '/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/NDVI_smooth_timeseries.csv')
+  write.csv(rects, '/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/rects.csv')
+  write.csv(plant_lines, '/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/plant_lines.csv')
+  write.csv(harvest_lines, '/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/harvest_lines.csv')
+  write.csv(PlantHarvest, '/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/PlantHarvest.csv')
+  write.csv(max_lines, '/groups/manngroup/India_Index/India-Index-Insurance-Code/WriteUp/FigureTableData/max_lines.csv')
+
+#  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+ #       ymin = -Inf, ymax = Inf), alpha = 0.4)+
+ #       geom_point(data= plotdata, aes(x=Dates,y=NDVI,group=Legend,colour=Legend))+
+ #       geom_vline(colour='blue',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+
+ #       geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
+ #       geom_vline(colour='orange',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
+ #       annotate("text", x =(PlantHarvest$planting[1]+61), y = 0.37, label = "Wheat")+
+ #       annotate("text", x =(PlantHarvest$harvest[1]+93), y = 0.31, label = "Rice")
 
  # ggsave(file="../../India-Index-Insurance-Code/WriteUp/PlantHarvestDates_NDVI.png")
 

@@ -79,8 +79,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+###############################################################
+# Demonstrate  functions ----------------------------------------------
+###############################################################
 
-# Check functions ----------------------------------------------
 # Load Data Layers 
 
 
@@ -283,8 +285,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+
 ###############################################################
 # Extract data to district level link with yield data
+###############################################################
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
@@ -353,35 +357,16 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   sort(unique(yield$district))
   sort(unique(districts$NAME_2))
 
-  # convert to uppercast
+  # convert to uppercast PROBLEM ONLY APPLY TO CHARACTER COLUMNS CONVERTS NUMBER TO CHARACTER FOR SOME REASON
   library(dplyr)
   upper_it = function(X){X %>% mutate_each_( funs(as.character(.)), names( .[sapply(., is.factor)] )) %>%
-       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then upperca
+       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then upperca 
 
-
-  districts@data = upper_it(districts@data) 
-  yield2 = upper_it(yield)
-  sapply(yield,class)
-  sapply(yield2,class) # PROBLEM CLASS SWITCH FOR NUMERIC DATA EVEN THOUGH IT WORKS PERFECTLY FOR EXAMPLE BELOW
-
-df <- data.frame(v1=letters[1:5],v2=1:5,v3=letters[10:14],v4=as.factor(letters[1:5]),v5=runif(5),stringsAsFactors=FALSE)
-sapply(df,class)
-
-df
-
- upper_it = function(X){X %>% mutate_each_( funs(as.character(.)), names( .[sapply(., is.factor)] )) %>%
-       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then uppercase
-
-
-df =   upper_it(df)
-df
-sapply(df,class)
-
-df$v1
-df$v2
-df$v3
-df$v4
-df$v5
+  districts@data[,c('ISO','NAME_0','NAME_1','NAME_2','HASC_2','TYPE_2')] = 
+		upper_it(districts@data[,c('ISO','NAME_0','NAME_1','NAME_2','HASC_2','TYPE_2')] ) 
+  sapply(districts@data,class) # PROBLEM CLASS SWITCH FOR NUMERIC DATA EVEN THOUGH IT WORKS PERFECTLY FOR EXAMPLE BELOW
+  yield[,c('state','crop','season')] = upper_it(yield[,c('state','crop','season')])
+  sapply(yield, class)
 
 
 
@@ -426,20 +411,20 @@ df$v5
   sort(unique(districts$NAME_2[districts$NAME_1=='PUNJAB']))
 
   # upper case all characters
-  yield_punjab  =  upper_it(yield_punjab)
-
+  yield_punjab[,c('State','Districts','district','state')]  =  upper_it(yield_punjab[,c('State','Districts','district','state')])
+  sapply(yield_punjab,class)
 
 
 # Extract data for yeild districts for NDVI
 
-  #evi_district = extract_value_point_polygon(districts,list(EVI_stack_h24v06,EVI_stack_h24v05),25)
-  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVI_district.RData',sep='') )
+  #evi_district = extract_value_point_polygon(districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),15)
+  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/NDVI_district.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/NDVI_district.RData')
 
   # find the best spar value
   #spar_find()  # returns spar,adj R2, RMSE/meanvalue
 
-  evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05, 
+  evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.95, 
 	aggregate=T, return_df=T,num_workers=13,spline_spar=0)
 
   # get mean of all variables for all years all districts

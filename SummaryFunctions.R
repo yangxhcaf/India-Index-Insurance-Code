@@ -529,7 +529,7 @@ spar_find = function(){
     for(i in 1:length(evi_summary)){
           evi_summary[[i]]=join(evi_summary[[i]], districts@data[,c('i','district','NAME_0','NAME_1','NAME_2')])
           evi_summary[[i]]$year = paste(format(evi_summary[[i]]$plant_dates,'%Y'),format(evi_summary[[i]]$harvest_dates,'%y'),sep='-')
-          evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='Wheat'& yield$season=="Rabi",],type='left') #Rabi Kharif Rice Wheat
+          evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='WHEAT'& yield$season=="RABI",],type='left') #Rabi Kharif Rice Wheat
     }
 
     yield_evi = na.omit(do.call(rbind,evi_summary))

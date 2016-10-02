@@ -37,8 +37,9 @@ The main objectives of this project is to apply and compare statistical methods 
 We examine wheat yields at the district level for Punjab and Haryana India for Rabi season (roughly Nov-Apr) for the period of `r paste(range(yield_ndvi$years, na.rm=T),collapse=' to ')`. Both Punjab and Haryana are extensively cropped but is comprised of a large number of smaller heterogeneous plots. Both states are also extensively double-cropped with rice planting in the Kharif season (roughly May-Oct) and Wheat planted in the Rabi season. Rabi season wheat yield range from `r paste(range(yield_ndvi$yield_tn_ha, na.rm=T),collapse=' to ')` metric tons per hectare (Table `r paste(Table_number)`, Figure `r paste(Figure_number)`).
 
 *Figure `r paste(Figure_number)`: Mean Rabi Season Wheat Yields Metric Tons per Hectare by District `r Figure_number =Figure_number+1 `*
- ![Yields](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\Yield_tn_ha.png)
+![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\Yield_tn_ha.png)
 
+ 
 Here we develop a (non)spatial panel regression model to estimate wheat output per hectare using the open-source programming language R. This model utilizes historical data on plant phenology statistics obtained from the Moderate Resolution Imaging Spectroradiometer (MODIS) satellite. The objective is to develop a handful of metrics that can be used to accurate predict inter-annual variability in wheat yields at the district level. 
 
 ##Data
@@ -54,9 +55,31 @@ In particular we examine both the predictive power of the Enhanced Vegetation In
  
 In addition to cloud cover MODIS data products suffer from four additional sources of error including atmospheric interference, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
 
-*Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r Figure_number =Figure_number+1 `*
-![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
-*Time series of NDVI (unsmoothed -red, smoothed with outlier removal -blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey.*
+*Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r aa=Figure_number` `r Figure_number =Figure_number+1 `*
+```{r, echo=FALSE,warning=F}
+ rects = read.csv('./FigureTableData/rects.csv')
+ rects$xend = as.Date(strptime(rects$xend,'%Y-%m-%d'))
+ rects$xstart = as.Date(strptime(rects$xstart,'%Y-%m-%d'))
+ plotdata = read.csv('./FigureTableData/NDVI_smooth_timeseries.csv')
+ plotdata$Dates = as.Date(strptime(plotdata$Dates,'%Y-%m-%d'))
+ harvest_lines = as.Date(strptime(read.csv('./FigureTableData/harvest_lines.csv',stringsAsFactors = F)[,2],'%Y-%m-%d'))
+ plant_lines = as.Date(strptime(read.csv('./FigureTableData/plant_lines.csv')[,2],'%Y-%m-%d'))
+ PlantHarvest =  read.csv('./FigureTableData/PlantHarvest.csv') 
+ PlantHarvest$planting = as.Date(strptime(PlantHarvest$planting,'%Y-%m-%d'))
+ PlantHarvest$harvest = as.Date(strptime(PlantHarvest$harvest,'%Y-%m-%d'))
+ max_lines = as.Date(strptime(read.csv('./FigureTableData/max_lines.csv')[,2],'%Y-%m-%d'))
+
+ ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+        ymin = -Inf, ymax = Inf), alpha = 0.4)+
+        geom_point(data= plotdata, aes(x=Dates,y=NDVI,group=Legend,colour=Legend),size=2)+
+        geom_vline(colour='darkgreen',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='purple',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
+        annotate("text", x =(PlantHarvest$planting[1]+61), y = 0.37, label = "Wheat")+
+        annotate("text", x =(PlantHarvest$harvest[1]+93), y = 0.31, label = "Rice")+
+        coord_cartesian(xlim = (as.Date(c("2010-01-01", "2015-04-01"))))
+```
+*Time series of NDVI unsmoothed (red) and smoothed with outlier removal (blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey. Date of estimated Rabi season maximum (red vertical line), estimated greenness onset (green vertical line), estimated harvest date (purple veritcal line).*
 
 To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yields) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\ R^2$ and root mean squared error divided by mean yields is reported. 
 
@@ -73,7 +96,7 @@ To estimate the cumulative impact of high or low vegetation indices across as se
 
 We develop a series of metrics to test if modeled yields could be improved through comparisons to 'ideal' years. This includes calculating the 95th percentile (based on sample quantile where the resulting quantile estimates are approximately median-unbiased regardless of the distribution of x [@hyndman1996sample]) of all NDVI **EVI** values, of maximum values, and of the integral (area under the curve) of NDVI **EVI** values.  These use the built in functionality of R's base stat function show formula `r E=Appendix_Function_number` `r paste(E)` `r Appendix_Function_number=Appendix_Function_number+1`) in the appedix. 
 
-Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI** (see formula `r F=Appendix_Function_number` `r paste(F)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number` `r paste(G)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University `r H=Appendix_Function_number` `r paste(H)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix).
+Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI**. Figure `r paste(aa)` visually demonstrates the ability of this function to estimate the timing on greeness onset (referred to henceforth as planting date), seasonal maximums, and harvest dates. For details on these calculations see formula `r F=Appendix_Function_number` `r paste(F)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix. Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number` `r paste(G)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University (see function `r H=Appendix_Function_number` `r paste(H)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix).
 
 ###Annual Metrics
 Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r I=Appendix_Function_number` `r paste(I)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Alternatively most functions described above can be used to calculate annual vegetation metrics. 

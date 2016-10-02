@@ -14,6 +14,11 @@ library(pander)
 library(knitr)
 library(plyr)
 library(ggplot2)
+library(plm) # works on desktop at school
+library(stargazer)
+library(reshape)
+library(stats)
+
 yield_ndvi = read.csv('..//yield_ndvi.csv')
 focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
 Table_number = 1
@@ -116,8 +121,6 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
 
 
 
-
-
 ```{r, echo=FALSE}
 # not sure we include this one 
  Neighborhood_quantile=function(extr_values,PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
@@ -146,16 +149,130 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
  }
 ```
 
+
+
+
+
 ##Exploiting Time: (Spatial) Panel Regression Methods and Models
 
 ###Panel Regression
 ```{r, echo=FALSE}
-panderOptions('table.split.table', Inf)
-panderOptions('big.mark', ",")
-panderOptions('keep.trailing.zeros', F)
-table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
-table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
-pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
+  panderOptions('table.split.table', Inf)
+  panderOptions('big.mark', ",")
+  panderOptions('keep.trailing.zeros', F)
+  table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
+  table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
+  pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
+```
+
+
+```{r Panel: Read in data, echo=FALSE}
+###########################################
+# regressions on yields
+
+  #yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
+  yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  yield_evi = yield_evi[!is.na(yield_evi$years),]
+  
+  table(paste(yield_evi$i,yield_evi$years,sep='-'))
+
+  yield_evi[yield_evi$i ==26 &yield_evi$years==2006,][2,] =NA
+  yield_evi = yield_evi[!is.na(yield_evi$year),]
+  yield_evi[yield_evi$yield_tn_ha < 1 | yield_evi$yield_tn_ha>6,]=NA
+  
+```  
+  
+```{r Panel: Hausman test, echo=FALSE}
+# run hausman test
+  formula2 = yield_tn_ha ~plant_dates+harvest_dates+
+    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
+    R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
+    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))
+  
+  formula2_dataframe = yield_tn_ha ~plant_dates+harvest_dates+
+    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
+    R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
+    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))+district+years
+  
+  #removed  season_length VEG_annual_sd VEG_growing_AUC_leading+VEG_growing_AUC_trailing++VEG_growing_AUC rice_growing_max VEG_growing_sd rice_growing_AUC_95th_prct rice_growing_max_95th_prct VEG_all_growing_95th_prct
+  
+  
+  fixed <- plm(formula2, data=yield_evi, index=c("district", "years"), model="within")
+  summary(fixed)  
+
+  random <- plm(formula2, data=yield_evi, index=c("district", "years"), model="random")
+  summary(random)  
+  
+  hausman = phtest(fixed, random) # use fixed if significant
+  pander(hausman)
+
+```
+
+
+```{r Panel: Fitted vs actual NORMAL, echo=FALSE}
+ stargazer(random, type="text")
+```
+
+
+```{r Panel: Fitted vs actual NORMAL PLOT, echo=FALSE}
+  # plot fitted vs actual
+  fitted = data.frame(fitted = random$model[[1]] - random$residuals)
+  model_data = cbind(random$model,fitted)
+  model_data = cbind(model_data,na.omit(model.frame(formula2_dataframe,yield_evi)))  
+  model_data$district = as.character(model_data$district)
+  model_data$years_id = as.numeric(substr(model_data$year,1,4))
+  model_data = model_data[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data = melt(model_data,id = c('years_id','district'))
+
+  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable,alpha=0.5))+
+  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
+```
+
+
+
+```{r Panel: Fitted vs actual PCA, echo=FALSE}
+  ###########################
+  # USE PCA 
+  pca_input = na.omit(model.frame(formula2_dataframe,yield_evi))
+  pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
+  pca <- prcomp( pca_data, scale = T,center = T ) 
+  pca_pred = as.data.frame(stats::predict(pca))
+  dim(pca_pred);dim(pca_input)
+  pca_pred$district = pca_input$district
+  pca_pred$years = pca_input$years
+  pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+  
+  random_pca <- plm(yield_tn_ha~ (rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)), data=pca_pred, index=c("district", "years"), model="random")
+  stargazer(random_pca, type="text")
+  
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(random_pca$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE) # 0.5760017
+  print(paste('Within R2',Witin_R2))
+  
+```
+
+
+
+```{r Panel: Fitted vs actual PCA PLOT, echo=FALSE}
+  fitted_pca = data.frame(fitted = random_pca$model[[1]] - random_pca$residuals)
+  model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula2_dataframe,yield_evi)))  
+  model_data_pca$district = as.character(model_data_pca$district)
+  model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
+  model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data_pca = melt(model_data_pca,id = c('years_id','district'))
+  
+  ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
 ```
 
 ###Spatial Panel Regression

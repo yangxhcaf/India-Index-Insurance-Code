@@ -79,8 +79,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+###############################################################
+# Demonstrate  functions ----------------------------------------------
+###############################################################
 
-# Check functions ----------------------------------------------
 # Load Data Layers 
 
 
@@ -283,8 +285,12 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 
 
 
+
 ###############################################################
 # Extract data to district level link with yield data
+###############################################################
+
+
 
   # Get planting and harvest dates
   PlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=11,
@@ -349,39 +355,17 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   	yield$district[yield$district == look_up$locales_v[i] ] = look_up$locales[i]
   }
   
-  # double check that spellings are same on both sheets
-  sort(unique(yield$district))
-  sort(unique(districts$NAME_2))
 
-  # convert to uppercast
+  # convert to uppercast PROBLEM ONLY APPLY TO CHARACTER COLUMNS CONVERTS NUMBER TO CHARACTER FOR SOME REASON
   library(dplyr)
   upper_it = function(X){X %>% mutate_each_( funs(as.character(.)), names( .[sapply(., is.factor)] )) %>%
-       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then upperca
+       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then upperca 
 
-
-  districts@data = upper_it(districts@data) 
-  yield2 = upper_it(yield)
-  sapply(yield,class)
-  sapply(yield2,class) # PROBLEM CLASS SWITCH FOR NUMERIC DATA EVEN THOUGH IT WORKS PERFECTLY FOR EXAMPLE BELOW
-
-df <- data.frame(v1=letters[1:5],v2=1:5,v3=letters[10:14],v4=as.factor(letters[1:5]),v5=runif(5),stringsAsFactors=FALSE)
-sapply(df,class)
-
-df
-
- upper_it = function(X){X %>% mutate_each_( funs(as.character(.)), names( .[sapply(., is.factor)] )) %>%
-       mutate_each_( funs(toupper), names( .[sapply(., is.character)] ))}   # convert factor to character then uppercase
-
-
-df =   upper_it(df)
-df
-sapply(df,class)
-
-df$v1
-df$v2
-df$v3
-df$v4
-df$v5
+  districts@data[,c('ISO','NAME_0','NAME_1','NAME_2','HASC_2','TYPE_2')] = 
+		upper_it(districts@data[,c('ISO','NAME_0','NAME_1','NAME_2','HASC_2','TYPE_2')] ) 
+  sapply(districts@data,class) # PROBLEM CLASS SWITCH FOR NUMERIC DATA EVEN THOUGH IT WORKS PERFECTLY FOR EXAMPLE BELOW
+  yield[,c('state','crop','season')] = upper_it(yield[,c('state','crop','season')])
+  sapply(yield, class)
 
 
 
@@ -421,26 +405,63 @@ df$v5
         yield_punjab$district[yield_punjab$district == look_up$locales_v[i] ] = look_up$locales[i]
   }
 
-  # double check that spellings are same on both sheets
-  sort(unique(yield_punjab$district))
-  sort(unique(districts$NAME_2[districts$NAME_1=='PUNJAB']))
 
   # upper case all characters
-  yield_punjab  =  upper_it(yield_punjab)
-
+  yield_punjab[,c('State','Districts','district','state')]  =  upper_it(yield_punjab[,c('State','Districts','district','state')])
+  sapply(yield_punjab,class)
 
 
 # Extract data for yeild districts for NDVI
 
-  #evi_district = extract_value_point_polygon(districts,list(EVI_stack_h24v06,EVI_stack_h24v05),25)
-  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/EVI_district.RData',sep='') )
+  #evi_district = extract_value_point_polygon(districts,list(NDVI_stack_h24v06,NDVI_stack_h24v05),15)
+  #save(evi_district, file = paste('/groups/manngroup/India_Index/Data/Intermediates/NDVI_district.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/NDVI_district.RData')
 
   # find the best spar value
   #spar_find()  # returns spar,adj R2, RMSE/meanvalue
 
-  evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=PlantHarvest,Quant_percentile=0.05, 
-	aggregate=T, return_df=T,num_workers=13,spline_spar=0)
+	# [1,]  0.0 0.6717329 0.04968169
+	# [2,]  0.1 0.6200211 0.05372909
+	# [3,]  0.2 0.5574208 0.05409262
+	# [4,]  0.3 0.6637620 0.04951915
+	# [5,]  0.4 0.6283626 0.05173671
+	# [6,]  0.5 0.6473474 0.05062672
+	# [7,]  0.6 0.6457232 0.05119712
+	# [8,]  0.7 0.6459546 0.05140148
+	# [9,]  0.8 0.6793824 0.05028132
+	#[10,]  0.9 0.6820132 0.05018398
+	#[11,]  1.0 0.6959981 0.04822815
+	#[12,]  1.1 0.6923934 0.04875287
+	#[13,]  1.2 0.6957356 0.04838682
+	#[14,]  1.3 0.6963612 0.04839690
+	#[15,]  1.4 0.6955228 0.04831201
+	#[16,]  1.5 0.6930620 0.04853615
+	#[17,]  1.6 0.6932628 0.04759016
+	#[18,]  1.7 0.6922859 0.04834266
+	#[19,]  1.8 0.6847449 0.04826328
+	#[20,]  1.9 0.6819941 0.04862113
+	#[21,]  2.0 0.6867824 0.04808403
+	#[22,]  2.1 0.6851710 0.04891847
+	#[23,]  2.2 0.6834663 0.04883971
+	#[24,]  2.3 0.6811296 0.04896917
+	#[25,]  2.4 0.6812064 0.04885636
+	#[26,]  2.5 0.6812533 0.04897854
+	#[27,]  2.6 0.6850948 0.04858550
+	#[28,]  2.7 0.6872224 0.04838028
+	#[29,]  2.8 0.6846268 0.04860193
+	#[30,]  2.9 0.6839818 0.04874246
+	#[31,]  3.0 0.6841829 0.04866848
+
+
+
+  # Get planting and harvest dates for rice (inverse of dates for wheat)
+  RicePlantHarvest = PlantHarvestDates(dates[1],dates[2],PlantingMonth=4,
+        PlantingDay=30,HarvestMonth=11,HarvestDay=23)
+  RicePlantHarvest$harvest = RicePlantHarvest$harvest-360  # fix harvest year
+  RicePlantHarvest = RicePlantHarvest[2:dim(RicePlantHarvest)[1],] # remove 2002 since we don't have rice season for that year
+
+  evi_summary = Annual_Summary_Functions(extr_values=evi_district,PlantHarvestTable=list(PlantHarvest,RicePlantHarvest),
+	Quant_percentile=0.95, aggregate=T, return_df=T,num_workers=17,spline_spar=0)
 
   # get mean of all variables for all years all districts
   evi_summary_annual_av = lapply(evi_summary,function(x) aggregate(A_mn ~i,data=x,function(y){mean(y,na.rm=T) }))
@@ -448,8 +469,8 @@ df$v5
 
 
   # returns quantile for all cells within polygon
-  # neigh_quan =  Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.05,
-  #	 num_workers=25,spline_spar = 0)
+  # neigh_quan =  Neighborhood_quantile(extr_values=evi_district, PlantHarvestTable=PlantHarvest,Quant_percentile=0.95,
+  #	 num_workers=17,spline_spar = 0)
   #save(neigh_quan, file = paste('/groups/manngroup/India_Index/Data/Intermediates/NDVI_neigh_quan.RData',sep='') )
   load('/groups/manngroup/India_Index/Data/Intermediates/NDVI_neigh_quan.RData')
 
@@ -459,7 +480,6 @@ df$v5
   districts@data = cbind(districts@data,unlist(evi_summary_annual_av))
   districts = spTransform(districts, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
   districts@data$id = rownames(districts@data)
-  source('/groups/manngroup/India_Index/India-Index-Insurance-Code/fortify2.R')
   districts.df =  fortify(districts) 
   districts.df =  join(districts.df, districts@data, by="id",type = 'left')
   names(districts.df)[dim(districts.df)[2]]='A_mn'
@@ -479,8 +499,7 @@ df$v5
   #ggsave(file="../../India-Index-Insurance-Code/WriteUp/Mean_district_NDVI.png")
 
 
-# Merge EVI data with yields
- 
+# Merge EVI data with yields 
   districts$i = 1:length(districts)
   districts$district = districts$NAME_2
 
@@ -490,8 +509,8 @@ df$v5
         evi_summary[[i]]=join(evi_summary[[i]], yield[yield$crop=='WHEAT'& yield$season=="RABI",],type='left') #Rabi Kharif Rice Wheat
         evi_summary[[i]]$state =  evi_summary[[i]]$NAME_1  # deal with missing state and district names
         evi_summary[[i]]$district =  evi_summary[[i]]$NAME_2  # deal with missing state and district names
-        evi_summary[[i]]=join(evi_summary[[i]], yield_punjab[,c('state','district','year','Whe_Yeild_kgha')],by=c('state','district','year'),type='left') #Rabi Kharif Rice Wheat
-
+        evi_summary[[i]]=join(evi_summary[[i]], yield_punjab[,c('state','district','year','Whe_Yeild_kgha')],
+		by=c('state','district','year'),type='left') #Rabi Kharif Rice Wheat
   }
 
   yield_evi = (do.call(rbind,evi_summary)) # merge all evi list elements
@@ -499,7 +518,12 @@ df$v5
   yield_evi$plant_dates = as.numeric(format(yield_evi$plant_dates,'%j'))
   yield_evi$harvest_dates = as.numeric(format(yield_evi$harvest_dates,'%j'))
   yield_evi$G_mx_dates = as.numeric(format(yield_evi$G_mx_dates,'%j'))
-  yield_evi$year_trend = as.numeric(  yield_evi$row)
+  # only works if you provided rice planting dates also
+  yield_evi$rice_plant_dates = as.numeric(format(yield_evi$rice_plant_dates,'%j'))
+  yield_evi$rice_harvest_dates = as.numeric(format(yield_evi$rice_harvest_dates,'%j'))
+  yield_evi$R_mx_dates = as.numeric(format(yield_evi$R_mx_dates,'%j'))
+
+  yield_evi$year_trend = as.numeric(yield_evi$row)
   # generate yield that combines both datasets National/PunjabState yeilds
   yield_evi$yield_tn_ha_dual = yield_evi$yield_tn_ha 
   yield_evi$yield_tn_ha_dual[yield_evi$NAME_1=='PUNJAB'] = yield_evi$Whe_Yeild_kgha[yield_evi$NAME_1=='PUNJAB'] / 1000 # convert from kg to m tons
@@ -509,14 +533,20 @@ df$v5
 	'A_Qnt','A_sd','A_max_Qnt','A_AUC_Qnt','G_mx_dates',
 	'G_mn','G_min','G_mx','G_AUC','G_Qnt','G_mx_Qnt',
 	'G_AUC_Qnt','G_AUC2','G_AUC_leading','G_AUC_trailing',
-	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd','Whe_Yeild_kgha','yield_tn_ha_dual')]
+	'G_AUC_diff_mn','G_AUC_diff_90th','T_G_Qnt','G_sd','Whe_Yeild_kgha','yield_tn_ha_dual',
+	"rice_plant_dates","rice_harvest_dates","R_mx_dates","R_mn","R_min","R_mx","R_AUC",
+        "R_Qnt","R_mx_Qnt","R_AUC_Qnt","R_AUC2","R_AUC_leading","R_AUC_trailing"
+	)]
 
   names(yield_evi)=c('i','years','country','state','district','season','area','production_tonnes','yield_tn_ha',
         'plant_dates','harvest_dates','season_length','VEG_annual_mean','VEG_annual_min','VEG_annual_max','VEG_annual_AUC',
-	'VEG_annual_5th_prct','VEG_annual_sd','VEG_annual_max_5th_prct','VEG_annual_AUC_5th_prct','VEG_growing_max_date',
-	'VEG_growing_mean','VEG_growing_min','VEG_growing_max','VEG_growing_AUC','VEG_growing_5th_prct','VEG_growing_max_5th_prct',
-	'VEG_growing_AUC_5th_prct','VEG_growing_AUC_v2','VEG_growing_AUC_leading','VEG_growing_AUC_trailing',
-        'VEG_growing_AUC_diff_mn','VEG_growing_AUC_diff_90th','VEG_all_growing_5th_prct','VEG_growing_sd','Whe_Yeild_kgha','yield_tn_ha_dual')
+	'VEG_annual_95th_prct','VEG_annual_sd','VEG_annual_max_95th_prct','VEG_annual_AUC_95th_prct','VEG_growing_max_date',
+	'VEG_growing_mean','VEG_growing_min','VEG_growing_max','VEG_growing_AUC','VEG_growing_95th_prct','VEG_growing_max_95th_prct',
+	'VEG_growing_AUC_95th_prct','VEG_growing_AUC_v2','VEG_growing_AUC_leading','VEG_growing_AUC_trailing',
+        'VEG_growing_AUC_diff_mn','VEG_growing_AUC_diff_90th','VEG_all_growing_95th_prct','VEG_growing_sd','Whe_Yeild_kgha','yield_tn_ha_dual',
+	"rice_plant_dates","rice_harvest_dates","R_mx_dates",'rice_growing_mean','rice_growing_min','rice_growing_max','rice_growing_AUC',
+	'rice_growing_95th_prct','rice_growing_max_95th_prct','rice_growing_AUC_95th_prct','rice_growing_AUC_v2','rice_growing_AUC_leading','rice_growing_AUC_trailing'
+	)
   
   # evi or ndvi determined by original extracted data 
   write.csv(yield_evi,'/groups/manngroup/India_Index/Data/Intermediates/yield_ndvi.csv')
@@ -559,10 +589,12 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
 
 
   formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+VEG_annual_mean+VEG_annual_min+VEG_annual_max+VEG_annual_AUC+
-    VEG_annual_5th_prct+VEG_annual_sd+VEG_annual_max_5th_prct+VEG_annual_AUC_5th_prct+VEG_growing_max_date+
-    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_5th_prct+VEG_growing_max_5th_prct+
-    VEG_growing_AUC_5th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
-    VEG_all_growing_5th_prct+VEG_growing_sd +i
+    VEG_annual_95th_prct+VEG_annual_sd+VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
+    VEG_all_growing_95th_prct+VEG_growing_sd +rice_plant_dates+rice_harvest_dates+R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_max+rice_growing_AUC+rice_growing_95th_prct+rice_growing_max_95th_prct+
+    rice_growing_AUC_95th_prct+rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing +i
 
   set.seed(10)
   fit <- randomForest(formula, data= na.omit(model.frame(formula,yield_evi)), importance=T, ntree=2000)
@@ -583,27 +615,41 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
 
 
 ###########################################
-# regressions on yeilds
+# regressions on yields
 
-  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
-  formula_lm = yield_tn_ha ~factor(i)+plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_growing_AUC_diff_mn+EVI_growing_AUC_diff_90th+EVI_all_growing_5th_prct+EVI_growing_sd
+  #yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
+  yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  yield_evi = yield_evi[!is.na(yield_evi$years),]
   
-  lm1=  lm(formula_lm,data=yield_evi)
-  summary(lm1)
-  mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
+  table(paste(yield_evi$i,yield_evi$years,sep='-'))
 
-  lm_0=  lm(yield_tn_ha ~factor(i),data=yield_evi)
-  summary(lm_0)
+  yield_evi[yield_evi$i ==26 &yield_evi$years==2006,][2,] =NA
+  yield_evi = yield_evi[!is.na(yield_evi$year),]
+  yield_evi$yield_tn_ha[ yield_evi$yield_tn_ha<1 | yield_evi$yield_tn_ha>6]= NA 
+  ]
+  
+  # formula_lm = yield_tn_ha ~plant_dates+harvest_dates+season_length+VEG_annual_mean+VEG_annual_min+VEG_annual_max+VEG_annual_AUC+
+  #   VEG_annual_95th_prct+VEG_annual_sd+VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+  #   VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+  #   VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
+  #   VEG_all_growing_95th_prct+VEG_growing_sd +rice_plant_dates+rice_harvest_dates+R_mx_dates+rice_growing_mean+
+  #   rice_growing_min+rice_growing_max+rice_growing_AUC+rice_growing_95th_prct+rice_growing_max_95th_prct+
+  #   rice_growing_AUC_95th_prct+rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing +factor(i)
+  # 
+  # lm1=  lm(formula_lm,data=yield_evi)
+  # summary(lm1)
+  # mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
+  # 
+  # lm_0=  lm(yield_tn_ha ~factor(i),data=yield_evi)
+  # summary(lm_0)
 
-  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd
+  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+
+    VEG_annual_sd+VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
+    VEG_all_growing_95th_prct+VEG_growing_sd+R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_max+rice_growing_AUC+rice_growing_95th_prct+rice_growing_max_95th_prct+
+    rice_growing_AUC_95th_prct+rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing
   
   library(plm) # works on desktop at school
   fixed <- plm(formula, data=yield_evi, index=c("district", "years"), model="within")
@@ -614,48 +660,124 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   
   phtest(fixed, random) # use fixed if significant
   
-  formula2 = yield_tn_ha ~ plant_dates+season_length+EVI_annual_mean+I(EVI_annual_mean^2)+EVI_annual_min+EVI_annual_max+
-    EVI_annual_AUC+I(EVI_annual_AUC^2)+ 
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd
   
-  #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
+  formula2 = yield_tn_ha ~plant_dates+harvest_dates+
+    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
+    R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
+    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))
+  
+  formula2_dataframe = yield_tn_ha ~plant_dates+harvest_dates+
+    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
+    R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
+    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))+district+years
+  
+  
+  #removed  season_length VEG_annual_sd VEG_growing_AUC_leading+VEG_growing_AUC_trailing++VEG_growing_AUC rice_growing_max VEG_growing_sd rice_growing_AUC_95th_prct rice_growing_max_95th_prct VEG_all_growing_95th_prct
   
   random <- plm(formula2, data=yield_evi, index=c("district", "years"), model="random")
   summary(random) 
   
-  library(rms)
-  formula3 = yield_tn_ha ~  plant_dates +season_length+rcs(EVI_annual_mean,4)+EVI_annual_min+rcs(EVI_annual_max,4)+
-    rcs(EVI_annual_AUC,4)+ 
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd
-  
-  #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
-  
-  random <- plm(formula3, data=yield_evi, index=c("district", "years"), model="random")
-  summary(random)  
-  
+  # library(rms)
+  # formula3 = yield_tn_ha ~  plant_dates +season_length+rcs(EVI_annual_mean,4)+EVI_annual_min+rcs(EVI_annual_max,4)+
+  #   rcs(EVI_annual_AUC,4)+ 
+  #   EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
+  #   EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
+  #   EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
+  #   EVI_all_growing_5th_prct+EVI_growing_sd
+  # 
+  # #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
+  # 
+  # random <- plm(formula3, data=yield_evi, index=c("district", "years"), model="random")
+  # summary(random)  
+  # 
   # plot fitted vs actual
+  library(reshape)
   fitted = data.frame(fitted = random$model[[1]] - random$residuals)
   model_data = cbind(random$model,fitted)
-  model_data = cbind(model_data,na.omit(yield_evi))  
+  model_data = cbind(model_data,na.omit(model.frame(formula2_dataframe,yield_evi)))  
   model_data$district = as.character(model_data$district)
   model_data$years_id = as.numeric(substr(model_data$year,1,4))
   model_data = model_data[,c('district','years_id','yield_tn_ha','fitted')]
   model_data = melt(model_data,id = c('years_id','district'))
-  
-  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable))+
-  geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
+  windows()
+  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable,alpha=0.5))+
+  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
 
+  
+  # USE PCA 
+  
+  library(stats)
+  pca_input = na.omit(model.frame(formula2_dataframe,yield_evi))
+  pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
+  pca <- prcomp( pca_data, scale = T,center = T ) 
+  pca_pred = as.data.frame(stats::predict(pca))
+  dim(pca_pred);dim(pca_input)
+  pca_pred$district = pca_input$district
+  pca_pred$years = pca_input$years
+  pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+  
+  library(rms)
+  clusters = hclust(dist(pca_pred[,1:3])^2,method = 'complete')
+  plot(clusters)
+  clusterCut <- cutree(clusters, 2)
+  
+  random_pca <- plm(yield_tn_ha~clusterCut*(rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)), data=pca_pred, index=c("district", "years"), model="random")
+  summary(random_pca) 
+  
+  
+  fitted_pca = data.frame(fitted = random_pca$model[[1]] - random_pca$residuals)
+  model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula2_dataframe,yield_evi)))  
+  model_data_pca$district = as.character(model_data_pca$district)
+  model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
+  model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data_pca = melt(model_data_pca,id = c('years_id','district'))
+  
+  windows()
+  ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(random_pca$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE) # 0.5760017
+  Witin_R2
+  
+  
+  # project new data onto the PCA space another way
+  #pca_pred2=scale(newdata, pca$center, pca$scale) %*% pca$rotation 
+  
+  
+# Spatial Panel Regression  -----------------------------------------------
+  
+  library(splm)
+  library(rgdal)
+  library(sp)
+  # get District outlines
+  ogrInfo('../Admin Boundaries/','PunjabHaryanaDistricts')
+  districts_plm = readOGR('../Admin Boundaries/','PunjabHaryanaDistricts')
+  districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
+  
+  
+  
+  
+  
+  
   
   
 # Basic Scatterplot Matrix
   pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
         +G_AUC_trailing+season_length+year_trend, data =yield_evi,main="Simple Scatterplot Matrix")
+
+
 
 
 

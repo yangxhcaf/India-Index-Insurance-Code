@@ -18,13 +18,15 @@ library(plm) # works on desktop at school
 library(stargazer)
 library(reshape)
 library(stats)
-
+library(rms)
+library(english)
 yield_ndvi = read.csv('..//yield_ndvi.csv')
 focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
 Table_number = 1
 Figure_number = 1
 Appendix_Table_number =1
 Appendix_Function_number =1
+Formula_number = 1
 
 ```
 
@@ -61,7 +63,7 @@ In particular we examine both the predictive power of the Enhanced Vegetation In
 In addition to cloud cover MODIS data products suffer from four additional sources of error including atmospheric interference, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
 
 *Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r aa=Figure_number` `r Figure_number =Figure_number+1 `*
-```{r, echo=FALSE,warning=F}
+```{r, echo=FALSE,warning=F,fig.width=7, fig.height=5}
  rects = read.csv('./FigureTableData/rects.csv')
  rects$xend = as.Date(strptime(rects$xend,'%Y-%m-%d'))
  rects$xstart = as.Date(strptime(rects$xstart,'%Y-%m-%d'))
@@ -92,7 +94,7 @@ To test for model improvements obtained through time series cubic smoothing we i
 Agricultural survey data at the district level was obtained from _________. INCLUDE DESCRIPTION OF SWAPPING PUNJAB STATE DATA.
 
 ##Summarizing Time: Summarizing Remotely Sensed Data
-One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning a full calendar year including the summer rains of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
+One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning end of the Rabi wheat season to end of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
 
 ###Growing Season Metrics
 Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r A=Appendix_Function_number` `r paste(A)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Basic growing season summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r B=Appendix_Function_number` `r paste(B)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. 
@@ -154,8 +156,7 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
 
 
 ##Exploiting Time: (Spatial) Panel Regression Methods and Models
-
-###Panel Regression
+###Input Data
 ```{r, echo=FALSE}
   panderOptions('table.split.table', Inf)
   panderOptions('big.mark', ",")
@@ -166,23 +167,28 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
 ```
 
 
-```{r Panel: Read in data, echo=FALSE}
+
+###Panel Regression
+```{r Panel: Read in data, message=FALSE, warning=FALSE, include=FALSE}
 ###########################################
 # regressions on yields
 
-  #yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
-  yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_ndvi.csv',stringsAsFactors = F)
+ # yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
   yield_evi = yield_evi[!is.na(yield_evi$years),]
   
   table(paste(yield_evi$i,yield_evi$years,sep='-'))
-
   yield_evi[yield_evi$i ==26 &yield_evi$years==2006,][2,] =NA
   yield_evi = yield_evi[!is.na(yield_evi$year),]
-  yield_evi[yield_evi$yield_tn_ha < 1 | yield_evi$yield_tn_ha>6,]=NA
+  yield_evi[ yield_evi$yield_tn_ha<1 | yield_evi$yield_tn_ha>6,'yield_tn_ha']= NA 
+  
+ # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  - plm sorts by name and year 
+ yield_evi=yield_evi[with(yield_evi, order(district, years)), ]
   
 ```  
-  
-```{r Panel: Hausman test, echo=FALSE}
+
+####Hausman Test: Fixed or Random  
+```{r Panel: Hausman test, echo=FALSE, message=FALSE, warning=FALSE}
 # run hausman test
   formula2 = yield_tn_ha ~plant_dates+harvest_dates+
     VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
@@ -200,14 +206,13 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
     rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
     rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))+district+years
   
+  
   #removed  season_length VEG_annual_sd VEG_growing_AUC_leading+VEG_growing_AUC_trailing++VEG_growing_AUC rice_growing_max VEG_growing_sd rice_growing_AUC_95th_prct rice_growing_max_95th_prct VEG_all_growing_95th_prct
   
-  
+  # run fixed and random effects
   fixed <- plm(formula2, data=yield_evi, index=c("district", "years"), model="within")
-  summary(fixed)  
-
   random <- plm(formula2, data=yield_evi, index=c("district", "years"), model="random")
-  summary(random)  
+ 
   
   hausman = phtest(fixed, random) # use fixed if significant
   pander(hausman)
@@ -216,55 +221,96 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
 
 
 ```{r Panel: Fitted vs actual NORMAL, echo=FALSE}
- stargazer(random, type="text")
+# stargazer(random, type="text")
 ```
 
 
 ```{r Panel: Fitted vs actual NORMAL PLOT, echo=FALSE}
-  # plot fitted vs actual
-  fitted = data.frame(fitted = random$model[[1]] - random$residuals)
-  model_data = cbind(random$model,fitted)
-  model_data = cbind(model_data,na.omit(model.frame(formula2_dataframe,yield_evi)))  
-  model_data$district = as.character(model_data$district)
-  model_data$years_id = as.numeric(substr(model_data$year,1,4))
-  model_data = model_data[,c('district','years_id','yield_tn_ha','fitted')]
-  model_data = melt(model_data,id = c('years_id','district'))
-
-  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable,alpha=0.5))+
-  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
+  # # plot fitted vs actual
+  # fitted = data.frame(fitted = random$model[[1]] - random$residuals)
+  # model_data = cbind(random$model,fitted)
+  # model_data = cbind(model_data,na.omit(model.frame(formula2_dataframe,yield_evi)))  
+  # model_data$district = as.character(model_data$district)
+  # model_data$years_id = as.numeric(substr(model_data$year,1,4))
+  # model_data = model_data[,c('district','years_id','yield_tn_ha','fitted')]
+  # model_data = melt(model_data,id = c('years_id','district'))
+  # 
+  # ggplot(data=model_data,aes(x=years_id,y=value,colour=variable,alpha=0.5))+
+  # geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
 ```
 
+####Principal Components Analysis Transform
 
-
-```{r Panel: Fitted vs actual PCA, echo=FALSE}
+```{r Panel:  PCA, echo=FALSE}
   ###########################
   # USE PCA 
   pca_input = na.omit(model.frame(formula2_dataframe,yield_evi))
   pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
-  pca <- prcomp( pca_data, scale = T,center = T ) 
+  pca_data = pca_data[,!(names(pca_data) %in% c('area','production_tonnes','yield_tn_ha'))] # remove dependent variable data
+  pca = prcomp( pca_data, scale = T,center = T ) 
+ 
   pca_pred = as.data.frame(stats::predict(pca))
-  dim(pca_pred);dim(pca_input)
   pca_pred$district = pca_input$district
   pca_pred$years = pca_input$years
   pca_pred$yield_tn_ha =pca_input$yield_tn_ha
   
-  random_pca <- plm(yield_tn_ha~ (rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)), data=pca_pred, index=c("district", "years"), model="random")
-  stargazer(random_pca, type="text")
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
+  pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
   
+```
+
+To avoid problems with multicolinearity between independent variables we apply a principal components analysis transformation (PCA) to a centered and scaled matrix of independent variables $\mathbf{X}$. PCA allows for the replacement of $\mathbf{X}$ with a new matrix whos variables are orthoganal to each other but span the multidimensional space of $\mathbf{X}$ [@GELADI19861]. In this case we generate ```r paste(dim(pca$rotation)[1])``` principal components for inclusion in a random effects panel regression.  
+
+```{r Panel:  PCA summary, echo=FALSE}
+ summary(pca) 
+
+  # include these above estimation 
+  # formulas
+  formula_PCA =yield_tn_ha~diff1_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21  
+  formula_PCA_dataframe =yield_tn_ha~diff1_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years # add id and year for model.frame
+
+```
+
+Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
+
+(`r paste(F1)`)                
+$\ Y_{it}=\alpha+dY_{it-1}+\beta_k \mathbf{X}_{it}+ \mu_{it} +\epsilon_{it}$
+ 
+
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ dY_{it-1}$ is the first difference of the dependent variable ($\ Y_{it}-Y_{it-1}$), $\ \beta_k$ is a vector of *k* coefficients, $\ \mathbf{X}_{it}$ is a matrix of principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(formula_PCA)[3],'+',fixed = T)[[1]])))` principal components[@devlin1986spline] [^1]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by ' and ''.
+
+[^1]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100),2)` % of total variance in $\mathbf{X}$
+
+Estimates of equation (`r paste(F1)`) are provide below:
+
+*District level random effects estimation of wheat yields in tons per hectare*
+```{r Panel: Fitted vs actual PCA estimate, echo=FALSE}
+
+  # add a time lag  or dif
+  pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
+  pca_pred$lag1_yield_tn_ha = lag(pca_pred$yield_tn_ha,1)
+  pca_pred$diff1_yield_tn_ha = diff(pca_pred$yield_tn_ha,1)
+
+  # estimate plm
+  random_pca <- plm(formula_PCA, data=pca_pred, index=c("district", "years"), model="random")
+ 
+  #stargazer(random_pca, type="text")
+  summary(random_pca)
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
   SSR_FULL = sum(random_pca$residuals^2)
   SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
-  Witin_R2 =  1 - (SSR_FULL/SSR_FE) # 0.5760017
-  print(paste('Within R2',Witin_R2))
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
+  print(paste('Within R2',round(Witin_R2,2)))
   
 ```
 
 
-
-```{r Panel: Fitted vs actual PCA PLOT, echo=FALSE}
+*Figure `r paste(Figure_number)`: Fitted vs actual for estimation of equation (`r paste(Formula_number)`)  `r aaa=Figure_number` `r Figure_number =Figure_number+1 `*
+```{r Panel: Fitted vs actual PCA PLOT, fig.width=10, fig.height=6, echo=FALSE}
+  # get prediction and and model.frame 
   fitted_pca = data.frame(fitted = random_pca$model[[1]] - random_pca$residuals)
   model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
-  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula2_dataframe,yield_evi)))  
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula_PCA_dataframe,pca_pred)))  
   model_data_pca$district = as.character(model_data_pca$district)
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','fitted')]
@@ -274,6 +320,9 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
     geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
     theme(axis.text.x  = element_text(angle=90, vjust=0.5))
 ```
+
+  *Actual values (red), predicted values (blue)*
+
 
 ###Spatial Panel Regression
 ####Defining the neighborhood
@@ -298,9 +347,7 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
 # stargazer(yield_ndvi[,8:10] ,  title="Descriptive statistics", digits=2,summary = T,font.size='small')
 
 ```
-
- $$\sum_{i=1}^n X_i$$
-$\sum_{i=1}^n X_i$
+ 
 
 #Appendix A
 ##Yield Data

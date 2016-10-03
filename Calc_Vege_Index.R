@@ -614,19 +614,22 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   #NDVI % Var explained: 46.94
 
 
-###########################################
-# regressions on yields
-
-  #yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
-  yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  
+  
+#######################################################
+# Panel regressions on yields -------------------------------
+#######################################################
+  
+  
+  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_ndvi.csv')
+ # yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
   yield_evi = yield_evi[!is.na(yield_evi$years),]
   
   table(paste(yield_evi$i,yield_evi$years,sep='-'))
-
   yield_evi[yield_evi$i ==26 &yield_evi$years==2006,][2,] =NA
   yield_evi = yield_evi[!is.na(yield_evi$year),]
   yield_evi$yield_tn_ha[ yield_evi$yield_tn_ha<1 | yield_evi$yield_tn_ha>6]= NA 
-  ]
+  
   
   # formula_lm = yield_tn_ha ~plant_dates+harvest_dates+season_length+VEG_annual_mean+VEG_annual_min+VEG_annual_max+VEG_annual_AUC+
   #   VEG_annual_95th_prct+VEG_annual_sd+VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
@@ -695,8 +698,12 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   # 
   # random <- plm(formula3, data=yield_evi, index=c("district", "years"), model="random")
   # summary(random)  
-  # 
+  
   # plot fitted vs actual
+  
+  
+  # SOMETHING WRONG WITH GURDASPUR IN MODEL_DATA IN RANGE OF ~2 TONS/HA WHERE OTHEWISE ~4
+  
   library(reshape)
   fitted = data.frame(fitted = random$model[[1]] - random$residuals)
   model_data = cbind(random$model,fitted)
@@ -710,7 +717,8 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
 
   
-  # USE PCA 
+  # USE PCA Panel Regression -----------------------------------------
+  
   
   library(stats)
   pca_input = na.omit(model.frame(formula2_dataframe,yield_evi))
@@ -721,19 +729,26 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   pca_pred$district = pca_input$district
   pca_pred$years = pca_input$years
   pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+  # add a time lag 
+  pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
+  pca_pred$lag1_yield_tn_ha = lag(pca_pred$yield_tn_ha,1)
   
   library(rms)
   clusters = hclust(dist(pca_pred[,1:3])^2,method = 'complete')
   plot(clusters)
   clusterCut <- cutree(clusters, 2)
   
-  random_pca <- plm(yield_tn_ha~clusterCut*(rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)), data=pca_pred, index=c("district", "years"), model="random")
+  # formulas
+  formula_PCA = yield_tn_ha~lag1_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)
+  formula_PCA_dataframe = yield_tn_ha~ lag1_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+district+years # add id and year for model.frame
+  # estimate
+  random_pca <- plm(formula_PCA, data=pca_pred, index=c("district", "years"), model="random")
   summary(random_pca) 
   
-  
+  # get prediction and and model.frame 
   fitted_pca = data.frame(fitted = random_pca$model[[1]] - random_pca$residuals)
   model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
-  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula2_dataframe,yield_evi)))  
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula_PCA_dataframe,pca_pred)))  
   model_data_pca$district = as.character(model_data_pca$district)
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','fitted')]
@@ -746,9 +761,9 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
   SSR_FULL = sum(random_pca$residuals^2)
-  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_pred, index=c("district", "years"), model="pooling")$residuals^2)
   Witin_R2 =  1 - (SSR_FULL/SSR_FE) # 0.5760017
-  Witin_R2
+  Witin_R2   # 0.5760017
   
   
   # project new data onto the PCA space another way
@@ -756,24 +771,94 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   
   
 # Spatial Panel Regression  -----------------------------------------------
-  
+  library(spdep)
+  library(rgoes)
+  library(PBSmapping)
   library(splm)
-  library(rgdal)
-  library(sp)
+  # splm only use balanced panel, dataframe[id,time,Y,X]
+  
   # get District outlines
-  ogrInfo('../Admin Boundaries/','PunjabHaryanaDistricts')
-  districts_plm = readOGR('../Admin Boundaries/','PunjabHaryanaDistricts')
+  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
   districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
   districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
   
+  table(pca_pred$district)
+  pca_pred_splm = pca_pred
+  
+  # find all districts with 10 years
+  balanced_panel = as.character(as.data.frame(table(pca_pred$district))$Var1[as.data.frame(table(pca_pred$district))$Freq ==10])
+  # confirm balanced 
+  table(pca_pred$years[pca_pred$district %in% balanced_panel])
+  pca_pred_balanced = pca_pred[pca_pred$district %in% balanced_panel,]
+  
+  # Remove all districts not in balanced panel
+  districts_plm = districts_plm[as.character(districts_plm@data$NAME_2) %in% as.character(unique(pca_pred_balanced[,'district'])),]
+  districts_polyNB = poly2nb(districts_plm,row.names = row.names(districts_plm)) # polygon continuity$GEOID10
+  Wneigh = nb2mat(districts_polyNB, style='W')
+ 
+  # effected by neighbor values  
+  mn_neigh=by(pca_pred_balanced$yield_tn_ha,INDICES=pca_pred_balanced$years, FUN = function(x){mean_neighbors(x,sweights=Wneigh)})
+  mn_neigh=as.numeric(unlist(mn_neigh))
+  pca_pred_balanced$splag_yield_tn_ha = mn_neigh
+  
+  # panel with spatial neighbors lag 
+  formula_PCA_splag = yield_tn_ha~ splag_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)
+  formula_PCA_splag_dataframe = yield_tn_ha~splag_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+district+years 
+  random_pca_splag = plm(formula_PCA_splag, data=pca_pred_balanced, index=c("district", "years"), model="random")
+  summary(random_pca_splag) 
+  
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(random_pca_splag$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_pred_balanced, index=c("district", "years"), model="pooling")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE) # 0.5760017
+  Witin_R2  #0.5614081
+  
+  # plot spatial lag panel regression 
+  fitted_pca_splag = data.frame(fitted = random_pca_splag$model[[1]] - random_pca_splag$residuals)
+  model_data_pca_splag = cbind(as.data.frame(as.matrix(random_pca_splag$model)),fitted_pca_splag)
+  model_data_pca_splag = cbind(model_data_pca_splag,na.omit(model.frame(formula_PCA_splag_dataframe,pca_pred_balanced)))  
+  model_data_pca_splag$district = as.character(model_data_pca_splag$district)
+  model_data_pca_splag$years_id = as.numeric(substr(model_data_pca_splag$year,1,4))
+  model_data_pca_splag = model_data_pca_splag[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data_pca_splag = melt(model_data_pca_splag,id = c('years_id','district'))
+  
+  windows()
+  ggplot(data=model_data_pca_splag,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
   
   
   
   
+  # library(splm)
+  # formula_PCA = yield_tn_ha~PC1+PC2+PC3+PC4
+  # formula_PCA_dataframe =yield_tn_ha~PC1+PC2+PC3+PC4+years+district
+  # pca_pred_balanced$district = as.character(pca_pred_balanced$district) # can't handle factors 
+  # # data must be in format id, years, y ,X
+  # 
+  # # cant deal with unbalanced panels 
+  # semsrremod = spgm(formula_PCA, data = pca_pred_balanced[,c('district','years','yield_tn_ha','PC1','PC2','PC3','PC4')],  
+  #                   model = 'random',listw=Wneigh,lag=T)
+  # summary(semsrremod)
+  # summary(semsrremod)$rsqr
+  # 
+  # fitted_pca_plm = data.frame(fitted = semsrremod$model[[1]] - semsrremod$residuals)
+  # model_data_pca_plm = cbind(as.data.frame(as.matrix(semsrremod$model)),fitted_pca_plm)
+  # model_data_pca_plm = cbind(model_data_pca_plm, model.frame(formula_PCA_dataframe,pca_pred_balanced))  
+  # model_data_pca_plm$district = as.character(model_data_pca_plm$district)
+  # model_data_pca_plm$years_id = as.numeric(substr(model_data_pca_plm$year,1,4))
+  # model_data_pca_plm = model_data_pca_plm[,c('district','years_id','yield_tn_ha','fitted')]
+  # model_data_pca_plm = melt(model_data_pca_plm,id = c('years_id','district'))
+  # 
+  # windows()
+  # ggplot(data=model_data_pca_plm,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+  #   geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+  #   theme(axis.text.x  = element_text(angle=90, vjust=0.5))
   
   
   
-# Basic Scatterplot Matrix
+  
+  # Basic Scatterplot Matrix
   pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
         +G_AUC_trailing+season_length+year_trend, data =yield_evi,main="Simple Scatterplot Matrix")
 

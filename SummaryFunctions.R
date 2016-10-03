@@ -655,3 +655,18 @@ PolygonFromExtent <-function(ext, asSpatial=T, crs=CRS(NA), id=1)
         return(poly)
 
 }
+
+
+
+
+
+
+
+mean_neighbors <- function(values,sweights){
+  # function calculates the mean value of neighbors values by using sweights
+  out2=list()
+  for(row in 1:length(values)){
+    out2=c(out2,sum(values*sweights[row,]))
+  }
+  return(as.numeric(out2))
+}

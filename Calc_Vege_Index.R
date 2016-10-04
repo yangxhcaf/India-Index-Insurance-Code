@@ -1,4 +1,9 @@
 
+
+# r regression variance inflation factor - tells contributions to multicolinearity inflation of SE
+# https://onlinecourses.science.psu.edu/stat501/node/347
+
+
 # Michael Mann    Calc_Vege_Index.R
 # This script calculates a series of stastics about the wheat growing season
 
@@ -726,14 +731,22 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
   pca_pred$lag1_yield_tn_ha = lag(pca_pred$yield_tn_ha,1)
   pca_pred$diff1_yield_tn_ha = diff(pca_pred$yield_tn_ha,1)
+  pca_pred$diff1_lag1_yield_tn_ha = lag(pca_pred$diff1_yield_tn_ha,1)
   
-  # clusters = hclust(dist(pca_pred[,1:3])^2,method = 'complete') # no improvement 
+  pca_pred$diff1_PC1 = diff(pca_pred$PC1,1)
+  pca_pred$lag1_PC1 = lag(pca_pred$PC1,1)
+  pca_pred$lag1_PC2 = lag(pca_pred$PC2,1)
+  pca_pred$lag1_PC3 = lag(pca_pred$PC3,1)
+  pca_pred$lag1_PC4 = lag(pca_pred$PC4,1)
+  pca_pred$lag1_PC5 = lag(pca_pred$PC5,1)
+  
+   # clusters = hclust(dist(pca_pred[,1:3])^2,method = 'complete') # no improvement 
   # plot(clusters)
   # clusterCut <- cutree(clusters, 2)
     
   # formulas
-  formula_PCA =yield_tn_ha~diff1_yield_tn_ha+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
-  formula_PCA_dataframe =diff1_yield_tn_ha+yield_tn_ha~rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years # add id and year for model.frame
+  formula_PCA =yield_tn_ha~lag1_PC1+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
+  formula_PCA_dataframe = yield_tn_ha~lag1_PC1+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years # add id and year for model.frame
   # estimate
   
   random_pca <- plm(formula_PCA, data=pca_pred, index=c("district", "years"), model="random")
@@ -750,7 +763,6 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   model_data_pca$variable= as.character(model_data_pca$variable)
   model_data_pca$variable[model_data_pca$variable=='fitted']='Fitted Temporal'
   
-  
   windows()
   ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
     geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
@@ -760,7 +772,7 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   SSR_FULL = sum(random_pca$residuals^2)
   SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_pred, index=c("district", "years"), model="pooling")$residuals^2)
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
-  Witin_R2    
+  Witin_R2   #0.6632103 with lag pc1  # 0.532181 with lag of pc1 and pc2 #0.6712662 with pc1 lag and yield 1dif lag
   
   
   # project new data onto the PCA space another way

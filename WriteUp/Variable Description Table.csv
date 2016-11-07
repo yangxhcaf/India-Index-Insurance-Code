@@ -1,0 +1,22 @@
+Name,Description
+Basic Summary Statistics,
+Rabi(Kharif)_mean,Rabi(Kharif) mean values of NDVI
+Rabi(Kharif)_min,Rabi(Kharif) min values of NDVI
+Rabi(Kharif)_max,Rabi(Kharif) maximum values of NDVI
+Rabi(Kharif)_sd,Rabi(Kharif) standard devIation in values of NDVI
+Rabi(Kharif)_mean,Rabi(Kharif) mean values of NDVI
+Rabi(Kharif)_max_date,Date of Rabi(Kharif) maximum values of NDVI
+Rabi(Kharif)_plant_date,Estimated date of Rabi(Kharif) planting based on NDVI phenology
+Rabi(Kharif)_harvest_date,Estimated date of Rabi(Kharif) harvest based on NDVI phenology
+All_95th_prct,The estimated 95th percentile values of all seasons in the NDVI historical record
+Integrated Summary Statistics,
+Rabi(Kharif)_AUC,Rabi(Kharif) area under the curve of NDVI
+Rabi(Kharif)_AUC_v2,Rabi(Kharif) area under the curve of NDVI estimated by splines
+Rabi(Kharif)_AUC_leading,Area under the curve of NDVI  for the ascending part of the curve during the Rabi(Kharif) season
+Rabi(Kharif)_AUC_trailing,Area under the curve of NDVI  for the decreasing part of the curve during the Rabi(Kharif) season
+Rabi_season_length,Difference between Rabi plant_dates and harvest_dates in days
+Comparison to Norms,
+Rabi(Kharif)_95th_diff_mn,Difference between Rabi(Kharif) mean  NDVI and Rabi(Kharif) estimated 95th percentile of historical values
+Rabi(Kharif)_95th_diff_mx,Difference between  Rabi(Kharif) max  NDVI and Rabi(Kharif) estimated 95th percentile of historical max values
+Rabi(Kharif)_95th_diff_AUC,Difference between Rabi(Kharif) AUC  NDVI and  Rabi(Kharif) estimated 95th percentile of historical AUC values
+Rabi(Kharif)_AUC_diff_mn,Difference between the Rabi(Kharif) mean area under the curve and Rabi(Kharif) area under the curve for NDVI

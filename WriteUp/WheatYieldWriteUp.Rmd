@@ -8,6 +8,7 @@ output: word_document
 # citation styles can be managed here: http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
 # http://rmarkdown.rstudio.com
 # http://rmarkdown.rstudio.com/authoring_pandoc_markdown.html#headers
+rm(list=ls())
 setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
 source('H:/Scripts/multi_grep_character.R')
 library(pander)
@@ -24,8 +25,7 @@ library(splm)
 library(spdep)
 library(rgdal)
 
-yield_ndvi = read.csv('..//yield_ndvi.csv')
-focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
+ focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
 Table_number = 1
 Figure_number = 1
 Appendix_Table_number =1
@@ -34,6 +34,47 @@ Formula_number = 1
 
 ```
 
+```{r SETUP: Read in data, message=FALSE, warning=FALSE, include=FALSE}
+###########################################
+# regressions on yields
+  yield_ndvi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_ndvi.csv',stringsAsFactors = F)
+  # yield_ndvi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  yield_ndvi = yield_ndvi[!is.na(yield_ndvi$years),]
+  
+  yield_ndvi[yield_ndvi$i ==26 &yield_ndvi$years==2006,][2,] =NA
+  yield_ndvi = yield_ndvi[!is.na(yield_ndvi$year),]
+  yield_ndvi[ yield_ndvi$yield_tn_ha<1 | yield_ndvi$yield_tn_ha>6,'yield_tn_ha']= NA 
+  
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  - plm sorts by name and year 
+  yield_ndvi=yield_ndvi[with(yield_ndvi, order(district, years)), ]
+  
+  # Create variabels comparing percentiles to actual 
+  yield_ndvi$rice_growing_95th_diff_mn =  yield_ndvi$rice_growing_mean-yield_ndvi$rice_growing_95th_prct
+  yield_ndvi$VEG_annual_95th_diff_mx =  yield_ndvi$rice_growing_max-yield_ndvi$rice_growing_max_95th_prct
+  yield_ndvi$VEG_annual_95th_diff_AUC =  yield_ndvi$rice_growing_AUC-yield_ndvi$rice_growing_AUC_95th_prct
+  yield_ndvi=ddply(yield_ndvi, "district", transform, rice_growing_AUC_diff_mn = rice_growing_AUC-mean(rice_growing_AUC,na.rm=T))
+
+  yield_ndvi$VEG_growing_95th_diff_mn = yield_ndvi$VEG_growing_mean-yield_ndvi$VEG_growing_95th_prct
+  yield_ndvi$VEG_growing_95th_diff_mx = yield_ndvi$VEG_growing_max-yield_ndvi$VEG_growing_max_95th_prct
+  yield_ndvi$VEG_growing_95th_diff_AUC =  yield_ndvi$VEG_growing_AUC-yield_ndvi$VEG_growing_AUC_95th_prct
+  # rename to avoid omiting
+  yield_ndvi$All_95th_prct =yield_ndvi$VEG_all_growing_95th_prct 
+ 
+ 
+  # update names to seasons, Rabi = wheat, Kharif = rice
+  names(yield_ndvi)=gsub("rice_growing","Kharif",names(yield_ndvi))
+  names(yield_ndvi)=gsub("VEG_growing","Rabi",names(yield_ndvi))
+  # remove all annual statistics use rice growing season instead
+  yield_ndvi= yield_ndvi[,!(grepl('VEG',names(yield_ndvi)))]
+  # final edits
+  names(yield_ndvi)[names(yield_ndvi)=='rice_plant_dates']= 'Kharif_plant_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='rice_harvest_dates']= 'Kharif_harvest_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='plant_dates']= 'Rabi_plant_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='harvest_dates']= 'Rabi_harvest_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='season_length']= 'Rabi_season_length'
+
+  names(yield_ndvi) 
+```  
 #Introduction
 
 The ability to monitor and predict crop yields in developing countries is critical to the successful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Although much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide new avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments  common to many developing countries [@Mann2015]. 
@@ -124,6 +165,9 @@ Basic annual summary statics including minimum, maximum, mean, and standard devi
 
 ###Variable Definitions
 ```{r, echo=FALSE}
+definitions = read.csv('Variable Description Table.csv')
+definitions
+pander(definitions, justify = c('left', 'left'))
 
 ```
 
@@ -187,59 +231,45 @@ A summary table of the value of the dependent variable and all independent varia
 ```
 
 ###Panel Regression Methods and Diagnostic results
-```{r Panel: Read in data, message=FALSE, warning=FALSE, include=FALSE}
-###########################################
-# regressions on yields
-  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_ndvi.csv',stringsAsFactors = F)
-  # yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
-  yield_evi = yield_evi[!is.na(yield_evi$years),]
-  
-  yield_evi[yield_evi$i ==26 &yield_evi$years==2006,][2,] =NA
-  yield_evi = yield_evi[!is.na(yield_evi$year),]
-  yield_evi[ yield_evi$yield_tn_ha<1 | yield_evi$yield_tn_ha>6,'yield_tn_ha']= NA 
-  
-  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  - plm sorts by name and year 
-  yield_evi=yield_evi[with(yield_evi, order(district, years)), ]
-  
-  # Create variabels comparing percentiles to actual 
-  yield_evi$VEG_annual_95th_prct_mn = yield_evi$VEG_annual_95th_prct- yield_evi$VEG_annual_mean
-  yield_evi$VEG_annual_95th_prct_mx = yield_evi$VEG_annual_max_95th_prct- yield_evi$VEG_annual_max
-  yield_evi$VEG_annual_95th_prct_AUC = yield_evi$VEG_annual_AUC_95th_prct- yield_evi$VEG_annual_AUC
 
-  yield_evi$VEG_growing_95th_prct_mn = yield_evi$VEG_growing_95th_prct- yield_evi$VEG_growing_mean
-  yield_evi$VEG_growing_95th_prct_mx = yield_evi$VEG_growing_max_95th_prct- yield_evi$VEG_growing_max
-  yield_evi$VEG_growing_95th_prct_AUC = yield_evi$VEG_growing_AUC_95th_prct- yield_evi$VEG_growing_AUC
 
-  
-  
-```  
+```{r SETUP: Calculate PCA, echo=FALSE, message=FALSE, warning=FALSE}
 
-#### Spatial Autocorrelation
+PCA_input_formula =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct  
+
+PCA_input_formula_dataframe =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct + years + district
+
+   ###########################
+  # USE PCA 
+  pca_input = na.omit(model.frame(PCA_input_formula_dataframe,yield_ndvi))
+  #pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
+  pca_data = pca_data[,!(names(pca_data) %in% c('area','production_tonnes','yield_tn_ha','district','years' ))] # remove dependent variable data
+  pca = prcomp( pca_data, scale = T,center = T ) 
+ 
+  pca_pred = as.data.frame(stats::predict(pca))
+  pca_pred$district = pca_input$district
+  pca_pred$years = pca_input$years
+  pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+  
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
+  pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
+
+  # transformed variables 
+  PCA_output_formula =yield_tn_ha~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15
+  PCA_output_formula_dataframe = yield_tn_ha~PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15+district+years   
+  
+```
+ 
+ 
 ```{r Panel: Spatial autocorrelation, echo=FALSE, message=FALSE, warning=FALSE}
-# run hausman test
-  formula2 = yield_tn_ha ~plant_dates+harvest_dates+
-    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
-    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
-    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
-    R_mx_dates+rice_growing_mean+
-    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
-    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))
-  
-  formula2_dataframe = yield_tn_ha ~plant_dates+harvest_dates+
-    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
-    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
-    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
-    R_mx_dates+rice_growing_mean+
-    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
-    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))+district+years
     
   #distrct boundaries
   districts_lm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
   districts_lm = spTransform(districts_lm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
   districts_lm$NAME_2 = toupper(as.character(districts_lm$NAME_2)) 
         
-  # Create spatial weights  Remove all districts not in yield_evi
-  districts_lm = districts_lm[as.character(districts_lm@data$NAME_2) %in% as.character(unique(yield_evi[,'district'])),]
+  # Create spatial weights  Remove all districts not in yield_ndvi
+  districts_lm = districts_lm[as.character(districts_lm@data$NAME_2) %in% as.character(unique(yield_ndvi[,'district'])),]
   districts_polyNB_lm = poly2nb(districts_lm,row.names = row.names(districts_lm)) # polygon continuity$GEOID10
   Wneigh_lm = nb2mat(districts_polyNB_lm, style='W')
   queen = nb2listw(districts_polyNB_lm) 
@@ -252,8 +282,8 @@ A summary table of the value of the dependent variable and all independent varia
   knn5 = nb2listw(knn2nb(knearneigh(centroids, k = 5), row.names = districts_lm$NAME_2 ))
   knn6 = nb2listw(knn2nb(knearneigh(centroids, k = 6), row.names = districts_lm$NAME_2 ))
 
-  OLS = lm(formula2, data=yield_evi)
-  OLS_resid = data.frame(model.frame(formula2_dataframe,yield_evi)[,c('years','district')], residuals= OLS$residuals)
+  OLS = lm(PCA_output_formula, data=pca_pred)
+  OLS_resid = data.frame(model.frame(PCA_output_formula_dataframe,pca_pred)[,c('years','district')], residuals= OLS$residuals)
   OLS_resid = aggregate(residuals~district,data =OLS_resid, function(x){mean(x,na.rm=T)})
   moran_queen  = moran.test(OLS_resid$residuals,queen)
   moran_knn1  = moran.test(OLS_resid$residuals,knn1)
@@ -287,29 +317,12 @@ ggplot(data=Moran_results,aes(y=pvalue,x=factor(Neighborhood),group=Neighborhood
 
 ```{r Panel: Hausman test, echo=FALSE, message=FALSE, warning=FALSE}
 # run hausman test
-  formula2 = yield_tn_ha ~plant_dates+harvest_dates+
-    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
-    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
-    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
-    R_mx_dates+rice_growing_mean+
-    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
-    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))
-  
-  formula2_dataframe = yield_tn_ha ~plant_dates+harvest_dates+
-    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
-    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
-    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
-    R_mx_dates+rice_growing_mean+
-    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+         rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))+district+years
-  
- 
-  #removed  season_length VEG_annual_sd VEG_growing_AUC_leading+VEG_growing_AUC_trailing++VEG_growing_AUC rice_growing_max VEG_growing_sd rice_growing_AUC_95th_prct rice_growing_max_95th_prct VEG_all_growing_95th_prct
   
   # run fixed and random effects
-  fixed <- plm(formula2, data=yield_evi, index=c("district", "years"), model="within")
-  random <- plm(formula2, data=yield_evi, index=c("district", "years"), model="random")
-  pooled <- plm(formula2, data=yield_evi, index=c("district", "years"), model="pooling")
- # znp <- pvcm(formula2,data=yield_evi,model="within") # not enough obs to run 
+  fixed <- plm(PCA_output_formula, data=pca_pred, index=c("district", "years"), model="within")
+  random <- plm(PCA_output_formula, data=pca_pred, index=c("district", "years"), model="random")
+  pooled <- plm(PCA_output_formula, data=pca_pred, index=c("district", "years"), model="pooling")
+ # znp <- pvcm(formula2,data=yield_ndvi,model="within") # not enough obs to run 
 
  
  # test_pool1=pooltest(znp,fixed)  #F test It is a standard F test, based on the comparison of a model obtained for the full sample and a model based on the estimation of an equation for each individual. null:  test the hypothesis that all the coefficients are equal (pooled OLS better than fixed)  https://cran.r-project.org/web/packages/plm/vignettes/plm.pdf
@@ -322,7 +335,7 @@ ggplot(data=Moran_results,aes(y=pvalue,x=factor(Neighborhood),group=Neighborhood
   #pander(hausman)
 ```
 
-Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled OLS (p <= `r test_pool2$p.value`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of FE and RE models. The hausman test checks for exogeniety of the unobserved error component, tf the null hypothesis is rejected, the RE model is inconsistent, and the FE model will be preferred. If effects are exogenous both fixed (FE) and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. Here we cannot reject the null hypothesis  (p >= `r substr(test_hausman_fixed_random$p.value,1,4) `) and choose to use the random effects estimator as it will be more efficient.  
+Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled OLS (p <= `r test_pool2$p.value`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of FE and RE models. The hausman test checks for exogeniety of the unobserved error component, tf the null hypothesis is rejected, the RE model is inconsistent, and the FE model will be preferred. If individual effects are exogenous both fixed (FE) and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. Here we  reject the null hypothesis  (p >= `r sprintf("%11.2e",test_hausman_fixed_random$p.value) `) and choose to use the fixed effects estimator as it will be more efficient.  
 
  
 ####Multicolinearity & Principal Components Analysis Transform
@@ -333,48 +346,25 @@ Multicolinearity, high correlations between independent variables, can increase 
 
 *Table `r paste(Table_number)`: Variance inflation factor summary table `r Table_number =Table_number+1 `*
 
-```{r,echo=F}
+```{r Panel: Multicolinearity test (vif),echo=F}
 #https://onlinecourses.science.psu.edu/stat501/node/347
-fit =lm(formula2,data=yield_evi)
+fit =lm(PCA_input_formula,data=yield_ndvi)
 stargazer(as.data.frame(vif(fit)),type = 'text')
 ```
 
-
-```{r Panel:  PCA estimation , echo=FALSE}
-  # include these above estimation 
-  # formulas
-  formula_PCA =yield_tn_ha~lag1_PC1+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
-  formula_PCA_dataframe = yield_tn_ha~lag1_PC1+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
-  ###########################
-  # USE PCA 
-  pca_input = na.omit(model.frame(formula2_dataframe,yield_evi))
-  pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
-  pca_data = pca_data[,!(names(pca_data) %in% c('area','production_tonnes','yield_tn_ha'))] # remove dependent variable data
-  pca = prcomp( pca_data, scale = T,center = T ) 
- 
-  pca_pred = as.data.frame(stats::predict(pca))
-  pca_pred$district = pca_input$district
-  pca_pred$years = pca_input$years
-  pca_pred$yield_tn_ha =pca_input$yield_tn_ha
-  
-  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
-  pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
-```
 To avoid problems with multicolinearity between independent variables we apply a principal components analysis transformation (PCA) to a centered and scaled matrix of independent variables $\ X$. PCA allows for the replacement of $\ X$ with a new matrix whos variables are orthoganal to each other but span the multidimensional space of $\ X$ [@GELADI19861]. In this case we generate `r paste(dim(pca$rotation)[1])` principal components for inclusion in a random effects panel regression. A table of PCA component imporance can be found in the appendix, Table(A`r AT1=Appendix_Table_number``r paste(AT1)``r Appendix_Table_number=Appendix_Table_number+1`).
- 
- 
- 
  
  
 ####OLS Regression Estimation
 
 ```{r LM for prediction, message=FALSE, warning=FALSE, include=FALSE}
-# formulas
-  formula_lm =yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
-  formula_lm_dataframe = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+ PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
+  # formulas
+  PCA_formula_regression =yield_tn_ha~   rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
+  
+  PCA_formula_regression_dataframe = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+ PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
  
-    # estimate plm
-  lm1 <- lm(formula_lm, data=pca_pred)
+  # estimate lm
+  lm1 <- lm(PCA_formula_regression, data=pca_pred)
  
   #stargazer(random_pca, type="text")
   summary(lm1)
@@ -407,7 +397,7 @@ To avoid problems with multicolinearity between independent variables we apply a
 
 ####Panel Regression Estimation
 
-We use panel data to model wheat yields over time at the district level. The use of **(spatial)** panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). When pooled together, the integration of two statewide data sets (N = `r paste(length(unique(model.frame(formula2_dataframe,yield_evi)[,'district'])))`) over the `r paste(range(yield_ndvi$years, na.rm=T),collapse='-')` period (T = `r paste(length(unique(model.frame(formula2_dataframe,yield_evi)[,'years'])))`) provides `r  length(unique(model.frame(formula2_dataframe,yield_evi)[,'years']))*length(unique(model.frame(formula2_dataframe,yield_evi)[,'district']))` observations. Compared to cross-sectional approaches this amounts to a substantial increase in the degree of observed variance over both space and time.
+We use panel data to model wheat yields over time at the district level. The use of **(spatial)** panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). When pooled together, the integration of two statewide data sets (N = `r paste(length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'district'])))`) over the `r paste(range(yield_ndvi$years, na.rm=T),collapse='-')` period (T = `r paste(length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'years'])))`) provides `r  length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'years']))*length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'district']))` observations. Compared to cross-sectional approaches this amounts to a substantial increase in the degree of observed variance over both space and time.
 
 Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
 
@@ -418,12 +408,6 @@ $\ Y_{it}=\alpha+\beta_{1}PC(1)_{it-1}+\sum_{k=2}^{H}\beta_{k}PC(k)_{it}+ \mu_{i
 Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ \beta_{1}PC(1)_{it-1}$ is a one-period lag of the first pricipal component, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponding to the *H* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(formula_PCA)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by ' and ''.
 
 [^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100),2)` % of total variance in $\mathbf{X}$
-
-
-###Spatial Panel Regression
-
-
-####Defining the neighborhood
 
 
 #Results
@@ -447,7 +431,7 @@ Estimates of equation (`r paste(F1)`) are provide below:
   pca_pred$lag1_PC1 = lag(pca_pred$PC1,1)
 
   # estimate plm
-  random_pca <- plm(formula_PCA, data=pca_pred, index=c("district", "years"), model="random")
+  random_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
  
   #stargazer(random_pca, type="text")
   summary(random_pca)
@@ -466,7 +450,7 @@ Estimates of equation (`r paste(F1)`) are provide below:
   # get prediction and and model.frame 
   fitted_pca = data.frame(PCA_Fit = random_pca$model[[1]] - random_pca$residuals)
   model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
-  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula_PCA_dataframe,pca_pred)))  
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
   model_data_pca$district = as.character(model_data_pca$district)
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
@@ -482,7 +466,7 @@ Estimates of equation (`r paste(F1)`) are provide below:
 ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100),aes(x=Prc_Error))+geom_histogram(bins=30)+xlab('% Error')
 
   error_pca = data.frame(PCA_Error = random_pca$residuals)
-  error_data_pca = cbind(error_pca,na.omit(model.frame(formula_PCA_dataframe,pca_pred)))  
+  error_data_pca = cbind(error_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
   error_data_pca$Per_Error =  (error_data_pca$PCA_Error/ error_data_pca$yield_tn_ha)*100
   error_data_pca$years_id = as.numeric(substr(error_data_pca$year,1,4))
   error_data_pca$district = as.character(error_data_pca$district)
@@ -539,25 +523,24 @@ ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100
   
   
  # SPLM - Spatial lag estimation  -------------------------------------------------
-  formula_PCA_splag2 = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
-  formula_PCA_splag2_dataframe = yield_tn_ha~rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21+district+years
   
-  sararremod <- spml(formula_PCA_splag2, data = pca_pred_balanced, index = c("district", "years"),
-                     listw = districts_polyListw, model = "random", lag = TRUE, spatial.error = "b")
+  sararremod <- spml(PCA_formula_regression, data = pca_pred_balanced, index = c("district", "years"),
+                     listw = districts_polyListw, model = "within", lag = TRUE, spatial.error = "b")
   summary(sararremod)
   summary(sararremod)$rsqr
   
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
   SSR_FULL = sum(sararremod$residuals^2)
   SSR_FE = sum( spml(yield_tn_ha~1 +as.factor(district), data = pca_pred_balanced, index = c("district", "years"),
-                     listw = districts_polyListw, model = "random", lag = F, spatial.error = "none")$residuals^2)
+                     listw = districts_polyListw, model = "pooling", lag = F, spatial.error = "b")$residuals^2)
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)    
   Witin_R2  
   
   # plot spatial lag panel regression 
   model_pca_sararremod = data.frame(SPLM_Fit = sararremod$model[[1]] - sararremod$residuals)
   model_pca_sararremod = cbind(as.data.frame(as.matrix(sararremod$model)),model_pca_sararremod)
-  model_pca_sararremod = cbind(model_pca_sararremod,na.omit(model.frame(formula_PCA_splag2_dataframe,pca_pred_balanced)))  
+  model_pca_sararremod = cbind(model_pca_sararremod,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred_balanced)))  
+  
   model_pca_sararremod$district = as.character(model_pca_sararremod$district)
   model_pca_sararremod$years_id = as.numeric(substr(model_pca_sararremod$year,1,4))
   model_pca_sararremod = model_pca_sararremod[,c('district','years_id','yield_tn_ha','SPLM_Fit')]

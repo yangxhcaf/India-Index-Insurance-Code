@@ -8,29 +8,29 @@ output: word_document
 # citation styles can be managed here: http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
 # http://rmarkdown.rstudio.com
 # http://rmarkdown.rstudio.com/authoring_pandoc_markdown.html#headers
-rm(list=ls())
-setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
-source('H:/Scripts/multi_grep_character.R')
-library(pander)
-library(knitr)
-library(plyr)
-library(ggplot2)
-library(plm) # works on desktop at school
-library(stargazer)
-library(reshape)
-library(stats)
-library(rms)
-library(english)
-library(splm)
-library(spdep)
-library(rgdal)
-
- focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
-Table_number = 1
-Figure_number = 1
-Appendix_Table_number =1
-Appendix_Function_number =1
-Formula_number = 1
+  rm(list=ls())
+  setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
+  source('H:/Scripts/multi_grep_character.R')
+  library(pander)
+  library(knitr)
+  library(plyr)
+  library(ggplot2)
+  library(plm) # works on desktop at school
+  library(stargazer)
+  library(reshape)
+  library(stats)
+  library(rms)
+  library(english)
+  library(splm)
+  library(spdep)
+  library(rgdal)
+  
+  focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
+  Table_number = 1
+  Figure_number = 1
+  Appendix_Table_number =1
+  Appendix_Function_number =1
+  Formula_number = 1
 
 ```
 
@@ -234,16 +234,16 @@ A summary table of the value of the dependent variable and all independent varia
 
 
 ```{r SETUP: Calculate PCA, echo=FALSE, message=FALSE, warning=FALSE}
-
-PCA_input_formula =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct  
-
-PCA_input_formula_dataframe =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct + years + district
-
-   ###########################
+  
+  PCA_input_formula =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct  
+  
+  PCA_input_formula_dataframe =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct + years + district
+  
+     ###########################
   # USE PCA 
   pca_input = na.omit(model.frame(PCA_input_formula_dataframe,yield_ndvi))
   #pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
-  pca_data = pca_data[,!(names(pca_data) %in% c('area','production_tonnes','yield_tn_ha','district','years' ))] # remove dependent variable data
+  pca_data = pca_input[,!(names(pca_input) %in% c('area','production_tonnes','yield_tn_ha','district','years' ))] # remove dependent variable data
   pca = prcomp( pca_data, scale = T,center = T ) 
  
   pca_pred = as.data.frame(stats::predict(pca))
@@ -285,7 +285,7 @@ PCA_input_formula_dataframe =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harves
   OLS = lm(PCA_output_formula, data=pca_pred)
   OLS_resid = data.frame(model.frame(PCA_output_formula_dataframe,pca_pred)[,c('years','district')], residuals= OLS$residuals)
   OLS_resid = aggregate(residuals~district,data =OLS_resid, function(x){mean(x,na.rm=T)})
-  moran_queen  = moran.test(OLS_resid$residuals,queen)
+  moran_queen = moran.test(OLS_resid$residuals,queen)
   moran_knn1  = moran.test(OLS_resid$residuals,knn1)
   moran_knn2  = moran.test(OLS_resid$residuals,knn2)
   moran_knn3  = moran.test(OLS_resid$residuals,knn3)
@@ -294,6 +294,34 @@ PCA_input_formula_dataframe =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harves
   moran_knn6  = moran.test(OLS_resid$residuals,knn6)
 
   Moran_results = data.frame(pvalue = c(moran_queen$p.value,moran_knn1$p.value,moran_knn2$p.value,moran_knn3$p.value,moran_knn4$p.value,moran_knn5$p.value,moran_knn6$p.value),Neighborhood =c('Polygon Continuity',paste('KNN',1:6,sep=' ')), Test_stat =c(moran_queen$statistic[[1]],moran_knn1$statistic[[1]],moran_knn2$statistic[[1]],moran_knn3$statistic[[1]],moran_knn4$statistic[[1]],moran_knn5$statistic[[1]],moran_knn6$statistic[[1]]) )
+  
+  #Baltagi, Song and Koh LM2 marginal test
+   knn6 = (knn2nb(knearneigh(centroids, k = 6), row.names = districts_lm$NAME_2 ))
+   
+  
+   bsktest(x=PCA_output_formula, data=bskdata, listq=queen,test='CLMlambda')
+    
+    # find all districts with 10 years
+   bskdata = data.frame(district=pca_pred$district,years=pca_pred$years,as.data.frame(pca_pred))
+  balanced_panel = as.character(as.data.frame(table(bskdata$district))$Var1[as.data.frame(table(bskdata$district))$Freq ==10])
+  table(bskdata$years[bskdata$district %in% balanced_panel])
+  bskdata_balanced = bskdata[bskdata$district %in% balanced_panel,]
+  bskdata_balanced = model.frame(PCA_output_formula_dataframe,bskdata_balanced)
+  
+  # get spatial weights for balanced panel
+  districts_lm = districts_lm[as.character(districts_lm@data$NAME_2) %in% as.character(unique(bskdata_balanced[,'district'])),]
+  districts_polyNB_lm = poly2nb(districts_lm,row.names = row.names(districts_lm)) # polygon continuity$GEOID10
+  Wneigh_lm = nb2mat(districts_polyNB_lm, style='W')
+  queen = mat2listw(Wneigh_lm) 
+  
+  centroids = coordinates(districts_lm)
+
+  knn6 = mat2listw( nb2mat( knn2nb(knearneigh(centroids, k = 4), row.names = districts_lm$NAME_2 )) )
+
+  bsktest(x=PCA_output_formula, data=bskdata_balanced, listw=queen,test='CLMlambda',index = c('district','years'))
+  
+  
+  getAnywhere('bsktest.formula')
 ```  
 
 To avoid overstating the statistical significance of regression coefficients we test the residuals from a pooled linear for spatial autocorrelation [@Fotheringham2002]. Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
@@ -397,7 +425,7 @@ To avoid problems with multicolinearity between independent variables we apply a
 
 ####Panel Regression Estimation
 
-We use panel data to model wheat yields over time at the district level. The use of **(spatial)** panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). When pooled together, the integration of two statewide data sets (N = `r paste(length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'district'])))`) over the `r paste(range(yield_ndvi$years, na.rm=T),collapse='-')` period (T = `r paste(length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'years'])))`) provides `r  length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'years']))*length(unique(model.frame(formula2_dataframe,yield_ndvi)[,'district']))` observations. Compared to cross-sectional approaches this amounts to a substantial increase in the degree of observed variance over both space and time.
+We use panel data to model wheat yields over time at the district level. The use of **(spatial)** panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). When pooled together, the integration of two statewide data sets (N = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` period (T = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides `r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))` observations. Compared to cross-sectional approaches this amounts to a substantial increase in the degree of observed variance over both space and time.
 
 Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
 
@@ -405,9 +433,9 @@ Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number
 $\ Y_{it}=\alpha+\beta_{1}PC(1)_{it-1}+\sum_{k=2}^{H}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
  
 
-Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ \beta_{1}PC(1)_{it-1}$ is a one-period lag of the first pricipal component, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponding to the *H* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(formula_PCA)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by ' and ''.
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ \beta_{1}PC(1)_{it-1}$ is a one-period lag of the first pricipal component, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponding to the *H* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by ' and ''.
 
-[^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100),2)` % of total variance in $\mathbf{X}$
+[^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100))` % of total variance in $\mathbf{X}$
 
 
 #Results

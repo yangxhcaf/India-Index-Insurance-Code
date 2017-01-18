@@ -8,21 +8,73 @@ output: word_document
 # citation styles can be managed here: http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
 # http://rmarkdown.rstudio.com
 # http://rmarkdown.rstudio.com/authoring_pandoc_markdown.html#headers
-setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
-source('H:/Scripts/multi_grep_character.R')
-library(pander)
-library(knitr)
-library(plyr)
-library(ggplot2)
-yield_ndvi = read.csv('..//yield_ndvi.csv')
-focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
-Table_number = 1
-Figure_number = 1
-Appendix_Table_number =1
-Appendix_Function_number =1
+  rm(list=ls())
+  setwd('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/')
+  source('H:/Scripts/multi_grep_character.R')
+  library(pander)
+  library(knitr)
+  library(plyr)
+  library(ggplot2)
+  library(plm) # works on desktop at school
+  library(stargazer)
+  library(reshape)
+  library(stats)
+  library(rms)
+  library(english)
+  library(splm)
+  library(spdep)
+  library(rgdal)
+  
+  focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
+  Table_number = 1
+  Figure_number = 1
+  Appendix_Table_number =1
+  Appendix_Function_number =1
+  Formula_number = 1
 
 ```
 
+```{r SETUP: Read in data, message=FALSE, warning=FALSE, include=FALSE}
+###########################################
+# regressions on yields
+  yield_ndvi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_ndvi.csv',stringsAsFactors = F)
+  # yield_ndvi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  yield_ndvi = yield_ndvi[!is.na(yield_ndvi$years),]
+  
+  yield_ndvi[yield_ndvi$i ==26 &yield_ndvi$years==2006,][2,] =NA
+  yield_ndvi = yield_ndvi[!is.na(yield_ndvi$year),]
+  yield_ndvi[ yield_ndvi$yield_tn_ha<1 | yield_ndvi$yield_tn_ha>6,'yield_tn_ha']= NA 
+  
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  - plm sorts by name and year 
+  yield_ndvi=yield_ndvi[with(yield_ndvi, order(district, years)), ]
+  
+  # Create variabels comparing percentiles to actual 
+  yield_ndvi$rice_growing_95th_diff_mn =  yield_ndvi$rice_growing_mean-yield_ndvi$rice_growing_95th_prct
+  yield_ndvi$VEG_annual_95th_diff_mx =  yield_ndvi$rice_growing_max-yield_ndvi$rice_growing_max_95th_prct
+  yield_ndvi$VEG_annual_95th_diff_AUC =  yield_ndvi$rice_growing_AUC-yield_ndvi$rice_growing_AUC_95th_prct
+  yield_ndvi=ddply(yield_ndvi, "district", transform, rice_growing_AUC_diff_mn = rice_growing_AUC-mean(rice_growing_AUC,na.rm=T))
+
+  yield_ndvi$VEG_growing_95th_diff_mn = yield_ndvi$VEG_growing_mean-yield_ndvi$VEG_growing_95th_prct
+  yield_ndvi$VEG_growing_95th_diff_mx = yield_ndvi$VEG_growing_max-yield_ndvi$VEG_growing_max_95th_prct
+  yield_ndvi$VEG_growing_95th_diff_AUC =  yield_ndvi$VEG_growing_AUC-yield_ndvi$VEG_growing_AUC_95th_prct
+  # rename to avoid omiting
+  yield_ndvi$All_95th_prct =yield_ndvi$VEG_all_growing_95th_prct 
+ 
+ 
+  # update names to seasons, Rabi = wheat, Kharif = rice
+  names(yield_ndvi)=gsub("rice_growing","Kharif",names(yield_ndvi))
+  names(yield_ndvi)=gsub("VEG_growing","Rabi",names(yield_ndvi))
+  # remove all annual statistics use rice growing season instead
+  yield_ndvi= yield_ndvi[,!(grepl('VEG',names(yield_ndvi)))]
+  # final edits
+  names(yield_ndvi)[names(yield_ndvi)=='rice_plant_dates']= 'Kharif_plant_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='rice_harvest_dates']= 'Kharif_harvest_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='plant_dates']= 'Rabi_plant_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='harvest_dates']= 'Rabi_harvest_dates'
+  names(yield_ndvi)[names(yield_ndvi)=='season_length']= 'Rabi_season_length'
+
+  names(yield_ndvi) 
+```  
 #Introduction
 
 The ability to monitor and predict crop yields in developing countries is critical to the successful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Although much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide new avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments  common to many developing countries [@Mann2015]. 
@@ -37,8 +89,9 @@ The main objectives of this project is to apply and compare statistical methods 
 We examine wheat yields at the district level for Punjab and Haryana India for Rabi season (roughly Nov-Apr) for the period of `r paste(range(yield_ndvi$years, na.rm=T),collapse=' to ')`. Both Punjab and Haryana are extensively cropped but is comprised of a large number of smaller heterogeneous plots. Both states are also extensively double-cropped with rice planting in the Kharif season (roughly May-Oct) and Wheat planted in the Rabi season. Rabi season wheat yield range from `r paste(range(yield_ndvi$yield_tn_ha, na.rm=T),collapse=' to ')` metric tons per hectare (Table `r paste(Table_number)`, Figure `r paste(Figure_number)`).
 
 *Figure `r paste(Figure_number)`: Mean Rabi Season Wheat Yields Metric Tons per Hectare by District `r Figure_number =Figure_number+1 `*
- ![Yields](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\Yield_tn_ha.png)
+![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\Yield_tn_ha.png)
 
+ 
 Here we develop a (non)spatial panel regression model to estimate wheat output per hectare using the open-source programming language R. This model utilizes historical data on plant phenology statistics obtained from the Moderate Resolution Imaging Spectroradiometer (MODIS) satellite. The objective is to develop a handful of metrics that can be used to accurate predict inter-annual variability in wheat yields at the district level. 
 
 ##Data
@@ -50,13 +103,42 @@ To help better characterize the physical properties and identify challenges, fie
 ###Remote Sensing Data
 Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres, range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of acquisition these products are treated as partially overlapping windows representing 8 days periods [@doraiswamy2007crop]. 
 
-In particular we examine both the predictive power of the Enhanced Vegetation Index (EVI) and the Normalized Difference Vegetation Index (NDVI) **EVI AND NDVI**. Both are sensitive to the amount of chlorophyll in any given pixel and are commonly used to estimate plant productivity and health in agricultural applications [@Mann2015]. After removal of snow, cloud and other flagged low quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover product (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commission as agriculture should have a minimal effect at the district level. 
+In particular we examine both the predictive power of the Enhanced Vegetation Index (EVI) and the Normalized Difference Vegetation Index (NDVI) **EVI AND NDVI**. Both are sensitive to the amount of chlorophyll in any given pixel and are commonly used to estimate plant productivity and health in agricultural applications [@Mann2015]. After removal of snow, cloud and other flagged low quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover product (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commission as agriculture should have a minimal effect at the district level. Moreover agricultural patterns are generally uniform over broad areas of Punjab and Haryana. 
  
-In addition to cloud cover MODIS data products suffer from four additional sources of error including atmospheric interference, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
+In addition to cloud cover MODIS data products suffer from four additional sources of error including atmospheric interference, georeferencing, bidirectional reflectance effect and differences in day of the year each pixel is observed [@doraiswamy2007crop]. While indices such as NDVI minimize the effects of atmospheric distortion but will directly influence indices values. To minimize the effects of the artifacts described above we test the use of temporal smoothing splines and outlier removal  [@hastie1990generalized]  **REFERENCE JOSHUA GRAY**. Where outliers above three standard deviations are removed before applying a cubic smoothing spline. A visual example of the effects of the cubic smoothing and outlier removal procedure can be seen in Figure `r paste(Figure_number)`. 
 
-*Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r Figure_number =Figure_number+1 `*
-![Test](H:\Projects\India_Index_Insurance\India_Index_Insurance_Code\WriteUp\PlantHarvestDates_NDVI.png)
-*Time series of NDVI (unsmoothed -red, smoothed with outlier removal -blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey.*
+*Figure `r paste(Figure_number)`: (Un)smoothed 8-Day NDVI time signature for a dual cropped pixel in Punjab `r aa=Figure_number` `r Figure_number =Figure_number+1 `*
+```{r, echo=FALSE,warning=F,fig.width=7, fig.height=5}
+ rects = read.csv('./FigureTableData/rects.csv')
+ rects$xend = as.Date(strptime(rects$xend,'%Y-%m-%d'))
+ rects$xstart = as.Date(strptime(rects$xstart,'%Y-%m-%d'))
+ plotdata = read.csv('./FigureTableData/NDVI_smooth_timeseries.csv')
+ plotdata$Dates = as.Date(strptime(plotdata$Dates,'%Y-%m-%d'))
+ harvest_lines = as.Date(strptime(read.csv('./FigureTableData/harvest_lines.csv',stringsAsFactors = F)[,2],'%Y-%m-%d'))
+ plant_lines = as.Date(strptime(read.csv('./FigureTableData/plant_lines.csv')[,2],'%Y-%m-%d'))
+ PlantHarvest =  read.csv('./FigureTableData/PlantHarvest.csv') 
+ PlantHarvest$planting = as.Date(strptime(PlantHarvest$planting,'%Y-%m-%d'))
+ PlantHarvest$harvest = as.Date(strptime(PlantHarvest$harvest,'%Y-%m-%d'))
+ max_lines = as.Date(strptime(read.csv('./FigureTableData/max_lines.csv')[,2],'%Y-%m-%d'))
+
+ ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+        ymin = -Inf, ymax = Inf), alpha = 0.4)+
+        geom_point(data= plotdata, aes(x=Dates,y=NDVI,group=Legend,colour=Legend),size=2)+
+        geom_vline(colour='darkgreen',xintercept = as.numeric(as.Date(strptime(plant_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='purple',xintercept = as.numeric(as.Date(strptime(harvest_lines,'%Y-%m-%d'))))+
+        geom_vline(colour='red',xintercept = as.numeric(as.Date(strptime(max_lines,'%Y-%m-%d'))))+
+        annotate("text", x =(PlantHarvest$planting[1]+61), y = 0.37, label = "Wheat")+
+        annotate("text", x =(PlantHarvest$harvest[1]+93), y = 0.31, label = "Rice")+
+        coord_cartesian(xlim = (as.Date(c("2010-01-01", "2015-04-01"))))
+ 
+ # windows() used in presentation 
+ #  ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend,
+ #        ymin = -Inf, ymax = Inf), alpha = 0.4)+
+ #        geom_line(data= plotdata[plotdata$Legend=='NDVI',], aes(x=Dates,y=NDVI,group=Legend),size=2)+
+ #        coord_cartesian(xlim = (as.Date(c("2013-01-01", "2015-04-01"))))
+ 
+```
+*Time series of NDVI unsmoothed (red) and smoothed with outlier removal (blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey. Date of estimated Rabi season maximum (red vertical line), estimated greenness onset (green vertical line), estimated harvest date (purple veritcal line).*
 
 To test for model improvements obtained through time series cubic smoothing we iteratively run a regression where the model described below (estimating wheat yields) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\ R^2$ and root mean squared error divided by mean yields is reported. 
 
@@ -64,7 +146,9 @@ To test for model improvements obtained through time series cubic smoothing we i
 Agricultural survey data at the district level was obtained from _________. INCLUDE DESCRIPTION OF SWAPPING PUNJAB STATE DATA.
 
 ##Summarizing Time: Summarizing Remotely Sensed Data
-One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second annual statistics, spanning a full calendar year including the summer rains of the Kharif growing season. **SWITCH TO RICE GROWING SEASON STATISTICS?** Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
+One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$harvest_dates,na.rm=T)))`); and second monsoon season statistics, spanning end of the Rabi wheat season to end of the Kharif growing season. Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
+
+Pixels with in area of interest (AOI), district boundaries in this case, can be evaluated on a pixel by pixel basis in utilizing parrallel processing or summarized by the AOI's mean value for each image. In this study, district level mean values of EVI are used to represent agricultural productivity for each 8 day period. 
 
 ###Growing Season Metrics
 Planting and harvest dates of are estimated for each growing season of interest. These dates are estimated through an iterative search algorithm finding the date of the global minimum NDVI **or EVI** value nearest to the *a priori* estimated date. A priori values were obtained from the focus group interviews described above. For wheat sowing dates were reported to typically start in the last week of October, and harvest to begin in the 2nd week of April. For details on this function see `r A=Appendix_Function_number` `r paste(A)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Basic growing season summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r B=Appendix_Function_number` `r paste(B)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. 
@@ -73,10 +157,19 @@ To estimate the cumulative impact of high or low vegetation indices across as se
 
 We develop a series of metrics to test if modeled yields could be improved through comparisons to 'ideal' years. This includes calculating the 95th percentile (based on sample quantile where the resulting quantile estimates are approximately median-unbiased regardless of the distribution of x [@hyndman1996sample]) of all NDVI **EVI** values, of maximum values, and of the integral (area under the curve) of NDVI **EVI** values.  These use the built in functionality of R's base stat function show formula `r E=Appendix_Function_number` `r paste(E)` `r Appendix_Function_number=Appendix_Function_number+1`) in the appedix. 
 
-Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI** (see formula `r F=Appendix_Function_number` `r paste(F)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number` `r paste(G)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University `r H=Appendix_Function_number` `r paste(H)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix).
+Additional functions were developed to extract the timing of particular phenomena, for instance the date of the maximum value of NDVI **EVI**. Figure `r paste(aa)` visually demonstrates the ability of this function to estimate the timing on greeness onset (referred to henceforth as planting date), seasonal maximums, and harvest dates. For details on these calculations see formula `r F=Appendix_Function_number` `r paste(F)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix. Mutiway ties are handled by perfering the middle most date or if an even number of ties the left middle most date. Another calculates the average value of NDVI **EVI** for each day of the year, which can be used for graphing anomolies (see formula `r G=Appendix_Function_number` `r paste(G)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). Finally, some of the above codes have improved performance when run on smoothed time series while removing outliers. For this procedure we use a function developed by Joshua Gray at North Carolina State University (see function `r H=Appendix_Function_number` `r paste(H)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix). 
 
 ###Annual Metrics
 Basic annual summary statics including minimum, maximum, mean, and standard deviation can be calculated using function `r I=Appendix_Function_number` `r paste(I)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix below. Alternatively most functions described above can be used to calculate annual vegetation metrics. 
+
+
+###Variable Definitions
+```{r, echo=FALSE}
+definitions = read.csv('Variable Description Table.csv')
+definitions
+pander(definitions, justify = c('left', 'left'))
+
+```
 
 ##Summarizing Space & Time: Extraction and Aggregation of Remotely Sensed Data
 One major hurdle for this study was the rapid extraction of raster values bases on vector data while maintaining meaningful time stamps. In response we developed the function *extract_value_point_polygon* `r J=Appendix_Function_number` `r paste(J)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix to enhance the performance of the the default raster::extract() function . User processing times were better that 1/6000th that of extract() with the use of a 16-core linux server. Additionally the function can take a list of adjacent rasters to perform data extraction, thereby avoiding vector datasets that span more than the extent of one raster. 
@@ -90,8 +183,6 @@ bench = bench[2:dim(bench)[1],]
 bench$cores = as.numeric(bench$cores)
 ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(yintercept=bench_extract_time,colour='red',size=1)+xlab('Cores')+ylab('User Time')+ annotate("text", x = 7, y = 150, label = "extract_value_point_polygon")+ annotate("text", x = 7, y = 287, label = "raster::extract", col='red')
 ```
-
-
 
 
 
@@ -123,26 +214,396 @@ ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(
  }
 ```
 
-##Exploiting Time: (Spatial) Panel Regression Methods and Models
 
-###Panel Regression
-```{r, echo=FALSE}
-panderOptions('table.split.table', Inf)
-panderOptions('big.mark', ",")
-panderOptions('keep.trailing.zeros', F)
-table.yield_ndvi = yield_ndvi[,8:dim(yield_ndvi)[2]]
-table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
-pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
+##Exploiting Time: (Spatial) Panel Regression Methods and Models
+###Input Data
+A summary table of the value of the dependent variable and all independent variables can be found below:
+
+*Table `r paste(Table_number)`: Variable summary statistics and descriptions `r Table_number =Table_number+1 `*
+
+```{r Input variable summary table, echo=FALSE}
+  panderOptions('table.split.table', Inf)
+  panderOptions('big.mark', ",")
+  panderOptions('keep.trailing.zeros', F)
+  table.yield_ndvi = yield_ndvi[,10:dim(yield_ndvi)[2]]
+  table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) )
+  pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
 ```
 
-###Spatial Panel Regression
-####Defining the neighborhood
+###Panel Regression Methods and Diagnostic results
+
+
+```{r SETUP: Calculate PCA, echo=FALSE, message=FALSE, warning=FALSE}
+  
+  PCA_input_formula =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct  
+  
+  PCA_input_formula_dataframe =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct + years + district
+  
+     ###########################
+  # USE PCA 
+  pca_input = na.omit(model.frame(PCA_input_formula_dataframe,yield_ndvi))
+  #pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
+  pca_data = pca_input[,!(names(pca_input) %in% c('area','production_tonnes','yield_tn_ha','district','years' ))] # remove dependent variable data
+  pca = prcomp( pca_data, scale = T,center = T ) 
+ 
+  pca_pred = as.data.frame(stats::predict(pca))
+  pca_pred$district = pca_input$district
+  pca_pred$years = pca_input$years
+  pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+  
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
+  pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
+
+  # transformed variables 
+  PCA_output_formula =yield_tn_ha~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15
+  PCA_output_formula_dataframe = yield_tn_ha~PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15+district+years   
+  
+```
+ 
+ 
+```{r Panel: Spatial autocorrelation, echo=FALSE, message=FALSE, warning=FALSE}
+    
+  #distrct boundaries
+  districts_lm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  districts_lm = spTransform(districts_lm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  districts_lm$NAME_2 = toupper(as.character(districts_lm$NAME_2)) 
+        
+  # Create spatial weights  Remove all districts not in yield_ndvi
+  districts_lm = districts_lm[as.character(districts_lm@data$NAME_2) %in% as.character(unique(yield_ndvi[,'district'])),]
+  districts_polyNB_lm = poly2nb(districts_lm,row.names = row.names(districts_lm)) # polygon continuity$GEOID10
+  Wneigh_lm = nb2mat(districts_polyNB_lm, style='W')
+  queen = nb2listw(districts_polyNB_lm) 
+  # k nearest weights 
+  centroids = coordinates(districts_lm)
+  knn1 = nb2listw(knn2nb(knearneigh(centroids, k = 1), row.names = districts_lm$NAME_2 ))
+  knn2 = nb2listw(knn2nb(knearneigh(centroids, k = 2), row.names = districts_lm$NAME_2 ))
+  knn3 = nb2listw(knn2nb(knearneigh(centroids, k = 3), row.names = districts_lm$NAME_2 ))
+  knn4 = nb2listw(knn2nb(knearneigh(centroids, k = 4), row.names = districts_lm$NAME_2 ))
+  knn5 = nb2listw(knn2nb(knearneigh(centroids, k = 5), row.names = districts_lm$NAME_2 ))
+  knn6 = nb2listw(knn2nb(knearneigh(centroids, k = 6), row.names = districts_lm$NAME_2 ))
+
+  OLS = lm(PCA_output_formula, data=pca_pred)
+  OLS_resid = data.frame(model.frame(PCA_output_formula_dataframe,pca_pred)[,c('years','district')], residuals= OLS$residuals)
+  OLS_resid = aggregate(residuals~district,data =OLS_resid, function(x){mean(x,na.rm=T)})
+  moran_queen = moran.test(OLS_resid$residuals,queen)
+  moran_knn1  = moran.test(OLS_resid$residuals,knn1)
+  moran_knn2  = moran.test(OLS_resid$residuals,knn2)
+  moran_knn3  = moran.test(OLS_resid$residuals,knn3)
+  moran_knn4  = moran.test(OLS_resid$residuals,knn4)
+  moran_knn5  = moran.test(OLS_resid$residuals,knn5)
+  moran_knn6  = moran.test(OLS_resid$residuals,knn6)
+
+  Moran_results = data.frame(pvalue = c(moran_queen$p.value,moran_knn1$p.value,moran_knn2$p.value,moran_knn3$p.value,moran_knn4$p.value,moran_knn5$p.value,moran_knn6$p.value),Neighborhood =c('Polygon Continuity',paste('KNN',1:6,sep=' ')), Test_stat =c(moran_queen$statistic[[1]],moran_knn1$statistic[[1]],moran_knn2$statistic[[1]],moran_knn3$statistic[[1]],moran_knn4$statistic[[1]],moran_knn5$statistic[[1]],moran_knn6$statistic[[1]]) )
+  
+  #Baltagi, Song and Koh LM2 marginal test
+   knn6 = (knn2nb(knearneigh(centroids, k = 6), row.names = districts_lm$NAME_2 ))
+   
+  
+   bsktest(x=PCA_output_formula, data=bskdata, listq=queen,test='CLMlambda')
+    
+    # find all districts with 10 years
+   bskdata = data.frame(district=pca_pred$district,years=pca_pred$years,as.data.frame(pca_pred))
+  balanced_panel = as.character(as.data.frame(table(bskdata$district))$Var1[as.data.frame(table(bskdata$district))$Freq ==10])
+  table(bskdata$years[bskdata$district %in% balanced_panel])
+  bskdata_balanced = bskdata[bskdata$district %in% balanced_panel,]
+  bskdata_balanced = model.frame(PCA_output_formula_dataframe,bskdata_balanced)
+  
+  # get spatial weights for balanced panel
+  districts_lm = districts_lm[as.character(districts_lm@data$NAME_2) %in% as.character(unique(bskdata_balanced[,'district'])),]
+  districts_polyNB_lm = poly2nb(districts_lm,row.names = row.names(districts_lm)) # polygon continuity$GEOID10
+  Wneigh_lm = nb2mat(districts_polyNB_lm, style='W')
+  queen = mat2listw(Wneigh_lm) 
+  
+  centroids = coordinates(districts_lm)
+
+  knn6 = mat2listw( nb2mat( knn2nb(knearneigh(centroids, k = 4), row.names = districts_lm$NAME_2 )) )
+
+  bsktest(x=PCA_output_formula, data=bskdata_balanced, listw=queen,test='CLMlambda',index = c('district','years'))
+  
+  
+  getAnywhere('bsktest.formula')
+```  
+
+To avoid overstating the statistical significance of regression coefficients we test the residuals from a pooled linear for spatial autocorrelation [@Fotheringham2002]. Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
+
+(`r paste(F1)`)                
+$\ Y_{it}=\alpha+\sum_{a=1}^{k}\beta_{k}X_{it}+ \mu_{it}$
+
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponds to the *k* independent variables describing NDVI **EVI**, and $\ \mu_{it}$ is pooled error term.
+
+Because a better implementation of the Moran's I for panel regression residuals is not available, tests for spatial autocorrelation are run on the mean regression residuals $\overline{\mu_{i}}$ for each district (*i*)  [@Cliff1981]. Tests were carried out for seven potential neighborhood definitions including six different measures of K-nearest Neighbor, and a queen's polygon continuity (Figure `r paste(Figure_number)`). Moran's I test statistics are less than `r round(mean(Moran_results$Test_stat),2)`, which fails to reject (p <=`r round(min(Moran_results$pvalue),2)`) the null hypothesis of spatial independence. 
+  
+*Figure `r paste(Figure_number)`: Statistical significance of Moran's I on pooled regression residuals`r c234=Figure_number` `r Figure_number =Figure_number+1 `*
+```{r Panel: Spatial autocorrelation plot, echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(data=Moran_results,aes(y=pvalue,x=factor(Neighborhood),group=Neighborhood,fill=Neighborhood))+ geom_bar(stat = "identity")+geom_hline(yintercept = 0.05,colour='grey',size=1.5,linetype=5)+ scale_y_continuous(breaks=c(0,0.05,.1,.2,.4,.6))+ theme(legend.position="none",axis.text.x  = element_text(angle=90, vjust=0.5))+labs(x = 'Neighborhood Type', y='P-Value')
+
+``` 
+
+####Tests: Pooled, Fixed or Random  
+
+
+```{r Panel: Hausman test, echo=FALSE, message=FALSE, warning=FALSE}
+# run hausman test
+  
+  # run fixed and random effects
+  fixed <- plm(PCA_output_formula, data=pca_pred, index=c("district", "years"), model="within")
+  random <- plm(PCA_output_formula, data=pca_pred, index=c("district", "years"), model="random")
+  pooled <- plm(PCA_output_formula, data=pca_pred, index=c("district", "years"), model="pooling")
+ # znp <- pvcm(formula2,data=yield_ndvi,model="within") # not enough obs to run 
+
+ 
+ # test_pool1=pooltest(znp,fixed)  #F test It is a standard F test, based on the comparison of a model obtained for the full sample and a model based on the estimation of an equation for each individual. null:  test the hypothesis that all the coefficients are equal (pooled OLS better than fixed)  https://cran.r-project.org/web/packages/plm/vignettes/plm.pdf
+  
+  test_pool2=pooltest(pooled,fixed) # null:  pooled OLS better than fixed
+    
+  test_pool_random = plmtest(pooled, type=c("bp")) #The null hypothesis in the LM test is that variances across entities is zero (RE inappropriate). This is, no significant difference across units (i.e. no panel effect), ALT; RE better http://www.princeton.edu/~otorres/Panel101R.pdf
+  
+  test_hausman_fixed_random = phtest(fixed, random) # use fixed if significant To decide between fixed or random effects you can run a Hausman test where the null hypothesis is that the preferred model is random effects vs. the alternative the fixed effects (see Green, 2008, chapter 9). It basically tests whether the unique errors (ui ) are correlated with the regressors, the null hypothesis is they are not. http://www.indiana.edu/~wim/docs/10_7_2011_slides.pdf
+  #pander(hausman)
+```
+
+Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled OLS (p <= `r test_pool2$p.value`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of FE and RE models. The hausman test checks for exogeniety of the unobserved error component, tf the null hypothesis is rejected, the RE model is inconsistent, and the FE model will be preferred. If individual effects are exogenous both fixed (FE) and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. Here we  reject the null hypothesis  (p >= `r sprintf("%11.2e",test_hausman_fixed_random$p.value) `) and choose to use the fixed effects estimator as it will be more efficient.  
+
+ 
+####Multicolinearity & Principal Components Analysis Transform
+
+Multicolinearity, high correlations between independent variables, can increase estimates of a variable's estimated variance. This can have the adverse effect of creating models in which the $\ R^2$ is high and no variables are statistically significant. Multicolinearity can also produce coefficients of the 'wrong sign' and of unreasonable magnitude [@o2007caution; @greeneh]. Here we use a variance inflation factor (VIF) to quantify how much the variance is inflated for each coefficient[^1]. VIF values over 4 for any variable are generally considered problematic and require further examination [@greeneh]. Here we present summary statistics for VIFs on a ordinary least squares estimation of all model variable in Table (`r paste(Table_number)`) below:
+
+[^1]: A nice synopsis of VIF can be found here [@State2016].
+
+*Table `r paste(Table_number)`: Variance inflation factor summary table `r Table_number =Table_number+1 `*
+
+```{r Panel: Multicolinearity test (vif),echo=F}
+#https://onlinecourses.science.psu.edu/stat501/node/347
+fit =lm(PCA_input_formula,data=yield_ndvi)
+stargazer(as.data.frame(vif(fit)),type = 'text')
+```
+
+To avoid problems with multicolinearity between independent variables we apply a principal components analysis transformation (PCA) to a centered and scaled matrix of independent variables $\ X$. PCA allows for the replacement of $\ X$ with a new matrix whos variables are orthoganal to each other but span the multidimensional space of $\ X$ [@GELADI19861]. In this case we generate `r paste(dim(pca$rotation)[1])` principal components for inclusion in a random effects panel regression. A table of PCA component imporance can be found in the appendix, Table(A`r AT1=Appendix_Table_number``r paste(AT1)``r Appendix_Table_number=Appendix_Table_number+1`).
+ 
+ 
+####OLS Regression Estimation
+
+```{r LM for prediction, message=FALSE, warning=FALSE, include=FALSE}
+  # formulas
+  PCA_formula_regression =yield_tn_ha~   rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
+  
+  PCA_formula_regression_dataframe = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+ PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
+ 
+  # estimate lm
+  lm1 <- lm(PCA_formula_regression, data=pca_pred)
+ 
+  #stargazer(random_pca, type="text")
+  summary(lm1)
+   
+  # predict lm to all dates
+  lm_pred = predict(lm1,newdata = pca_pred,se.fit=T)
+  lm_pred
+
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum((pca_pred$yield_tn_ha-lm_pred$fit)^2)
+  SSR_FE = sum( lm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input)$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
+  print(paste('Within R2',round(Witin_R2,2)))
+
+   # get prediction and and model.frame 
+  model_data_lm = data.frame(pca_pred,LM_Fit = lm_pred$fit)
+  model_data_lm$district = as.character(model_data_lm$district)
+  model_data_lm$years_id = as.numeric(substr(model_data_lm$year,1,4))
+  model_data_lm = model_data_lm[,c('district','years_id','yield_tn_ha','LM_Fit')]
+  model_data_lm = melt(model_data_lm,id = c('years_id','district'))
+  #windows()
+  ggplot(data=model_data_lm,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+  
+```  
+
+
+
+####Panel Regression Estimation
+
+We use panel data to model wheat yields over time at the district level. The use of **(spatial)** panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). When pooled together, the integration of two statewide data sets (N = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` period (T = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides `r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))` observations. Compared to cross-sectional approaches this amounts to a substantial increase in the degree of observed variance over both space and time.
+
+Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
+
+(`r paste(F1)`)                
+$\ Y_{it}=\alpha+\beta_{1}PC(1)_{it-1}+\sum_{k=2}^{H}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
+ 
+
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ \beta_{1}PC(1)_{it-1}$ is a one-period lag of the first pricipal component, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponding to the *H* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by ' and ''.
+
+[^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100))` % of total variance in $\mathbf{X}$
 
 
 #Results
 ##Focus Group Interviews
+ 
+
+
 
 ##Panel Regression
+
+Estimates of equation (`r paste(F1)`) are provide below:
+
+*District level random effects estimation of wheat yields in tons per hectare*
+```{r Panel: Fitted vs actual PCA estimate, echo=FALSE}
+
+  # add a time lag  or dif
+  pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
+  pca_pred$lag1_yield_tn_ha = lag(pca_pred$yield_tn_ha,1)
+  pca_pred$diff1_yield_tn_ha = diff(pca_pred$yield_tn_ha,1)
+  pca_pred$diff1_PC1 = diff(pca_pred$PC1,1)
+  pca_pred$lag1_PC1 = lag(pca_pred$PC1,1)
+
+  # estimate plm
+  random_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
+ 
+  #stargazer(random_pca, type="text")
+  summary(random_pca)
+   
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(random_pca$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
+  print(paste('Within R2',round(Witin_R2,2)))
+  
+```
+
+
+*Figure `r paste(Figure_number)`: Fitted vs actual for estimation of equation (`r paste(Formula_number)`)  `r aaa=Figure_number` `r Figure_number =Figure_number+1 `*
+```{r Panel: Fitted vs actual PCA PLOT, fig.width=10, fig.height=6, echo=FALSE}
+  # get prediction and and model.frame 
+  fitted_pca = data.frame(PCA_Fit = random_pca$model[[1]] - random_pca$residuals)
+  model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
+  model_data_pca$district = as.character(model_data_pca$district)
+  model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
+  model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
+  model_data_pca = melt(model_data_pca,id = c('years_id','district'))
+  
+  ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+# plots of model performance 
+#ggplot(data=melt(data.frame(Residuals = random_pca$residuals,Yield_tn_ha=random_pca$model[[1]],Prc_Error=random_pca$residuals/random_pca$model[[1]])),aes(x=value,fill=variable))+geom_histogram(bins=50)
+
+ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100),aes(x=Prc_Error))+geom_histogram(bins=30)+xlab('% Error')
+
+  error_pca = data.frame(PCA_Error = random_pca$residuals)
+  error_data_pca = cbind(error_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
+  error_data_pca$Per_Error =  (error_data_pca$PCA_Error/ error_data_pca$yield_tn_ha)*100
+  error_data_pca$years_id = as.numeric(substr(error_data_pca$year,1,4))
+  error_data_pca$district = as.character(error_data_pca$district)
+  error_data_pca = error_data_pca[,c('district','years_id','Per_Error')]
+  error_data_pca = melt(error_data_pca,id = c('years_id','district'))
+
+ 
+# histogram of errors stacked histogram use in presentation
+  # library(plotly)
+  # ggplot(data=error_data_pca,aes(x=value,fill=district))+ geom_histogram( )+xlab('% Error')+ theme(legend.position="none")
+  # ggplotly()
+  # 
+  # 
+  # ggplot(data= data.frame(Prc_Error=abs(random_pca$residuals/random_pca$model[[1]]*100)),aes(x=Prc_Error)) +   stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
+  # 
+  # ggplot(data= data.frame(Prc_Error=abs(random_pca$residuals/random_pca$model[[1]]*100)),aes(x=Prc_Error)) + stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
+
+```
+
+
+##Spatial Panel Regression
+
+  *Actual values (red), predicted values (blue)*
+```{r Panel: Spatial Panel Estimation, fig.width=10, fig.height=6, echo=FALSE}
+  #yeild and evi data
+  pca_pred_splm = as.data.frame(pca_pred)
+
+  #distrct boundaries
+  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
+  
+ # get District outlines
+  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
+  
+ # find all districts with 10 years
+  balanced_panel = as.character(as.data.frame(table(pca_pred_splm$district))$Var1[as.data.frame(table(pca_pred_splm$district))$Freq ==10])
+  
+  # confirm balanced 
+  table(pca_pred$years[pca_pred$district %in% balanced_panel])
+  pca_pred_balanced = pca_pred_splm[pca_pred_splm$district %in% balanced_panel,]
+                                                
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
+  pca_pred_balanced=pca_pred_balanced[with(pca_pred_balanced, order(district, years)), ]                                            
+       
+        
+  # Create spatial weights  Remove all districts not in balanced panel
+  districts_plm = districts_plm[as.character(districts_plm@data$NAME_2) %in% as.character(unique(pca_pred_balanced[,'district'])),]
+  districts_polyNB = poly2nb(districts_plm,row.names = row.names(districts_plm)) # polygon continuity$GEOID10
+  Wneigh = nb2mat(districts_polyNB, style='W')
+  districts_polyListw = nb2listw(districts_polyNB) 
+  
+  
+ # SPLM - Spatial lag estimation  -------------------------------------------------
+  
+  sararremod <- spml(PCA_formula_regression, data = pca_pred_balanced, index = c("district", "years"),
+                     listw = districts_polyListw, model = "within", lag = TRUE, spatial.error = "b")
+  summary(sararremod)
+  summary(sararremod)$rsqr
+  
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(sararremod$residuals^2)
+  SSR_FE = sum( spml(yield_tn_ha~1 +as.factor(district), data = pca_pred_balanced, index = c("district", "years"),
+                     listw = districts_polyListw, model = "pooling", lag = F, spatial.error = "b")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE)    
+  Witin_R2  
+  
+  # plot spatial lag panel regression 
+  model_pca_sararremod = data.frame(SPLM_Fit = sararremod$model[[1]] - sararremod$residuals)
+  model_pca_sararremod = cbind(as.data.frame(as.matrix(sararremod$model)),model_pca_sararremod)
+  model_pca_sararremod = cbind(model_pca_sararremod,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred_balanced)))  
+  
+  model_pca_sararremod$district = as.character(model_pca_sararremod$district)
+  model_pca_sararremod$years_id = as.numeric(substr(model_pca_sararremod$year,1,4))
+  model_pca_sararremod = model_pca_sararremod[,c('district','years_id','yield_tn_ha','SPLM_Fit')]
+  model_pca_sararremod = melt(model_pca_sararremod,id = c('years_id','district'))
+  model_pca_sararremod$variable= as.character(model_pca_sararremod$variable)
+  model_pca_sararremod$variable[model_pca_sararremod$variable=='fitted']='Fitted Spatial'
+  
+   ggplot(data=model_pca_sararremod,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+   
+```
+
+
+```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL, fig.width=10, fig.height=6, echo=FALSE}
+
+# Plot temporal and spatial fit  ------------------------------------------
+  
+  space_time_fit = rbind(model_data_pca,model_pca_sararremod,model_data_lm)
+  
+  space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_pca_sararremod$district),]
+  space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_data_lm$district),]
+
+  levels(space_time_fit$variable) =c('Actual Yields', 'PCA Fit','SPLM Fit','OLS Fit')
+  #windows()
+  # ggplot(data=space_time_fit,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.2))+
+  #   geom_point(size=2)  + scale_colour_manual(values = c("black",'purple','green', "mediumblue")) + facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons / ha')+  
+  #   theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+    ggplot()+geom_line(data=space_time_fit[space_time_fit$variable=='Actual Yields',],aes(x=years_id,y=value,colour=variable),size=1.2)+  
+    geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons / ha')+  
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010, 2015))
+  
+```  
+  
 
 #Discussion
 
@@ -158,9 +619,7 @@ pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
 # stargazer(yield_ndvi[,8:10] ,  title="Descriptive statistics", digits=2,summary = T,font.size='small')
 
 ```
-
- $$\sum_{i=1}^n X_i$$
-$\sum_{i=1}^n X_i$
+ 
 
 #Appendix A
 ##Yield Data
@@ -173,6 +632,15 @@ state_yeilds = ddply(yield_ndvi,~state+district,summarise,Min=min(yield_tn_ha,na
 names(state_yeilds)[1]="State"
 pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'))
 ```
+
+##Principal Components Analysis
+*Table A`r paste(AT1)`: Importance of PCA components*
+
+```{r Panel:  PCA output  , echo=FALSE}
+   summary(pca) 
+```
+
+
 
 ##Functions
 *Functions `r paste(A)`: Planting/Harvest date functions*
@@ -320,14 +788,14 @@ PeriodAUC_method2 = function(x_in,dates_in,DOY_start_in,DOY_end_in){
 ```
 
 *Functions `r paste(E)`: Base function used for estimating sample quantiles*
-```{r, include=T,echo=F,warning=F}
+```{r, include=T,echo=T,warning=F}
 quantile_type8 = function(x){
   quantile(x ,p=Quant_percentile,type=8,na.rm=T)
 }
 ```
 
 *Functions `r paste(F)`: Function to return date of any given phenomenon*
-```{r, include=T,echo=F,warning=F}
+```{r, include=T,echo=T,warning=F}
 PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in='days',FUN){
         # returns a date of summary statistic defined by FUN
         # like the date of the maximum value of x for the period defined by date_range_st, date_range_end
@@ -361,7 +829,7 @@ PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in=
 ```
 
 *Functions `r paste(G)`: Mean day of the year values*
-```{r, include=T,echo=F,warning=F}
+```{r, include=T,echo=T,warning=F}
   AnnualAverageDOYvalues = function(x,dates_in){
     	# calculates the average value for DOY for the whole series
     	datesj = format(dates_in,'%j')
@@ -369,7 +837,7 @@ PeriodAggregatorDates = function(x,dates_in,date_range_st, date_range_end,by_in=
 ```
 
 *Functions `r paste(H)`: Smoothing splines with outlier removal*
-```{r, include=T,echo=F,warning=F}
+```{r, include=T,echo=T,warning=F}
 #---------------------------------------------------------------------
 # This function takes a time series w/ dates (x, dates) and returns a spline smoothed time series with outliers removed.
 # Outliers are identified as points with absolute value more than out_sigma * sd, where sd is the residual

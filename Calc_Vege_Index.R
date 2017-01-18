@@ -1,4 +1,9 @@
 
+
+# r regression variance inflation factor - tells contributions to multicolinearity inflation of SE
+# https://onlinecourses.science.psu.edu/stat501/node/347
+
+
 # Michael Mann    Calc_Vege_Index.R
 # This script calculates a series of stastics about the wheat growing season
 
@@ -19,6 +24,7 @@ rm(list=ls())
 #source('H:\\scripts/SplineAndOutlierRemoval.R')
 source('/groups/manngroup/India_Index/India-Index-Insurance-Code/SummaryFunctions.R')
 source('/groups/manngroup/scripts/SplineAndOutlierRemoval.R')
+source('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/SummaryFunctions.R')
 
 #install.packages("RCurl",repos="http://cran.cnr.berkeley.edu/")
 #install.packages("raster",repos="http://cran.cnr.berkeley.edu/")
@@ -53,6 +59,8 @@ library(zoo)
 library(plm)
 library(randomForest)
 library(e1071)
+library(stats)
+library(plm) # works on desktop at school
 
 registerDoParallel(7)
 
@@ -614,30 +622,50 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   #NDVI % Var explained: 46.94    47% with rice stats
 
 
-###########################################
-# regressions on yeilds
-
-  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_evi.csv')
-  formula_lm = yield_tn_ha ~factor(i)+plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_growing_AUC_diff_mn+EVI_growing_AUC_diff_90th+EVI_all_growing_5th_prct+EVI_growing_sd
   
-  lm1=  lm(formula_lm,data=yield_evi)
-  summary(lm1)
-  mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
-
-  lm_0=  lm(yield_tn_ha ~factor(i),data=yield_evi)
-  summary(lm_0)
-
-  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+EVI_annual_mean+EVI_annual_min+EVI_annual_max+EVI_annual_AUC+
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_AUC+EVI_growing_5th_prct+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_5th_prct+EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd
   
-  library(plm) # works on desktop at school
+#######################################################
+# Panel regressions on yields -------------------------------
+#######################################################
+  
+  
+  yield_evi = read.csv('H://Projects/India_Index_Insurance/India_Index_Insurance_Code/yield_ndvi.csv',stringsAsFactors = F)
+ # yield_evi = read.csv('C://Users/mmann/Downloads/yield_ndvi (1).csv')
+  yield_evi = yield_evi[!is.na(yield_evi$years),]
+  
+  table(paste(yield_evi$i,yield_evi$years,sep='-'))
+  yield_evi[yield_evi$i ==26 &yield_evi$years==2006,][2,] =NA
+  yield_evi = yield_evi[!is.na(yield_evi$year),]
+  yield_evi[ yield_evi$yield_tn_ha<1 | yield_evi$yield_tn_ha>6,'yield_tn_ha']= NA 
+   
+  
+ # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  - plm sorts by name and year 
+ yield_evi=yield_evi[with(yield_evi, order(district, years)), ]
+  
+  
+  # formula_lm = yield_tn_ha ~plant_dates+harvest_dates+season_length+VEG_annual_mean+VEG_annual_min+VEG_annual_max+VEG_annual_AUC+
+  #   VEG_annual_95th_prct+VEG_annual_sd+VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+  #   VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+  #   VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
+  #   VEG_all_growing_95th_prct+VEG_growing_sd +rice_plant_dates+rice_harvest_dates+R_mx_dates+rice_growing_mean+
+  #   rice_growing_min+rice_growing_max+rice_growing_AUC+rice_growing_95th_prct+rice_growing_max_95th_prct+
+  #   rice_growing_AUC_95th_prct+rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing +factor(i)
+  # 
+  # lm1=  lm(formula_lm,data=yield_evi)
+  # summary(lm1)
+  # mean((yield_evi$yield_tn_ha - predict(lm1, yield_evi))^2)/mean(yield_evi$yield_tn_ha)  
+  # 
+  # lm_0=  lm(yield_tn_ha ~factor(i),data=yield_evi)
+  # summary(lm_0)
+
+  formula = yield_tn_ha ~plant_dates+harvest_dates+season_length+
+    VEG_annual_sd+VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_AUC+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+VEG_growing_AUC_leading+VEG_growing_AUC_trailing+
+    VEG_all_growing_95th_prct+VEG_growing_sd+R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_max+rice_growing_AUC+rice_growing_95th_prct+rice_growing_max_95th_prct+
+    rice_growing_AUC_95th_prct+rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing
+  
   fixed <- plm(formula, data=yield_evi, index=c("district", "years"), model="within")
   summary(fixed)  
 
@@ -646,48 +674,236 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   
   phtest(fixed, random) # use fixed if significant
   
-  formula2 = yield_tn_ha ~ plant_dates+season_length+EVI_annual_mean+I(EVI_annual_mean^2)+EVI_annual_min+EVI_annual_max+
-    EVI_annual_AUC+I(EVI_annual_AUC^2)+ 
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd
   
-  #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
+  formula2 = yield_tn_ha ~plant_dates+harvest_dates+
+    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
+    R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
+    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))
+  
+  formula2_dataframe = yield_tn_ha ~plant_dates+harvest_dates+
+    VEG_annual_max_95th_prct+VEG_annual_AUC_95th_prct+VEG_growing_max_date+
+    VEG_growing_mean+VEG_growing_min+VEG_growing_max+VEG_growing_95th_prct+VEG_growing_max_95th_prct+
+    VEG_growing_AUC_95th_prct+VEG_growing_AUC_v2+
+    R_mx_dates+rice_growing_mean+
+    rice_growing_min+rice_growing_AUC+rice_growing_95th_prct+
+    rice_growing_AUC_v2+rice_growing_AUC_leading+rice_growing_AUC_trailing+I(as.numeric(years))+district+years
+  
+  
+  #removed  season_length VEG_annual_sd VEG_growing_AUC_leading+VEG_growing_AUC_trailing++VEG_growing_AUC rice_growing_max VEG_growing_sd rice_growing_AUC_95th_prct rice_growing_max_95th_prct VEG_all_growing_95th_prct
   
   random <- plm(formula2, data=yield_evi, index=c("district", "years"), model="random")
   summary(random) 
-  
-  library(rms)
-  formula3 = yield_tn_ha ~  plant_dates +season_length+rcs(EVI_annual_mean,4)+EVI_annual_min+rcs(EVI_annual_max,4)+
-    rcs(EVI_annual_AUC,4)+ 
-    EVI_annual_5th_prct+EVI_annual_sd+EVI_annual_max_5th_prct+EVI_annual_AUC_5th_prct+EVI_growing_max_date+
-    EVI_growing_mean+EVI_growing_min+EVI_growing_max+EVI_growing_max_5th_prct+
-    EVI_growing_AUC_v2+EVI_growing_AUC_leading+EVI_growing_AUC_trailing+
-    EVI_all_growing_5th_prct+EVI_growing_sd
-  
-  #removed EVI_growing_5th_prct EVI_growing_AUC harvest_dates EVI_growing_AUC_5th_prct I(EVI_annual_max^2) I(plant_dates^2)
-  
-  random <- plm(formula3, data=yield_evi, index=c("district", "years"), model="random")
-  summary(random)  
-  
+
   # plot fitted vs actual
+  library(reshape)
   fitted = data.frame(fitted = random$model[[1]] - random$residuals)
   model_data = cbind(random$model,fitted)
-  model_data = cbind(model_data,na.omit(yield_evi))  
+  model_data = cbind(model_data,na.omit(model.frame(formula2_dataframe,yield_evi)))  
   model_data$district = as.character(model_data$district)
   model_data$years_id = as.numeric(substr(model_data$year,1,4))
   model_data = model_data[,c('district','years_id','yield_tn_ha','fitted')]
   model_data = melt(model_data,id = c('years_id','district'))
+  windows()
+  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
   
-  ggplot(data=model_data,aes(x=years_id,y=value,colour=variable))+
-  geom_point() + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")
+  
+  # USE PCA Panel Regression -----------------------------------------
+  
+  pca_input = na.omit(model.frame(formula2_dataframe,yield_evi))
+  pca_data = pca_input[,sapply(pca_input,is.numeric)] # limit to numeric number data
+  pca_data = pca_data[,!(names(pca_data) %in% c('area','production_tonnes','yield_tn_ha'))] # remove dependent variable data
+  pca = prcomp( pca_data, scale = T,center = T ) 
+  summary(pca)
+  pca_pred = as.data.frame(stats::predict(pca))
+  dim(pca_pred);dim(pca_input)
+  pca_pred$district = pca_input$district
+  pca_pred$years = pca_input$years
+  pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+  
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
+  pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
+  
+  # add a time lag 
+  pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
+  pca_pred$lag1_yield_tn_ha = lag(pca_pred$yield_tn_ha,1)
+  pca_pred$diff1_yield_tn_ha = diff(pca_pred$yield_tn_ha,1)
+  pca_pred$diff1_lag1_yield_tn_ha = lag(pca_pred$diff1_yield_tn_ha,1)
+  
+  pca_pred$diff1_PC1 = diff(pca_pred$PC1,1)
+  pca_pred$lag1_PC1 = lag(pca_pred$PC1,1)
+  pca_pred$lag1_PC2 = lag(pca_pred$PC2,1)
+  pca_pred$lag1_PC3 = lag(pca_pred$PC3,1)
+  pca_pred$lag1_PC4 = lag(pca_pred$PC4,1)
+  pca_pred$lag1_PC5 = lag(pca_pred$PC5,1)
+  
+   # clusters = hclust(dist(pca_pred[,1:3])^2,method = 'complete') # no improvement 
+  # plot(clusters)
+  # clusterCut <- cutree(clusters, 2)
+    
+  # formulas
+  formula_PCA =yield_tn_ha~lag1_PC1+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
+  formula_PCA_dataframe = yield_tn_ha~lag1_PC1+ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years # add id and year for model.frame
+  # estimate
+  
+  random_pca <- plm(formula_PCA, data=pca_pred, index=c("district", "years"), model="random")
+  summary(random_pca) 
+  
+  # get prediction and and model.frame 
+  fitted_pca = data.frame(fitted = random_pca$model[[1]] - random_pca$residuals)
+  model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(formula_PCA_dataframe,pca_pred)))  
+  model_data_pca$district = as.character(model_data_pca$district)
+  model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
+  model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data_pca = melt(model_data_pca,id = c('years_id','district'))
+  model_data_pca$variable= as.character(model_data_pca$variable)
+  model_data_pca$variable[model_data_pca$variable=='fitted']='Fitted Temporal'
+  
+  windows()
+  ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(random_pca$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_pred, index=c("district", "years"), model="pooling")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
+  Witin_R2   #0.6632103 with lag pc1  # 0.532181 with lag of pc1 and pc2 #0.6712662 with pc1 lag and yield 1dif lag
+  
+  
+  # project new data onto the PCA space another way
+  #pca_pred2=scale(newdata, pca$center, pca$scale) %*% pca$rotation 
+  
+  
+# Spatial Panel Regression  -----------------------------------------------
+  library(spdep)
+  library(rgoes)
+  library(splm)
+  # splm only use balanced panel, dataframe[id,time,Y,X]
+  
+  # get District outlines
+  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
+  
+  table(pca_pred$district)
+  pca_pred_splm = as.data.frame(pca_pred)
+  
+  # find all districts with 10 years
+  balanced_panel = as.character(as.data.frame(table(pca_pred_splm$district))$Var1[as.data.frame(table(pca_pred_splm$district))$Freq ==10])
+  # confirm balanced 
+  table(pca_pred$years[pca_pred$district %in% balanced_panel])
+  pca_pred_balanced = pca_pred_splm[pca_pred_splm$district %in% balanced_panel,]
+  
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
+  pca_pred_balanced=pca_pred_balanced[with(pca_pred_balanced, order(district, years)), ]
+  
+  # Remove all districts not in balanced panel
+  districts_plm = districts_plm[as.character(districts_plm@data$NAME_2) %in% as.character(unique(pca_pred_balanced[,'district'])),]
+  districts_polyNB = poly2nb(districts_plm,row.names = row.names(districts_plm)) # polygon continuity$GEOID10
+  Wneigh = nb2mat(districts_polyNB, style='W')
+  districts_polyListw = nb2listw(districts_polyNB) 
+  
+  # effected by neighbor values  
+  mn_neigh=by(pca_pred_balanced$yield_tn_ha,INDICES=pca_pred_balanced$years, FUN = function(x){mean_neighbors(x,sweights=Wneigh)})
+  mn_neigh=as.numeric(unlist(mn_neigh))
+  pca_pred_balanced$splag_yield_tn_ha = mn_neigh
+  #row.names(pca_pred_balanced) = 1:dim(pca_pred_balanced)[1]
+  
+  #pca_pred_balanced$district=as.character(pca_pred_balanced$district)
+  #pca_pred_balanced$years=as.character(pca_pred_balanced$years)
+  
+  
+  # panel with spatial neighbors lag 
+  formula_PCA_splag = yield_tn_ha~ splag_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
+  formula_PCA_splag_dataframe = yield_tn_ha~splag_yield_tn_ha+rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21+district+years 
+  
+  random_pca_splag = plm(formula_PCA_splag, data=pca_pred_balanced, index=c("district", "years"), model="random")
+  summary(random_pca_splag) 
+  
 
   
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(random_pca_splag$residuals^2)
+  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_pred_balanced, index=c("district", "years"), model="pooling")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE) # 0.5760017
+  Witin_R2  #0.7345237
   
-# Basic Scatterplot Matrix
+  # plot spatial lag panel regression 
+  fitted_pca_splag = data.frame(fitted = random_pca_splag$model[[1]] - random_pca_splag$residuals)
+  model_data_pca_splag = cbind(as.data.frame(as.matrix(random_pca_splag$model)),fitted_pca_splag)
+  model_data_pca_splag = cbind(model_data_pca_splag,na.omit(model.frame(formula_PCA_splag_dataframe,pca_pred_balanced)))  
+  model_data_pca_splag$district = as.character(model_data_pca_splag$district)
+  model_data_pca_splag$years_id = as.numeric(substr(model_data_pca_splag$year,1,4))
+  model_data_pca_splag = model_data_pca_splag[,c('district','years_id','yield_tn_ha','fitted')]
+  model_data_pca_splag = melt(model_data_pca_splag,id = c('years_id','district'))
+  
+  windows()
+  ggplot(data=model_data_pca_splag,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+  # SPLM - Spatial lag estimation  -------------------------------------------------
+  formula_PCA_splag2 = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
+  formula_PCA_splag2_dataframe = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21+district+years
+  
+  sararremod <- spml(formula_PCA_splag2, data = pca_pred_balanced, index = c("district", "years"),
+                     listw = districts_polyListw, model = "random", lag = TRUE, spatial.error = "b")
+  summary(sararremod)
+  summary(sararremod)$rsqr
+  # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
+  SSR_FULL = sum(sararremod$residuals^2)
+  SSR_FE = sum( spml(yield_tn_ha~1 +as.factor(district), data = pca_pred_balanced, index = c("district", "years"),
+                     listw = districts_polyListw, model = "random", lag = F, spatial.error = "none")$residuals^2)
+  Witin_R2 =  1 - (SSR_FULL/SSR_FE)    
+  Witin_R2  
+  
+  # plot spatial lag panel regression 
+  fitted_pca_sararremod = data.frame(fitted = sararremod$model[[1]] - sararremod$residuals)
+  fitted_pca_sararremod = cbind(as.data.frame(as.matrix(sararremod$model)),fitted_pca_splag)
+  fitted_pca_sararremod = cbind(fitted_pca_sararremod,na.omit(model.frame(formula_PCA_splag2_dataframe,pca_pred_balanced)))  
+  fitted_pca_sararremod$district = as.character(fitted_pca_sararremod$district)
+  fitted_pca_sararremod$years_id = as.numeric(substr(fitted_pca_sararremod$year,1,4))
+  fitted_pca_sararremod = fitted_pca_sararremod[,c('district','years_id','yield_tn_ha','fitted')]
+  fitted_pca_sararremod = melt(fitted_pca_sararremod,id = c('years_id','district'))
+  fitted_pca_sararremod$variable= as.character(fitted_pca_sararremod$variable)
+  fitted_pca_sararremod$variable[fitted_pca_sararremod$variable=='fitted']='Fitted Spatial'
+  
+  windows()
+  ggplot(data=fitted_pca_sararremod,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+
+  # Plot temporal and spatial fit  ------------------------------------------
+  
+  space_time_fit = rbind(model_data_pca,fitted_pca_sararremod)
+  space_time_fit = space_time_fit[space_time_fit$district %in% unique(fitted_pca_sararremod$district),]
+  
+  windows()
+  ggplot(data=space_time_fit,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+    geom_point(size=2)+ scale_colour_manual(values = c("purple","#66d9ff", "#ff8080")) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+  
+    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+  
+  
+  
+  
+  
+  
+  
+  # Basic Scatterplot Matrix
   pairs(yield_tn_ha~A_mn+A_min+A_max+A_AUC+G_mx_dates+G_mn+G_min+G_mx+G_AUC+G_AUC_leading
         +G_AUC_trailing+season_length+year_trend, data =yield_evi,main="Simple Scatterplot Matrix")
+
+
+
+
+
+
 
 
 

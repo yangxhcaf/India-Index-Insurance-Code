@@ -611,7 +611,7 @@ yield_evi$countrystatedistrict=paste(yield_evi$country,yield_evi$state,yield_evi
   tuned.rf$best.model
   plot(tuned.rf)
   #EVI % Var explained: 40.86  # 44.42 if punjab data is inserted   or if outliers removed 49.31
-  #NDVI % Var explained: 46.94
+  #NDVI % Var explained: 46.94    47% with rice stats
 
 
 ###########################################

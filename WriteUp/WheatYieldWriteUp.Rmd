@@ -46,7 +46,7 @@ output: word_document
   yield_ndvi[ yield_ndvi$yield_tn_ha<1 | yield_ndvi$yield_tn_ha>6,'yield_tn_ha']= NA 
   
   # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  - plm sorts by name and year 
-  yield_ndvi=yield_ndvi[with(yield_ndvi, order(district, years)), ]
+  yield_ndvi=yield_ndvi[with(yield_ndvi, order(years,district)), ]
   
   # Create variabels comparing percentiles to actual 
   yield_ndvi$rice_growing_95th_diff_mn =  yield_ndvi$rice_growing_mean-yield_ndvi$rice_growing_95th_prct
@@ -146,7 +146,7 @@ To test for model improvements obtained through time series cubic smoothing we i
 Agricultural survey data at the district level was obtained from _________. INCLUDE DESCRIPTION OF SWAPPING PUNJAB STATE DATA.
 
 ##Exploiting Time: Summarizing Remotely Sensed Data
-One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI','Rabi','Kharif','R_mx','All_95th'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$Rabi_plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$Rabi_harvest_dates,na.rm=T)))`); and second monsoon season statistics, spanning end of the Rabi wheat season to end of the Kharif growing season. Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration (i.e. integration). 
+One of the primary challenges in utilizing an 8 day time series to estimate annual wheat yields is the mismatch in observations. Properties of the time signature must be obtained to characterize and identify important components of the plant phenology time signature correlated with wheat yields in these agricultural systems. Here we utilize `r paste(length(multi_grep_character(c('VEG','dates','EVI','NDVI','Rabi','Kharif','R_mx','All_95th'), names(yield_ndvi))))` metrics to summarize phenology. These measures take two primary forms: first, growing season statistics, spanning the estimated planting date of wheat (mean DOY:`r paste(round(mean(yield_ndvi$Rabi_plant_dates,na.rm=T)))`) until harvest date (mean DOY:`r paste(round(mean(yield_ndvi$Rabi_harvest_dates,na.rm=T)))`); and second monsoon season statistics, spanning end of the Rabi wheat season to end of the Kharif growing season. Two classes of statistics are estimated for these two periods: first, summary statistics (e.g. mean, max, variance) and integration. 
 
 Pixels with in area of interest (AOI), district boundaries in this case, can be evaluated on a pixel by pixel basis in utilizing parrallel processing or summarized by the AOI's mean value for each image. In this study, district level mean values of NDVI are used to represent agricultural productivity for each 8 day period. 
 
@@ -230,7 +230,7 @@ A summary table of the value of the dependent variable and all independent varia
   pander(table.yield_ndvi.out, justify = c('left', 'center', 'center'))
 ```
 
-###Panel Regression Methods and Diagnostic results
+##Panel Regression Methods and Diagnostic results
 
 
 ```{r SETUP: Calculate PCA, echo=FALSE, message=FALSE, warning=FALSE}
@@ -250,6 +250,8 @@ A summary table of the value of the dependent variable and all independent varia
   pca_pred$district = pca_input$district
   pca_pred$years = pca_input$years
   pca_pred$yield_tn_ha =pca_input$yield_tn_ha
+
+  
   
   # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
   pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
@@ -325,7 +327,7 @@ A summary table of the value of the dependent variable and all independent varia
   #getAnywhere('bsktest.formula')  # view function 
 ```  
 
-##Diagnostic Tests 
+###Diagnostic Tests 
 To avoid overstating the statistical significance of regression coefficients we test the residuals from a pooled linear for spatial autocorrelation [@Fotheringham2002]. Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
 
 (`r paste(F1)`)                
@@ -386,24 +388,37 @@ To avoid problems with multicolinearity between independent variables we apply a
  
  
 ###OLS Regression Estimation
+```{r Balance the panel, message=FALSE, warning=FALSE, include=FALSE}
+
+  # BALANCE THE PANEL
+  # find all districts with 10 years
+  balanced_panel = as.character(as.data.frame(table(pca_pred$district))$Var1[as.data.frame(table(pca_pred$district))$Freq ==10])
+  
+  # confirm balanced 
+  table(pca_pred$years[pca_pred$district %in% balanced_panel])
+  pca_pred = pca_pred[pca_pred$district %in% balanced_panel,]
+                                                
+  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  FOR SPLM MUST BE SORTED BY YEARS DISTRICT
+  pca_pred=pca_pred[with(pca_pred, order(years, district )), ]        
+```
+
 
 
 ```{r LM for prediction, message=FALSE, warning=FALSE, include=FALSE}
   # formulas
   PCA_formula_regression =yield_tn_ha~   rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
   
-  PCA_formula_regression_dataframe = yield_tn_ha~ rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+ PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
+  PCA_formula_regression_dataframe = yield_tn_ha~rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
  
   # estimate lm
   lm1 <- lm(PCA_formula_regression, data=pca_pred)
  
-  #stargazer(random_pca, type="text")
+  #stargazer(fixed_pca, type="text")
   summary(lm1)
    
   # predict lm to all dates
   lm_pred = predict(lm1,newdata = pca_pred,se.fit=T)
-  lm_pred
-
+   
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
   SSR_FULL = sum((pca_pred$yield_tn_ha-lm_pred$fit)^2)
   SSR_FE = sum( lm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input)$residuals^2)
@@ -420,13 +435,12 @@ To avoid problems with multicolinearity between independent variables we apply a
   #ggplot(data=model_data_lm,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
   #  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
   #  theme(axis.text.x  = element_text(angle=90, vjust=0.5))
-  
-  
+
 ```  
 
 Traditional ordinary least squares (OLS) approaches look at cross-sectional (or time-series) data, exploiting variance in one dimension. However most social and phsyical processes occur over both space and time. For this reason we focus on the use of panel data sets which increases the amount of observed heterogeniety by including information about individuals *i* over time *t*. Critically, despite its widespread use in the field Geography (e.g. [@Mann2010a]), cross-sectional should *not* be used for forecasting, or for modeling of phenomenon with strong temporal components. 
 
-Compared to cross-sectional approaches, panel analysis substantially increases the degree of observed variance over both space and time. When pooled together, the integration of two statewide data sets provides (n = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` sample period (t = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides (N=`r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))`) observations.  
+Compared to cross-sectional approaches, panel analysis substantially increases the degree of observed variance over both space and time. When pooled together, the integration of two statewide data sets provides (n = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` sample period (t = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides (N=`r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))`) observations. Due to issues with estimating spatial panel models, the input data must be balanced (no missing observations for any districts). As such the number of districts for this regression is limited to **14** out of **36** total. This loss however is compensated by the fact that we can now compare a variety of estimation stategies on an even playing ground. **Additionally, the omitted 22 districts will be used for out of sample testing later.**
 
 Pooled OLS estimation assumes that intercepts and slopes are fixed between individual districts *i* with no specific treatment of time *t*. Although simple to understand, pooled OLS sometimes fails to properly control for determinants of spatial and temporal heterogeniety (e.g. districts with different policies, or changes to policies over time). Although the choice between pooled vs more complicated estimators, must be tested (see section '*Tests: Pooled, Fixed or Random*'). For comparison we estimate three types of panel models in this paper. The first of which, pooled OLS, is estimated in equation `r F2=Formula_number` `r paste(F2)`: `r Formula_number=Formula_number+1`
 
@@ -444,7 +458,7 @@ For a fixed effect panel, we estimate equation `r F3=Formula_number` `r paste(F3
 (`r paste(F3)`)                
 $\ Y_{it}=\alpha_{i}+\beta_{1}PC(1)_{it-1}+\sum_{k=1}^{K}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
  
-Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_{1}PC(1)_{it-1}$ is a one-period temporal lag of the first pricipal component, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_{1}PC(1)_{it-1}$ is a one-period temporal lag of the first pricipal component, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
 
 [^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100))` % of total variance in $\mathbf{X}$
 
@@ -454,11 +468,9 @@ Spatial autocorrelation is a special case of cross-sectional dependence caused b
 For these reasons a spatially lagged fixed effect panel model is developed where spatial dependence is controlled for using a spatially weighted dependent variable, in the following form in `r F4=Formula_number` `r paste(F4)`: `r Formula_number=Formula_number+1`
 
 (`r paste(F4)`)                
-$\ Y_{it}=...+\rho\sum_{j=2}^{J}W_{ij}Y_{it}+...+ \gamma_{t} +\epsilon_{it}$
+$\ Y_{it}=...+\lambda\sum_{j=2}^{J}W_{ij}Y_{it}+...+ \gamma_{t} +\epsilon_{it}$
 
-Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\rho\sum_{j=2}^{J}W_{ij}Y_{it}$ where $\rho$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polygon continuity**. 
-
-Due to issues with estimating spatial panel models, the input data must be balanced (no missing observations for any districts). As such the number of districts for this regression is limited to **14**. Some portion of the performance gains of spatial panel estimates should be attributed to this fact. 
+Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\lambda\sum_{j=2}^{J}W_{ij}Y_{it}$ where $\lambda$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polygon continuity**. 
 
 The following results section will outline the results from OLS, Panel, and Spatial Panel estimation (e.q. `r paste(F2,F4,sep='-')`)
 
@@ -467,7 +479,10 @@ The following results section will outline the results from OLS, Panel, and Spat
  
 
 ##Panel Regression
+In this section we compare the results of three panel regression estimation techniques: pooled, fixed effects and spatially lagged fixed effects. In particular we are interested in the adjusted $R^{2}$ which controls for the loss of degrees of freedom, and the 'within' $R^{2}$ which evaluates the goodness of fit beyond what can be explained by fixed effects intercepts $\alpha_{i}$ (or transform), (see "Assessing goodness of fit" in [@Stata2016]). This 'within' $R^{2}$ is of particular interest because it is our best estimate of performance of the model in estimating year to year variations in crop yields. 
+
 ###Pooled OLS
+Estimates of equation (`r paste(F2)`) are provide below:
 
 ```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
 
@@ -481,7 +496,7 @@ print(paste('Within R2',round(Witin_R2,2)))
 
 ### Fixed Effects Panel
 
-Estimates of equation (`r paste(F1)`) are provide below:
+Estimates of equation (`r paste(F3)`) are provide below:
 
 *District level random effects estimation of wheat yields in tons per hectare*
 ```{r Panel FE: Fitted vs actual PCA estimate, echo=FALSE}
@@ -494,95 +509,51 @@ Estimates of equation (`r paste(F1)`) are provide below:
   pca_pred$lag1_PC1 = lag(pca_pred$PC1,1)
 
   # estimate plm
-  random_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
+  fixed_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
  
-  #stargazer(random_pca, type="text")
-  summary(random_pca)
+  #stargazer(fixed_pca, type="text")
+  summary(fixed_pca)
    
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
-  SSR_FULL = sum(random_pca$residuals^2)
+  SSR_FULL = sum(fixed_pca$residuals^2)
   SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
   print(paste('Within R2',round(Witin_R2,2)))
   
-```
-
-
-*Figure `r paste(Figure_number)`: Fitted vs actual for estimation of equation (`r paste(Formula_number)`)  `r aaa=Figure_number` `r Figure_number =Figure_number+1 `*
-```{r Panel: Fitted vs actual PCA PLOT, fig.width=10, fig.height=6, echo=FALSE}
-  # get prediction and and model.frame 
-  fitted_pca = data.frame(PCA_Fit = random_pca$model[[1]] - random_pca$residuals)
-  model_data_pca = cbind(as.data.frame(as.matrix(random_pca$model)),fitted_pca)
-  model_data_pca = cbind(model_data_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
+  # get prediction and and model.frame  from FE PCA
+  fitted_pca = data.frame(PCA_Fit = fixed_pca$model[[1]] - fixed_pca$residuals)
+  model_data_pca = cbind(as.data.frame(as.matrix(fixed_pca$model)),fitted_pca)
+  model_data_pca = cbind(model_data_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))
   model_data_pca$district = as.character(model_data_pca$district)
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
   model_data_pca = melt(model_data_pca,id = c('years_id','district'))
   
-  #ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
-  #  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
-  #  theme(axis.text.x  = element_text(angle=90, vjust=0.5))
-  
-# plots of model performance 
-#ggplot(data=melt(data.frame(Residuals = random_pca$residuals,Yield_tn_ha=random_pca$model[[1]],Prc_Error=random_pca$residuals/random_pca$model[[1]])),aes(x=value,fill=variable))+geom_histogram(bins=50)
-
-#ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100),aes(x=Prc_Error))+geom_histogram(bins=30)+xlab('% Error')
-
-
-# OMITING BC OF ERROR not sure what this is used for. 
-
-  # error_pca = data.frame(PCA_Error = random_pca$residuals)
-  # error_data_pca = cbind(error_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
-  # error_data_pca$Per_Error =  (error_data_pca$PCA_Error/ error_data_pca$yield_tn_ha)*100
-  # error_data_pca$years_id = as.numeric(substr(error_data_pca$year,1,4))
-  # error_data_pca$district = as.character(error_data_pca$district)
-  # error_data_pca = error_data_pca[,c('district','years_id','Per_Error')]
-  # error_data_pca = melt(error_data_pca,id = c('years_id','district'))
-
- 
-# histogram of errors stacked histogram use in presentation
-  # library(plotly)
-  # ggplot(data=error_data_pca,aes(x=value,fill=district))+ geom_histogram( )+xlab('% Error')+ theme(legend.position="none")
-  # ggplotly()
-  # 
-  # 
-  # ggplot(data= data.frame(Prc_Error=abs(random_pca$residuals/random_pca$model[[1]]*100)),aes(x=Prc_Error)) +   stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
-  # 
-  # ggplot(data= data.frame(Prc_Error=abs(random_pca$residuals/random_pca$model[[1]]*100)),aes(x=Prc_Error)) + stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
-
 ```
+
+
 
 
 ##Spatial Panel Regression
 
-  *Actual values (red), predicted values (blue)*
+Estimates of equation (`r paste(F4)`) are provide below:
+ 
 ```{r Panel: Spatial Panel Estimation, fig.width=10, fig.height=6, echo=FALSE}
   #yeild and evi data
   pca_pred_splm = as.data.frame(pca_pred)
 
   #distrct boundaries
-  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts',verbose = F)
   districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
   districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
   
  # get District outlines
-  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  districts_plm = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts',verbose=F)
   districts_plm = spTransform(districts_plm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
   districts_plm$NAME_2 = toupper(as.character(districts_plm$NAME_2)) 
-  
- # find all districts with 10 years
-  balanced_panel = as.character(as.data.frame(table(pca_pred_splm$district))$Var1[as.data.frame(table(pca_pred_splm$district))$Freq ==10])
-  
-  # confirm balanced 
-  table(pca_pred$years[pca_pred$district %in% balanced_panel])
-  pca_pred_balanced = pca_pred_splm[pca_pred_splm$district %in% balanced_panel,]
-                                                
-  # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER  FOR SPLM MUST BE SORTED BY YEARS DISTRICT
-  pca_pred_balanced=pca_pred_balanced[with(pca_pred_balanced, order(years, district )), ]                                            
-       
         
   # Create spatial weights  Remove all districts not in balanced panel
-  districts_plm = districts_plm[as.character(districts_plm@data$NAME_2) %in% as.character(unique(pca_pred_balanced[,'district'])),]
+  districts_plm = districts_plm[as.character(districts_plm@data$NAME_2) %in% as.character(unique(pca_pred[,'district'])),]
   districts_polyNB = poly2nb(districts_plm,row.names=as.character(districts_plm@data$NAME_2)) # row.names = row.names(districts_plm)polygon continuity$GEOID10
   Wneigh = nb2mat(districts_polyNB, style='W')
   districts_polyListw = nb2listw(districts_polyNB) 
@@ -590,34 +561,33 @@ Estimates of equation (`r paste(F1)`) are provide below:
   
  # SPLM - Spatial lag estimation  -------------------------------------------------
   
-  sararremod <- spml(PCA_formula_regression, data = pca_pred_balanced, index = c("district", "years"),
-                     listw = districts_polyListw, model = "within", lag = TRUE, spatial.error = "b")
-  summary(sararremod)
-  summary(sararremod)$rsqr
+  splm_lag <- spml(PCA_formula_regression, data = pca_pred, index = c("district", "years"),
+                     listw = districts_polyListw, model = "within", lag = TRUE, spatial.error = "none")
+  summary(splm_lag)
+  
+  paste('R2=',summary(splm_lag)$rsqr)
   
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
-  SSR_FULL = sum(sararremod$residuals^2)
-  SSR_FE = sum( spml(yield_tn_ha~1 +as.factor(district), data = pca_pred_balanced, index = c("district", "years"),
+  SSR_FULL = sum(splm_lag$residuals^2)
+  SSR_FE = sum( spml(yield_tn_ha~1 +as.factor(district), data = pca_pred, index = c("district", "years"),
                      listw = districts_polyListw, model = "pooling", lag = F, spatial.error = "b")$residuals^2)
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)    
-  Witin_R2  
-  
-  
+  paste('Within R2=',round(Witin_R2,2))
+
+  pca_pred=pca_pred[with(pca_pred, order(years, district )), ]  # must do to do prediction 
   # plot spatial lag panel regression 
-  head(sararremod$model[[1]],10)
-  head(pca_pred_balanced$yield_tn_ha,10)
-  model_pca_sararremod = data.frame(SPLM_Fit =  sararremod$model[[1]] - sararremod$residuals)
-  model_pca_sararremod = cbind(as.data.frame(as.matrix(sararremod$model)),model_pca_sararremod)
-  model_pca_sararremod = cbind(model_pca_sararremod,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred_balanced)))  
+  model_pca_splm_lag = data.frame(SPLM_Fit =  splm_lag$model[[1]] - splm_lag$residuals )
+  model_pca_splm_lag = cbind(as.data.frame(as.matrix(splm_lag$model)),model_pca_splm_lag)
+  model_pca_splm_lag = cbind(model_pca_splm_lag,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
   
-  model_pca_sararremod$district = as.character(model_pca_sararremod$district)
-  model_pca_sararremod$years_id = as.numeric(substr(model_pca_sararremod$year,1,4))
-  model_pca_sararremod = model_pca_sararremod[,c('district','years_id','yield_tn_ha','SPLM_Fit')]
-  model_pca_sararremod = melt(model_pca_sararremod,id = c('years_id','district'))
-  model_pca_sararremod$variable= as.character(model_pca_sararremod$variable)
-  model_pca_sararremod$variable[model_pca_sararremod$variable=='fitted']='Fitted Spatial'
+  model_pca_splm_lag$district = as.character(model_pca_splm_lag$district)
+  model_pca_splm_lag$years_id = as.numeric(substr(model_pca_splm_lag$year,1,4))
+  model_pca_splm_lag = model_pca_splm_lag[,c('district','years_id','yield_tn_ha','SPLM_Fit')]
+  model_pca_splm_lag = melt(model_pca_splm_lag,id = c('years_id','district'))
+  model_pca_splm_lag$variable= as.character(model_pca_splm_lag$variable)
+  model_pca_splm_lag$variable[model_pca_splm_lag$variable=='fitted']='Fitted Spatial'
   
-  # ggplot(data=model_pca_sararremod,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+  # ggplot(data=model_pca_splm_lag,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
    # geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
    # theme(axis.text.x  = element_text(angle=90, vjust=0.5))
    
@@ -627,25 +597,74 @@ Estimates of equation (`r paste(F1)`) are provide below:
 ```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL, fig.width=10, fig.height=6, echo=FALSE}
 
 # Plot temporal and spatial fit  ------------------------------------------
-  
-  space_time_fit = rbind(model_data_pca,model_pca_sararremod,model_data_lm)
-  
-  space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_pca_sararremod$district),]
-  space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_data_lm$district),]
 
-  levels(space_time_fit$variable) =c('Actual Yields', 'PCA Fit','SPLM Fit','OLS Fit')
-  #windows()
-  # ggplot(data=space_time_fit,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.2))+
-  #   geom_point(size=2)  + scale_colour_manual(values = c("black",'purple','green', "mediumblue")) + facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons / ha')+  
-  #   theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  space_time_fit = rbind(model_data_pca,model_pca_splm_lag,model_data_lm)
+  space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_pca_splm_lag$district),]
+  space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_data_lm$district),]
+  levels(space_time_fit$variable) =c('Actual Yields', 'FE Fit','Spatial Fit','Pool Fit')
+   
+  ggplot()+geom_line(data=space_time_fit[space_time_fit$variable=='Actual Yields',],aes(x=years_id,y=value,colour=variable),size=1.2)+  
+  geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons / ha')+  
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010, 2015))
   
-    ggplot()+geom_line(data=space_time_fit[space_time_fit$variable=='Actual Yields',],aes(x=years_id,y=value,colour=variable),size=1.2)+  
-    geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons / ha')+  
-    theme(axis.text.x  = element_text(angle=90, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010, 2015))
+```  
+  
+  
+  
+```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL HISTOGRAM, fig.width=10, fig.height=6, echo=FALSE}
+
+# Plot temporal and spatial fit  ------------------------------------------
+
+  residual_dist = data.frame(OLS_res = lm1$residuals,PCA_res = fixed_pca$residuals,SPLM_res = splm_lag$residuals)
+  residual_dist = melt(residual_dist)
+  levels(residual_dist$variable) =c('Pool', 'FE','Spatial')
+   
+  # ggplot(data=residual_dist,aes(x=value,group=variable))+ geom_histogram(aes(y = ..density..,fill=variable), alpha=.3, position="identity") + geom_density(aes(colour=variable),size=1.5)  
+  
+   ggplot(data=residual_dist,aes(x=value,group=variable))+  geom_density(aes(colour=variable,fill=variable),size=1.5,alpha=.3)+xlab('Residuals')+ylab('Density')  
   
 ```  
   
 
+##Out-of-Sample Estimation
+```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
+
+forecast.jk.out = function(dataoutsmp,formula,results, constant){
+  form1 = as.character(formula)                                        #extract formula used
+  form = paste(form1[2],form1[1],form1[3], " + nbHuD4",sep=" ")      #append nb density 
+  Xs  = model.frame(as.formula(form),dataoutsmp, na.action=NULL)
+  Xs  = subset(Xs, select=-c(HuDac4))                             # remove Y
+  if (constant == T) {Xs= data.frame(Intercept=1, Xs)}
+  b   = results
+  Bs  = as.vector(c(b$coefficients, b$arcoef))                    # get coefficients + spatial coef
+  XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                 # apply coefficients to Xs
+  P1  = data.frame(P1=rowSums(XBs))                               # non-spatial yhat
+  den     = subset(dataoutsmp, select=c(SUM090,time,id,HuDac4))
+  Preds   = merge(P1, den, by="row.names", incomparables=NA)
+  Preds$E1 = Preds$HuDac4-Preds$P1         
+}
+
+splm_lag PCA_formula_regression
+### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
+  form = as.character(PCA_formula_regression)                     #extract formula used
+  form = paste(form[2],form[1],form[3], " + nbHuD4",sep=" ")      #append nb density 
+  Xs  = model.matrix( as.formula(form) , panel.data4)             # get all relevant data
+  Bs  = as.vector(c(b$coefficients, b$arcoef))                    # get coefficients + spatial coef
+  XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                 # apply coefficients to Xs
+  P1  = rowSums(XBs)                                              # non-spatial yhat
+  # results = summary(b)                                          # use to extract t-values, p-values, R2 or other stats  
+
+  ###  COMPARE PREDS 
+  den = subset(panel.data4, select=c(SUM090,time,id,HuDac4))
+  Preds = merge(P1, den, by="row.names")
+  Preds$E1 = Preds$HuDac4-Preds$x          
+
+  ### DISPLAY RESIDS 
+  hist(Preds$E1[Preds$E1<4 & Preds$E1> -4 ], breaks=30)
+  hist(Preds$HuDac4[Preds$HuDac4<20], breaks=30)
+```
+  
+  
 #Discussion
 
 
@@ -1002,4 +1021,67 @@ extract_value_point_polygon = function(point_or_polygon, raster_stack, num_worke
 References {#references .unnumbered}
 ==========
 
+
+
+*Figure `r paste(Figure_number)`: Fitted vs actual for estimation of equation (`r paste(Formula_number)`)  `r aaa=Figure_number` `r Figure_number =Figure_number+1 `*
+```{r Panel: Fitted vs actual PCA PLOT, fig.width=10, fig.height=6, echo=FALSE}
+# COMMENT OUT TOP NOT SURE WHAT DOES 
+ # get prediction and and model.frame 
+  # fitted_pca = data.frame(PCA_Fit = fixed_pca$model[[1]] - fixed_pca$residuals)
+  # model_data_pca = cbind(as.data.frame(as.matrix(fixed_pca$model)),fitted_pca)
+  # model_data_pca = cbind(model_data_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
+  # model_data_pca$district = as.character(model_data_pca$district)
+  # model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
+  # model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
+  # model_data_pca = melt(model_data_pca,id = c('years_id','district'))
+  
+  #ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+  #  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+  #  theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  
+# plots of model performance 
+#ggplot(data=melt(data.frame(Residuals = fixed_pca$residuals,Yield_tn_ha=fixed_pca$model[[1]],Prc_Error=fixed_pca$residuals/fixed_pca$model[[1]])),aes(x=value,fill=variable))+geom_histogram(bins=50)
+
+#ggplot(data= data.frame(Prc_Error=fixed_pca$residuals/fixed_pca$model[[1]]*100),aes(x=Prc_Error))+geom_histogram(bins=30)+xlab('% Error')
+
+
+# OMITING BC OF ERROR not sure what this is used for. 
+
+  # error_pca = data.frame(PCA_Error = fixed_pca$residuals)
+  # error_data_pca = cbind(error_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
+  # error_data_pca$Per_Error =  (error_data_pca$PCA_Error/ error_data_pca$yield_tn_ha)*100
+  # error_data_pca$years_id = as.numeric(substr(error_data_pca$year,1,4))
+  # error_data_pca$district = as.character(error_data_pca$district)
+  # error_data_pca = error_data_pca[,c('district','years_id','Per_Error')]
+  # error_data_pca = melt(error_data_pca,id = c('years_id','district'))
+
+ 
+# histogram of errors stacked histogram use in presentation
+  # library(plotly)
+  # ggplot(data=error_data_pca,aes(x=value,fill=district))+ geom_histogram( )+xlab('% Error')+ theme(legend.position="none")
+  # ggplotly()
+  # 
+  # 
+  # ggplot(data= data.frame(Prc_Error=abs(fixed_pca$residuals/fixed_pca$model[[1]]*100)),aes(x=Prc_Error)) +   stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
+  # 
+  # ggplot(data= data.frame(Prc_Error=abs(fixed_pca$residuals/fixed_pca$model[[1]]*100)),aes(x=Prc_Error)) + stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
+
+```
+
+
+<!-- ###Cross-sectional Analysis -->
+<!-- ```{r Cross-Section: Fitted vs actual PCA estimate, echo=FALSE} -->
+<!--   cs_formula = yield_tn_ha~ PC1+PC2+PC3+PC4+PC5  -->
+<!--   lm_cs <- lm(cs_formula, data=pca_pred[as.numeric(pca_pred$years)==12,]) -->
+<!--   lm_pred_cs = predict(lm_cs,newdata = pca_pred,se.fit=T) -->
+<!--   R2 = summary(lm_cs)$r.squared -->
+<!--   R2adj = summary(lm_cs)$adj.r.squared -->
+
+<!--   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709 -->
+<!--   SSR_FULL = sum((pca_pred$yield_tn_ha-lm_pred_cs$fit)^2) -->
+<!--   SSR_FE = sum( lm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input)$residuals^2) -->
+<!--   Witin_R2 =  1 - (SSR_FULL/SSR_FE)   -->
+<!--   print(paste(round(R2,2),round(R2adj,2),round(R2,2))) -->
+
+<!-- ``` -->
 

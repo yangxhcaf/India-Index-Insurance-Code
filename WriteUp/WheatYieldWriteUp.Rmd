@@ -325,6 +325,7 @@ A summary table of the value of the dependent variable and all independent varia
   #getAnywhere('bsktest.formula')  # view function 
 ```  
 
+##Diagnostic Tests 
 To avoid overstating the statistical significance of regression coefficients we test the residuals from a pooled linear for spatial autocorrelation [@Fotheringham2002]. Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
 
 (`r paste(F1)`)                
@@ -384,7 +385,7 @@ stargazer(as.data.frame(vif(fit)),type = 'text')
 To avoid problems with multicolinearity between independent variables we apply a principal components analysis transformation (PCA) to a centered and scaled matrix of independent variables $\ X$. PCA allows for the replacement of $\ X$ with a new matrix whos variables are orthogonal to each other but span the multidimensional space of $\ X$ [@GELADI19861]. In this case we generate `r paste(dim(pca$rotation)[1])` principal components for inclusion in a random effects panel regression. A table of PCA component imporance can be found in the appendix, Table(A`r AT1=Appendix_Table_number``r paste(AT1)``r Appendix_Table_number=Appendix_Table_number+1`).
  
  
-####OLS Regression Estimation
+###OLS Regression Estimation
 
 
 ```{r LM for prediction, message=FALSE, warning=FALSE, include=FALSE}
@@ -423,52 +424,67 @@ To avoid problems with multicolinearity between independent variables we apply a
   
 ```  
 
-Traditional ordinary least squares (OLS) approaches look at cross-sectional (or time-series) data, exploiting variance in one dimension. Critically, despite its widespread use in the field Geography e.g. [@Mann2010a], cross-sectional should *not* be used for forecasting, or for modeling of phenomenon with strong temporal components. For this reason we focus on the use of panel data sets which increases the amount of observed heterogeniety by including information about individuals *i* over time *t*. 
-Compared to cross-sectional approaches this amounts to a substantial increase in the degree of observed variance over both space and time. When pooled together, the integration of two statewide data sets (N = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` period (T = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides `r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))` observations.  
+Traditional ordinary least squares (OLS) approaches look at cross-sectional (or time-series) data, exploiting variance in one dimension. However most social and phsyical processes occur over both space and time. For this reason we focus on the use of panel data sets which increases the amount of observed heterogeniety by including information about individuals *i* over time *t*. Critically, despite its widespread use in the field Geography (e.g. [@Mann2010a]), cross-sectional should *not* be used for forecasting, or for modeling of phenomenon with strong temporal components. 
 
-Pooled OLS estimation assumes that intercepts and slopes are fixed between individual districts *i* with no specific treatment of time *t*. Although simple to understand, pooled OLS can fail to properly control for determinants of spatial and temporal heterogeniety (e.g. districts with different policies, or changes to policies over time). Although the choice between pooled vs more complicated estimators, must be tested. For comparison we estimate three types of panel models in this paper. The first of which is pooled OLS is estimated in `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
+Compared to cross-sectional approaches, panel analysis substantially increases the degree of observed variance over both space and time. When pooled together, the integration of two statewide data sets provides (n = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` sample period (t = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides (N=`r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))`) observations.  
 
-(`r paste(F1)`)                
-$\ Y_{i}=\alpha+\sum_{k=1}^{N}\beta_{k}PC(k)_{i}+\epsilon_{i}$
+Pooled OLS estimation assumes that intercepts and slopes are fixed between individual districts *i* with no specific treatment of time *t*. Although simple to understand, pooled OLS sometimes fails to properly control for determinants of spatial and temporal heterogeniety (e.g. districts with different policies, or changes to policies over time). Although the choice between pooled vs more complicated estimators, must be tested (see section '*Tests: Pooled, Fixed or Random*'). For comparison we estimate three types of panel models in this paper. The first of which, pooled OLS, is estimated in equation `r F2=Formula_number` `r paste(F2)`: `r Formula_number=Formula_number+1`
 
-Where $\ Y_{i}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* across all years, $\ \alpha$ is an intercept term, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{i}$ corresponding to the *N* principal components, and $\ \epsilon_{i}$ is the residual. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
+(`r paste(F2)`)                
+$\ Y_{i}=\alpha+\sum_{k=1}^{K}\beta_{k}PC(k)_{i}+\epsilon_{i}$
 
-####Panel Regression Estimation
+Where $\ Y_{i}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each observation *i* which includes all districts across all years, $\ \alpha$ is an intercept term, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{i}$ corresponding to the *K* principal components, and $\ \epsilon_{i}$ is the residual. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
 
-We use panel data to model wheat yields over time at the district level. The use of panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). 
-Here we estimate equation `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
+###Panel Regression Estimation
 
-(`r paste(F1)`)                
-$\ Y_{it}=\alpha_{i}+\beta_{1}PC(1)_{it-1}+\sum_{k=1}^{N}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
+We use panel data to model wheat yields over time at the district level. The use of panel data in this study helps to alleviate two key problems, unobserved spatial and temporal dynamics, and homogeneity (lack of variance). Now we use *i* to designate districts, rather than individual observations, and individual observations are the unique combination of *i* and *t*. 
+
+For a fixed effect panel, we estimate equation `r F3=Formula_number` `r paste(F3)`: `r Formula_number=Formula_number+1`
+
+(`r paste(F3)`)                
+$\ Y_{it}=\alpha_{i}+\beta_{1}PC(1)_{it-1}+\sum_{k=1}^{K}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
  
-
-Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha$ is an intercept term and controls for unobserved characteristics of each district *i*, $\ \beta_{1}PC(1)_{it-1}$ is a one-period lag of the first pricipal component, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponding to the *N* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_{1}PC(1)_{it-1}$ is a one-period temporal lag of the first pricipal component, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
 
 [^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100))` % of total variance in $\mathbf{X}$
 
-####Spatial Panel Regression Estimation
+###Spatial Panel Regression Estimation
 Spatial autocorrelation is a special case of cross-sectional dependence caused by similarities of neighboring districts, and creates a situation whereby data can no longer be considered independently generated [@Anselin1999;@Elhorst2010]. The inclusion of a spatial lag (spillovers) can also increase predictive accuracy, as neighboring regions are often effected by similar exogenous shocks (for instance drought or rust) [@Mann2014;@Mann2017;@Mann2015]. A spatial lag model can be considered a specification identifying the equilibrium outcome of spatial or social interaction processes, where the dependent variable for an individual is jointly determined with that of its neighbors [@Elhorst2017].
 
-For these reasons a spatially lagged fixed effect panel model is developed where spatial dependence is controlled for using a spatially weighted dependent variable, in the following form in `r F1=Formula_number` `r paste(F1)`: `r Formula_number=Formula_number+1`
+For these reasons a spatially lagged fixed effect panel model is developed where spatial dependence is controlled for using a spatially weighted dependent variable, in the following form in `r F4=Formula_number` `r paste(F4)`: `r Formula_number=Formula_number+1`
 
-(`r paste(F1)`)                
+(`r paste(F4)`)                
 $\ Y_{it}=...+\rho\sum_{j=2}^{J}W_{ij}Y_{it}+...+ \gamma_{t} +\epsilon_{it}$
 
-Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\rho\sum_{j=2}^{J}W_{ij}Y_{it}$ where $\rho$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polgon continuity**. 
+Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\rho\sum_{j=2}^{J}W_{ij}Y_{it}$ where $\rho$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polygon continuity**. 
 
 Due to issues with estimating spatial panel models, the input data must be balanced (no missing observations for any districts). As such the number of districts for this regression is limited to **14**. Some portion of the performance gains of spatial panel estimates should be attributed to this fact. 
 
+The following results section will outline the results from OLS, Panel, and Spatial Panel estimation (e.q. `r paste(F2,F4,sep='-')`)
 
 #Results
 ##Focus Group Interviews
  
 
 ##Panel Regression
+###Pooled OLS
+
+```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
+
+summary(lm1)
+SSR_FULL = sum(lm1$residuals^2)
+SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
+Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
+print(paste('Within R2',round(Witin_R2,2)))
+
+```
+
+### Fixed Effects Panel
 
 Estimates of equation (`r paste(F1)`) are provide below:
 
 *District level random effects estimation of wheat yields in tons per hectare*
-```{r Panel: Fitted vs actual PCA estimate, echo=FALSE}
+```{r Panel FE: Fitted vs actual PCA estimate, echo=FALSE}
 
   # add a time lag  or dif
   pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
@@ -503,22 +519,25 @@ Estimates of equation (`r paste(F1)`) are provide below:
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
   model_data_pca = melt(model_data_pca,id = c('years_id','district'))
   
-  ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
-    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
-    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  #ggplot(data=model_data_pca,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+  #  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+  #  theme(axis.text.x  = element_text(angle=90, vjust=0.5))
   
 # plots of model performance 
 #ggplot(data=melt(data.frame(Residuals = random_pca$residuals,Yield_tn_ha=random_pca$model[[1]],Prc_Error=random_pca$residuals/random_pca$model[[1]])),aes(x=value,fill=variable))+geom_histogram(bins=50)
 
-ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100),aes(x=Prc_Error))+geom_histogram(bins=30)+xlab('% Error')
+#ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100),aes(x=Prc_Error))+geom_histogram(bins=30)+xlab('% Error')
 
-  error_pca = data.frame(PCA_Error = random_pca$residuals)
-  error_data_pca = cbind(error_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
-  error_data_pca$Per_Error =  (error_data_pca$PCA_Error/ error_data_pca$yield_tn_ha)*100
-  error_data_pca$years_id = as.numeric(substr(error_data_pca$year,1,4))
-  error_data_pca$district = as.character(error_data_pca$district)
-  error_data_pca = error_data_pca[,c('district','years_id','Per_Error')]
-  error_data_pca = melt(error_data_pca,id = c('years_id','district'))
+
+# OMITING BC OF ERROR not sure what this is used for. 
+
+  # error_pca = data.frame(PCA_Error = random_pca$residuals)
+  # error_data_pca = cbind(error_pca,na.omit(model.frame(PCA_formula_regression_dataframe,pca_pred)))  
+  # error_data_pca$Per_Error =  (error_data_pca$PCA_Error/ error_data_pca$yield_tn_ha)*100
+  # error_data_pca$years_id = as.numeric(substr(error_data_pca$year,1,4))
+  # error_data_pca$district = as.character(error_data_pca$district)
+  # error_data_pca = error_data_pca[,c('district','years_id','Per_Error')]
+  # error_data_pca = melt(error_data_pca,id = c('years_id','district'))
 
  
 # histogram of errors stacked histogram use in presentation
@@ -583,7 +602,7 @@ ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)    
   Witin_R2  
   
-   
+  
   # plot spatial lag panel regression 
   head(sararremod$model[[1]],10)
   head(pca_pred_balanced$yield_tn_ha,10)
@@ -598,9 +617,9 @@ ggplot(data= data.frame(Prc_Error=random_pca$residuals/random_pca$model[[1]]*100
   model_pca_sararremod$variable= as.character(model_pca_sararremod$variable)
   model_pca_sararremod$variable[model_pca_sararremod$variable=='fitted']='Fitted Spatial'
   
-   ggplot(data=model_pca_sararremod,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
-    geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
-    theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+  # ggplot(data=model_pca_sararremod,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
+   # geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
+   # theme(axis.text.x  = element_text(angle=90, vjust=0.5))
    
 ```
 

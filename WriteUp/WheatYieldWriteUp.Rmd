@@ -604,7 +604,7 @@ Estimates of equation (`r paste(F4)`) are provide below:
   levels(space_time_fit$variable) =c('Actual Yields', 'FE Fit','Spatial Fit','Pool Fit')
    
   ggplot()+geom_line(data=space_time_fit[space_time_fit$variable=='Actual Yields',],aes(x=years_id,y=value,colour=variable),size=1.2)+  
-  geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons / ha')+  
+  geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons/Hectare')+  
   theme(axis.text.x  = element_text(angle=90, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010, 2015))
   
 ```  
@@ -621,7 +621,7 @@ Estimates of equation (`r paste(F4)`) are provide below:
    
   # ggplot(data=residual_dist,aes(x=value,group=variable))+ geom_histogram(aes(y = ..density..,fill=variable), alpha=.3, position="identity") + geom_density(aes(colour=variable),size=1.5)  
   
-   ggplot(data=residual_dist,aes(x=value,group=variable))+  geom_density(aes(colour=variable,fill=variable),size=1.5,alpha=.3)+xlab('Residuals')+ylab('Density')  
+   ggplot(data=residual_dist,aes(x=value,group=variable))+  geom_density(aes(colour=variable,fill=variable),size=1.5,alpha=.3)+xlab('Residuals (Wheat Tons/Hectare)')+ylab('Density')  
   
 ```  
   
@@ -629,9 +629,27 @@ Estimates of equation (`r paste(F4)`) are provide below:
 ##Out-of-Sample Estimation
 ```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
 
+
+mean_neighbors_panel <- function(values,id,year,sweights){
+        # function calculates the mean value of neighbors values by using sweights e.g. Wneigh = nb2mat(out, style='W')
+        # ( data must be sorted by year, id )
+        values=values[with(values, order(year,id))]  # must do to do prediction 
+        mean_values=list()  # place to store outputs
+        for(i in year){
+            subset(values, year > i)
+
+            for(row in 1:length(values)){
+              mean_values=c(mean_values,sum(values*sweights[row,]))
+            }
+        }
+        return(as.numeric(mean_values))
+}
+
+neighbors_mn = mean_neighbors_panel(values=pca_pred$yield_tn_ha,id=pca_pred$district,year=pca_pred$years,sweights=Wneigh)
+
 forecast.jk.out = function(dataoutsmp,formula,results, constant){
   form1 = as.character(formula)                                        #extract formula used
-  form = paste(form1[2],form1[1],form1[3], " + nbHuD4",sep=" ")      #append nb density 
+  form = paste(form1[2],form1[1],form1[3], " + nbHuD4",sep=" ")      #append nb density
   Xs  = model.frame(as.formula(form),dataoutsmp, na.action=NULL)
   Xs  = subset(Xs, select=-c(HuDac4))                             # remove Y
   if (constant == T) {Xs= data.frame(Intercept=1, Xs)}
@@ -641,29 +659,29 @@ forecast.jk.out = function(dataoutsmp,formula,results, constant){
   P1  = data.frame(P1=rowSums(XBs))                               # non-spatial yhat
   den     = subset(dataoutsmp, select=c(SUM090,time,id,HuDac4))
   Preds   = merge(P1, den, by="row.names", incomparables=NA)
-  Preds$E1 = Preds$HuDac4-Preds$P1         
+  Preds$E1 = Preds$HuDac4-Preds$P1
 }
 
 splm_lag PCA_formula_regression
 ### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
   form = as.character(PCA_formula_regression)                     #extract formula used
-  form = paste(form[2],form[1],form[3], " + nbHuD4",sep=" ")      #append nb density 
+  form = paste(form[2],form[1],form[3], " + nbHuD4",sep=" ")      #append nb density
   Xs  = model.matrix( as.formula(form) , panel.data4)             # get all relevant data
   Bs  = as.vector(c(b$coefficients, b$arcoef))                    # get coefficients + spatial coef
   XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                 # apply coefficients to Xs
   P1  = rowSums(XBs)                                              # non-spatial yhat
-  # results = summary(b)                                          # use to extract t-values, p-values, R2 or other stats  
+  # results = summary(b)                                          # use to extract t-values, p-values, R2 or other stats
 
-  ###  COMPARE PREDS 
+  ###  COMPARE PREDS
   den = subset(panel.data4, select=c(SUM090,time,id,HuDac4))
   Preds = merge(P1, den, by="row.names")
-  Preds$E1 = Preds$HuDac4-Preds$x          
+  Preds$E1 = Preds$HuDac4-Preds$x
 
-  ### DISPLAY RESIDS 
+  ### DISPLAY RESIDS
   hist(Preds$E1[Preds$E1<4 & Preds$E1> -4 ], breaks=30)
   hist(Preds$HuDac4[Preds$HuDac4<20], breaks=30)
 ```
-  
+
   
 #Discussion
 

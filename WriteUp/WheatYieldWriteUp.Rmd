@@ -452,9 +452,9 @@ We use panel data to model wheat yields over time at the district level. The use
 For a fixed effect panel, we estimate equation `r F3=Formula_number` `r paste(F3)`: `r Formula_number=Formula_number+1`
 
 (`r paste(F3)`)                
-$\ Y_{it}=\alpha_{i}+\beta_{1}PC(1)_{it-1}+\sum_{k=1}^{K}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
+$\ Y_{it}=\alpha_{i}+\sum_{k=1}^{K}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
  
-Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_{1}PC(1)_{it-1}$ is a one-period temporal lag of the first pricipal component, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
 
 [^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100))` % of total variance in $\mathbf{X}$
 
@@ -499,10 +499,6 @@ Estimates of equation (`r paste(F3)`) are provide below:
 
   # add a time lag  or dif
   pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
-  pca_pred$lag1_yield_tn_ha = lag(pca_pred$yield_tn_ha,1)
-  pca_pred$diff1_yield_tn_ha = diff(pca_pred$yield_tn_ha,1)
-  pca_pred$diff1_PC1 = diff(pca_pred$PC1,1)
-  pca_pred$lag1_PC1 = lag(pca_pred$PC1,1)
 
   # estimate plm
   fixed_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
@@ -625,41 +621,32 @@ Estimates of equation (`r paste(F4)`) are provide below:
 ##Out-of-Sample Estimation
 ```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
 
-save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
-
-#load("..../dataimage.RData")
-
-  # create wihtin transform variables,  
-  demean <- numcolwise(function(x) x - mean(x,na.rm=T))
-  means <- numcolwise(function(x) rep(mean(x,na.rm=T),length(unique(pca_pred$years))))
-  dm_pca_pred <- ddply(pca_pred, .(district), demean)
-  dm_pca_pred$years = pca_pred$years
-
+  #save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
+  load("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
+  
+  ###########################################
+  # Calculate FE with dummy variables to forecast error estimations
+  DM_formula_regression = yield_tn_ha ~ 0+factor(district)+ rcs(PC1, 4) + rcs(PC2, 4) + rcs(PC3, 4) + rcs(PC4, 4) + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + PC21
+  
+  splm_lag_DM <- spml(DM_formula_regression, data = pca_pred, index = c("district", "years"),
+                     listw = districts_polyListw, model = "pooling", lag = T, spatial.error = "none")
+  summary(splm_lag_DM)
+  
   # add in neighborhood mean values 
   lagit = function(data,wmatrix){lag.listw(mat2listw(wmatrix),data)} # calc neighborhood mean 
-  holder = list() # for demeaned variables
-  for(year in unique(dm_pca_pred$years)){holder = c(holder,lagit(dm_pca_pred$yield_tn_ha[dm_pca_pred$years==year],Wneigh))}
-  dm_pca_pred$neighbors_mn = unlist(holder)
   holder = list() # for non-demean
   for(year in unique(pca_pred$years)){holder = c(holder,lagit(pca_pred$yield_tn_ha[pca_pred$years==year],Wneigh))}
   pca_pred$neighbors_mn = unlist(holder)
-  # calc mean values of all variables by district  
-  mn_pca_pred <- ddply(pca_pred, .(district), means) # do this after adding neighborhood mean values
-  mn_pca_pred$years = pca_pred$years
+
   
   ### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
-  form = as.character(PCA_formula_regression)                             #extract formula used
+  form = as.character(DM_formula_regression)                             #extract formula used
   form = paste(form[2],form[1],'0+',form[3], " + neighbors_mn",sep=" ")   #append nb density remove constant
-  Xs  = model.matrix( as.formula(form) , dm_pca_pred)                     # get all relevant data
-  Bs  = as.vector(c(splm_lag$coefficients[-c(1)], splm_lag$spat.coef))    # get coefficients not constant + spatial coef
+  Xs  = model.matrix( as.formula(form) , pca_pred)                     # get all relevant data
+  Bs  = as.vector(c(splm_lag_DM$coefficients , splm_lag_DM$arcoef))    # get coefficients move spatial coef to right
   XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                         # apply coefficients to demeaned Xs
-  mnXBs = model.matrix( as.formula(form) , mn_pca_pred)                   # get mean values for variables
-  XBs= XBs+mnXBs                                                          # add means back in after coef applied
-  
+   
   P1  = as.data.frame(rowSums(XBs))                                       # non-spatial yhat
-  constant = effects.splm(splm_lag)$INTTable[1]
-  P1$`rowSums(XBs)` = P1$`rowSums(XBs)` + constant 
-  P1$`rowSums(XBs)` = P1$`rowSums(XBs)` + effect
   head(P1)
   
   ###  COMPARE PREDS
@@ -668,29 +655,7 @@ save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp
   P1$name = row.names(P1)
   Preds = merge(P1, yield)
   Preds = cbind(Preds,(splm_lag$model[[1]] - splm_lag$residuals))
-
   
-  
-  
-  
-  
-  
-  
-  
-forecast.jk.out = function(dataoutsmp,formula,results, constant){
-  form1 = as.character(formula)                                        #extract formula used
-  form = paste(form1[2],form1[1],form1[3], " + nbHuD4",sep=" ")      #append nb density
-  Xs  = model.frame(as.formula(form),dataoutsmp, na.action=NULL)
-  Xs  = subset(Xs, select=-c(HuDac4))                             # remove Y
-  if (constant == T) {Xs= data.frame(Intercept=1, Xs)}
-  b   = results
-  Bs  = as.vector(c(b$coefficients, b$arcoef))                    # get coefficients + spatial coef
-  XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                 # apply coefficients to Xs
-  P1  = data.frame(P1=rowSums(XBs))                               # non-spatial yhat
-  den     = subset(dataoutsmp, select=c(SUM090,time,id,HuDac4))
-  Preds   = merge(P1, den, by="row.names", incomparables=NA)
-  Preds$E1 = Preds$HuDac4-Preds$P1
-}
 
 ```
 

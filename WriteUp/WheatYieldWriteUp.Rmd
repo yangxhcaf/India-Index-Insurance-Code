@@ -468,6 +468,15 @@ $\ Y_{it}=...+\lambda\sum_{j=2}^{J}W_{ij}Y_{it}+...+ \gamma_{t} +\epsilon_{it}$
 
 Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\lambda\sum_{j=2}^{J}W_{ij}Y_{it}$ where $\lambda$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polygon continuity**. 
 
+
+##Out-Of-Sample Cross Validation
+In predictive applications is it also extremely important to provide relevant measures of predictive performance. In particular for this application we are interested in the ability of the model to estimate a wheat yields based on a new growing season's data. First to validate the accuracy of our model we complete a Leave-P-Out Cross Validation (LPOCV), where each of the models `r paste(F2,F4,sep='-')` are reestimated, withholding a single year of observations, and storing the residuals. This process is repeated *p* times until all years have been evaluated. We then calculate the Root Mean Squared Error (RMSE) of the retained residuals, providing an estimate of the predictive accuracy of our models. RMSE is defined by `r F5=Formula_number` `r paste(F5)`: `r Formula_number=Formula_number+1`
+
+(`r paste(F5)`)                
+$\ RMSE=\sqrt{\frac{\sum_{n=1}^{N}y_{t}-\hat{y}_{t}}{n}}$
+
+Where $y_{t}$ are observed values of *yield_tn_ha* and $\hat{y}_{t}$ are the predicted values for time $t$. 
+
 The following results section will outline the results from OLS, Panel, and Spatial Panel estimation (e.q. `r paste(F2,F4,sep='-')`)
 
 #Results
@@ -475,8 +484,7 @@ The following results section will outline the results from OLS, Panel, and Spat
  
 
 ##Panel Regression
-In this section we compare the results of three panel regression estimation techniques: pooled, fixed effects and spatially lagged fixed effects. In particular we are interested in the adjusted $R^{2}$ which controls for the loss of degrees of freedom, and the 'within' $R^{2}$ which evaluates the goodness of fit beyond what can be explained by fixed effects intercepts $\alpha_{i}$ (or transform), (see "Assessing goodness of fit" in [@Stata2016]). This 'within' $R^{2}$ is of particular interest because it is our best estimate of performance of the model in estimating year to year variations in crop yields. 
-
+In this section we compare the results of three panel regression estimation techniques: pooled, fixed effects and spatially lagged fixed effects. In particular we are interested in the adjusted $R^{2}$ which controls for the loss of degrees of freedom, and the 'within' $R^{2}$ which evaluates the goodness of fit beyond what can be explained by fixed effects intercepts $\alpha_{i}$ (or transform), (see "Assessing goodness of fit" in [@Stata2016]). This 'within' $R^{2}$ is of particular interest because it is our best estimate of performance of the model in estimating year to year variations in crop yields. Since the objective of this study is to make predictions of wheat yields per hectare, it is also important to look at the accuracy of our estimation in these units. For this reason we also report the Root Mean Square Error (RMSE).
 ###Pooled OLS
 Estimates of equation (`r paste(F2)`) are provide below:
 
@@ -487,6 +495,8 @@ SSR_FULL = sum(lm1$residuals^2)
 SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
 Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
 print(paste('Within R2',round(Witin_R2,2)))
+RMSE_lm1 = sqrt(sum((unlist(lm1$residuals))^2)/length(lm1$residuals))
+print(paste('RMSE',round(RMSE_lm1,2)))
 
 ```
 
@@ -512,6 +522,9 @@ Estimates of equation (`r paste(F3)`) are provide below:
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)  
   print(paste('Within R2',round(Witin_R2,2)))
   
+  RMSE_pca = sqrt(sum((unlist(fixed_pca$residuals))^2)/length(fixed_pca$residuals))
+  print(paste('RMSE',round(RMSE_pca,2)))
+
   # get prediction and and model.frame  from FE PCA
   fitted_pca = data.frame(PCA_Fit = fixed_pca$model[[1]] - fixed_pca$residuals)
   model_data_pca = cbind(as.data.frame(as.matrix(fixed_pca$model)),fitted_pca)
@@ -522,8 +535,6 @@ Estimates of equation (`r paste(F3)`) are provide below:
   model_data_pca = melt(model_data_pca,id = c('years_id','district'))
   
 ```
-
-
 
 
 ##Spatial Panel Regression
@@ -568,7 +579,9 @@ Estimates of equation (`r paste(F4)`) are provide below:
                      listw = districts_polyListw, model = "pooling", lag = F, spatial.error = "b")$residuals^2)
   Witin_R2 =  1 - (SSR_FULL/SSR_FE)    
   paste('Within R2=',round(Witin_R2,2))
-
+  RMSE_lag = sqrt(sum((unlist(splm_lag$residuals))^2)/length(splm_lag$residuals))
+  print(paste('RMSE',round(RMSE_lag,2)))
+  
   pca_pred=pca_pred[with(pca_pred, order(years, district )), ]  # must do to do prediction 
   # plot spatial lag panel regression 
   model_pca_splm_lag = data.frame(SPLM_Fit =  splm_lag$model[[1]] - splm_lag$residuals )
@@ -585,23 +598,26 @@ Estimates of equation (`r paste(F4)`) are provide below:
    
 ```
 
-
 ```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL, fig.width=10, fig.height=6, echo=FALSE}
+# Set up color pallete 
+red = '#e41a1c'
+blue = '#377eb8'
+green = '#4daf4a'
+purple = '#984ea3'
 
 # Plot temporal and spatial fit  ------------------------------------------
 
-  space_time_fit = rbind(model_data_pca,model_pca_splm_lag,model_data_lm)
+  space_time_fit = rbind(model_data_lm,model_data_pca,model_pca_splm_lag)
   space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_pca_splm_lag$district),]
   space_time_fit = space_time_fit[space_time_fit$district %in% unique(model_data_lm$district),]
-  levels(space_time_fit$variable) =c('Actual Yields', 'FE Fit','Spatial Fit','Pool Fit')
-   
+  space_time_fit$variable= factor(space_time_fit$variable, ordered = T)
+  levels(space_time_fit$variable) =c('Actual Yields','Pool Fit', 'FE Fit','Spatial Fit')
+  
   ggplot()+geom_line(data=space_time_fit[space_time_fit$variable=='Actual Yields',],aes(x=years_id,y=value,colour=variable),size=1.2)+  
   geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons/Hectare')+  
-  theme(axis.text.x  = element_text(angle=90, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010, 2015))
+  theme(axis.text.x  = element_text(angle=0, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010,2015))
   
 ```  
-  
-  
   
 ```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL HISTOGRAM, fig.width=10, fig.height=6, echo=FALSE}
 
@@ -613,50 +629,117 @@ Estimates of equation (`r paste(F4)`) are provide below:
    
   # ggplot(data=residual_dist,aes(x=value,group=variable))+ geom_histogram(aes(y = ..density..,fill=variable), alpha=.3, position="identity") + geom_density(aes(colour=variable),size=1.5)  
   
-   ggplot(data=residual_dist,aes(x=value,group=variable))+  geom_density(aes(colour=variable,fill=variable),size=1.5,alpha=.3)+xlab('Residuals (Wheat Tons/Hectare)')+ylab('Density')  
+   ggplot(data=residual_dist,aes(x=value,group=variable))+  geom_density(aes(colour=variable,fill=variable),size=1.5,alpha=.3)+xlab('Residuals (Wheat Tons/Hectare)')+ylab('Density')+scale_color_manual('',values=c('Pool'=blue,'FE'=green,'Spatial'=purple))+scale_fill_manual('',values=c('Pool'=green,'FE'=blue,'Spatial'=purple))  
   
 ```  
   
+##Out-Of-Sample Cross Validation
+Here we present the results of measurements of predictive accuracy outlined in the methods section. 
 
-##Out-of-Sample Estimation
+*Table `r paste(Table_number)`: Root Mean Squared Error (RMSE) for Out-Of-Sample Prediction `r Table_number =Table_number+1 `*
 ```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
 
   #save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
   load("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
   
-  ###########################################
+
+  ####################################
+  # predict to FE from SPLM
+ 
   # Calculate FE with dummy variables to forecast error estimations
   DM_formula_regression = yield_tn_ha ~ 0+factor(district)+ rcs(PC1, 4) + rcs(PC2, 4) + rcs(PC3, 4) + rcs(PC4, 4) + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + PC21
   
   splm_lag_DM <- spml(DM_formula_regression, data = pca_pred, index = c("district", "years"),
-                     listw = districts_polyListw, model = "pooling", lag = T, spatial.error = "none")
-  summary(splm_lag_DM)
+                     listw = districts_polyListw, model = "pooling", lag = T, spatial.error = "none") # must use pooling with dummy variables
+ 
+  FE_SPLM_predict = function(model, X){
+    # predict function for spatial lag FE (only specified as dummy variables)
+    # add in neighborhood mean values 
+    lagit = function(data,wmatrix){lag.listw(mat2listw(wmatrix),data)} # calc neighborhood mean 
+    holder = list() # for non-demean
+    for(year in unique(X$years)){holder = c(holder,lagit(X$yield_tn_ha[X$years==year],Wneigh))}
+    X$neighbors_mn = unlist(holder)
+    ### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
+    form = as.character(DM_formula_regression)                             #extract formula used
+    form = paste(form[2],form[1],'0+',form[3],"+neighbors_mn",sep=" ")   #append nb density remove constant
+    Xs  = model.matrix( as.formula(form) , X)                     # get all relevant data
+    Bs  = as.vector(c(model$coefficients , model$arcoef))    # get coefficients move spatial coef to right
+    XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                         # apply coefficients to demeaned Xs
+    P1  = as.data.frame(rowSums(XBs))                                       # non-spatial yhat
+    return(P1$`rowSums(XBs)`)
+  }
   
-  # add in neighborhood mean values 
-  lagit = function(data,wmatrix){lag.listw(mat2listw(wmatrix),data)} # calc neighborhood mean 
-  holder = list() # for non-demean
-  for(year in unique(pca_pred$years)){holder = c(holder,lagit(pca_pred$yield_tn_ha[pca_pred$years==year],Wneigh))}
-  pca_pred$neighbors_mn = unlist(holder)
+  # out of sample RMSE for spatial lag FE
+  resid_SPLM_FE = list()
+  for(year in unique(pca_pred$years)){
+      pca_sub = subset(pca_pred, years != year)
+      splm_lag_DM_sub <- spml(DM_formula_regression, data = pca_sub, index = c("district", "years"),
+                       listw = districts_polyListw, model = "pooling", lag = T, spatial.error = "none")
+      pca_pred$Yhat = FE_SPLM_predict(splm_lag_DM_sub, pca_pred)
+      pca_sub = subset(pca_pred, years == year) # limit to omitted year
+      resid_SPLM_FE = c(resid_SPLM_FE,pca_sub$yield_tn_ha-pca_sub$Yhat)# calc resid
+  }
+  # print RMSE
+  RMSE_SPLM_FE = sqrt(sum((unlist(resid_SPLM_FE))^2)/length(resid_SPLM_FE))
+  
 
-  
-  ### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
-  form = as.character(DM_formula_regression)                             #extract formula used
-  form = paste(form[2],form[1],'0+',form[3], " + neighbors_mn",sep=" ")   #append nb density remove constant
-  Xs  = model.matrix( as.formula(form) , pca_pred)                     # get all relevant data
-  Bs  = as.vector(c(splm_lag_DM$coefficients , splm_lag_DM$arcoef))    # get coefficients move spatial coef to right
-  XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                         # apply coefficients to demeaned Xs
+  ####################################
+  # predict to FE from PLM
+  # formula for FE no ommited variable
+  DM_PCA_formula_regression = yield_tn_ha ~ 0+factor(district)+rcs(PC1, 4) + rcs(PC2, 4) + rcs(PC3, 4) + rcs(PC4, 4) + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20 + PC21
    
-  P1  = as.data.frame(rowSums(XBs))                                       # non-spatial yhat
-  head(P1)
-  
-  ###  COMPARE PREDS
-  yield = subset(pca_pred, select=c(yield_tn_ha))
-  yield$name = row.names(yield)
-  P1$name = row.names(P1)
-  Preds = merge(P1, yield)
-  Preds = cbind(Preds,(splm_lag$model[[1]] - splm_lag$residuals))
-  
+   fixed_pca2 <- plm(DM_PCA_formula_regression, data=pca_sub, index=c("district", "years"), model="pooling") # must run as pooling 
 
+  
+  FE_PLM_predict = function(model, X){
+    # predict function for plm FE (only specified as dummy variables)
+    ### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
+    form = as.character(formula(model))                             #extract formula used
+    form = paste(form[2],form[1], form[3] ,sep=" ")   #append nb density remove constant
+    Xs  = model.matrix( as.formula(form) , X)                     # get all relevant data
+    Bs  = as.vector(c(model$coefficients  ))    # get coefficients move spatial coef to right
+    XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                         # apply coefficients to demeaned Xs
+    P1  = as.data.frame(rowSums(XBs))                                       # non-spatial yhat
+    return(P1$`rowSums(XBs)`)
+  }
+
+  # out of sample RMSE for spatial lag FE
+  resid_fixed = list()
+  for(year in unique(pca_pred$years)){
+      pca_sub = subset(pca_pred, years != year)
+      fixed_pca_sub <- plm(DM_PCA_formula_regression, data=pca_sub, index=c("district", "years"), model="pooling") # must run as pooling 
+      pca_pred$Yhat = FE_PLM_predict(fixed_pca_sub, pca_pred )
+      pca_sub = subset(pca_pred, years == year)  
+      resid_fixed = c(resid_fixed,pca_sub$yield_tn_ha-pca_sub$Yhat) 
+  }
+  # print RMSE
+  RMSE_fixed = sqrt(sum((unlist(resid_fixed))^2)/length(resid_fixed))
+  
+  
+  ####################################
+  # predict to LM
+  
+  # out of sample RMSE for spatial lag FE
+  resid_lm = list()
+  for(year in unique(pca_pred$years)){
+      pca_sub = subset(pca_pred, years != year)
+      lm1_sub <- lm(PCA_formula_regression, data=pca_sub)
+      pca_pred$Yhat = predict(lm1_sub, pca_pred )
+      pca_sub = subset(pca_pred, years == year)  
+      resid_lm = c(resid_lm,pca_sub$yield_tn_ha-pca_sub$Yhat) 
+  }
+  # print RMSE
+  RMSE_lm = sqrt(sum((unlist(resid_lm))^2)/length(resid_lm))
+  
+  # present results
+
+  RMSE_table = data.frame(`RMSE`=c(RMSE_lm,RMSE_fixed,RMSE_SPLM_FE))
+  row.names(RMSE_table) = c('Pool Fit','FE Fit','Spatial Fit')
+  panderOptions('table.split.table', Inf)
+  panderOptions('big.mark', ",")
+  panderOptions('keep.trailing.zeros', F)
+  pander(RMSE_table, justify = c('left', 'center'))
+     
 ```
 
   

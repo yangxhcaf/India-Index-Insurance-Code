@@ -24,6 +24,7 @@ output: word_document
   library(splm)
   library(spdep)
   library(rgdal)
+  library(dplyr)
   
   focus_group = read.csv('Focus Groups Summary.csv',stringsAsFactors = F)
   Table_number = 1
@@ -252,7 +253,6 @@ A summary table of the value of the dependent variable and all independent varia
   pca_pred$yield_tn_ha =pca_input$yield_tn_ha
 
   
-  
   # IMPORTANT: ORDER TO AVOID PROBLEMS WITH INDEX LATER 
   pca_pred=pca_pred[with(pca_pred, order(district, years)), ]
 
@@ -431,11 +431,7 @@ To avoid problems with multicolinearity between independent variables we apply a
   model_data_lm$years_id = as.numeric(substr(model_data_lm$year,1,4))
   model_data_lm = model_data_lm[,c('district','years_id','yield_tn_ha','LM_Fit')]
   model_data_lm = melt(model_data_lm,id = c('years_id','district'))
-  #windows()
-  #ggplot(data=model_data_lm,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
-  #  geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
-  #  theme(axis.text.x  = element_text(angle=90, vjust=0.5))
-
+  
 ```  
 
 Traditional ordinary least squares (OLS) approaches look at cross-sectional (or time-series) data, exploiting variance in one dimension. However most social and phsyical processes occur over both space and time. For this reason we focus on the use of panel data sets which increases the amount of observed heterogeniety by including information about individuals *i* over time *t*. Critically, despite its widespread use in the field Geography (e.g. [@Mann2010a]), cross-sectional should *not* be used for forecasting, or for modeling of phenomenon with strong temporal components. 
@@ -538,6 +534,8 @@ Estimates of equation (`r paste(F3)`) are provide below:
 
 Estimates of equation (`r paste(F4)`) are provide below:
  
+ ** temporal lag is missing? ** 
+ 
 ```{r Panel: Spatial Panel Estimation, fig.width=10, fig.height=6, echo=FALSE}
   #yeild and evi data
   pca_pred_splm = as.data.frame(pca_pred)
@@ -554,15 +552,16 @@ Estimates of equation (`r paste(F4)`) are provide below:
         
   # Create spatial weights  Remove all districts not in balanced panel
   districts_plm = districts_plm[as.character(districts_plm@data$NAME_2) %in% as.character(unique(pca_pred[,'district'])),]
-  districts_polyNB = poly2nb(districts_plm,row.names=as.character(districts_plm@data$NAME_2)) # row.names = row.names(districts_plm)polygon continuity$GEOID10
+  districts_polyNB = poly2nb(districts_plm
+                             ,row.names=as.character(districts_plm@data$NAME_2)) # row.names = row.names(districts_plm)polygon continuity$GEOID10
   Wneigh = nb2mat(districts_polyNB, style='W')
   districts_polyListw = nb2listw(districts_polyNB) 
   
   
  # SPLM - Spatial lag estimation  -------------------------------------------------
-  
+   
   splm_lag <- spml(PCA_formula_regression, data = pca_pred, index = c("district", "years"),
-                     listw = districts_polyListw, model = "within", lag = TRUE, spatial.error = "none")
+                     listw = districts_polyListw, model = "within", lag = T, spatial.error = "none")
   summary(splm_lag)
   
   paste('R2=',summary(splm_lag)$rsqr)
@@ -586,10 +585,7 @@ Estimates of equation (`r paste(F4)`) are provide below:
   model_pca_splm_lag = melt(model_pca_splm_lag,id = c('years_id','district'))
   model_pca_splm_lag$variable= as.character(model_pca_splm_lag$variable)
   model_pca_splm_lag$variable[model_pca_splm_lag$variable=='fitted']='Fitted Spatial'
-  
-  # ggplot(data=model_pca_splm_lag,aes(x=as.factor(years_id),y=value,colour=variable,alpha=0.5))+
-   # geom_point(size=2) + facet_wrap( ~ district )+xlab('Year')+ylab('Wheat Tons / ha')+ theme(legend.position="none")+ 
-   # theme(axis.text.x  = element_text(angle=90, vjust=0.5))
+   
    
 ```
 
@@ -629,24 +625,58 @@ Estimates of equation (`r paste(F4)`) are provide below:
 ##Out-of-Sample Estimation
 ```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
 
+save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
 
-mean_neighbors_panel <- function(values,id,year,sweights){
-        # function calculates the mean value of neighbors values by using sweights e.g. Wneigh = nb2mat(out, style='W')
-        # ( data must be sorted by year, id )
-        values=values[with(values, order(year,id))]  # must do to do prediction 
-        mean_values=list()  # place to store outputs
-        for(i in year){
-            subset(values, year > i)
+#load("..../dataimage.RData")
 
-            for(row in 1:length(values)){
-              mean_values=c(mean_values,sum(values*sweights[row,]))
-            }
-        }
-        return(as.numeric(mean_values))
-}
+  # create wihtin transform variables,  
+  demean <- numcolwise(function(x) x - mean(x,na.rm=T))
+  means <- numcolwise(function(x) rep(mean(x,na.rm=T),length(unique(pca_pred$years))))
+  dm_pca_pred <- ddply(pca_pred, .(district), demean)
+  dm_pca_pred$years = pca_pred$years
 
-neighbors_mn = mean_neighbors_panel(values=pca_pred$yield_tn_ha,id=pca_pred$district,year=pca_pred$years,sweights=Wneigh)
+  # add in neighborhood mean values 
+  lagit = function(data,wmatrix){lag.listw(mat2listw(wmatrix),data)} # calc neighborhood mean 
+  holder = list() # for demeaned variables
+  for(year in unique(dm_pca_pred$years)){holder = c(holder,lagit(dm_pca_pred$yield_tn_ha[dm_pca_pred$years==year],Wneigh))}
+  dm_pca_pred$neighbors_mn = unlist(holder)
+  holder = list() # for non-demean
+  for(year in unique(pca_pred$years)){holder = c(holder,lagit(pca_pred$yield_tn_ha[pca_pred$years==year],Wneigh))}
+  pca_pred$neighbors_mn = unlist(holder)
+  # calc mean values of all variables by district  
+  mn_pca_pred <- ddply(pca_pred, .(district), means) # do this after adding neighborhood mean values
+  mn_pca_pred$years = pca_pred$years
+  
+  ### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
+  form = as.character(PCA_formula_regression)                             #extract formula used
+  form = paste(form[2],form[1],'0+',form[3], " + neighbors_mn",sep=" ")   #append nb density remove constant
+  Xs  = model.matrix( as.formula(form) , dm_pca_pred)                     # get all relevant data
+  Bs  = as.vector(c(splm_lag$coefficients[-c(1)], splm_lag$spat.coef))    # get coefficients not constant + spatial coef
+  XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                         # apply coefficients to demeaned Xs
+  mnXBs = model.matrix( as.formula(form) , mn_pca_pred)                   # get mean values for variables
+  XBs= XBs+mnXBs                                                          # add means back in after coef applied
+  
+  P1  = as.data.frame(rowSums(XBs))                                       # non-spatial yhat
+  constant = effects.splm(splm_lag)$INTTable[1]
+  P1$`rowSums(XBs)` = P1$`rowSums(XBs)` + constant 
+  P1$`rowSums(XBs)` = P1$`rowSums(XBs)` + effect
+  head(P1)
+  
+  ###  COMPARE PREDS
+  yield = subset(pca_pred, select=c(yield_tn_ha))
+  yield$name = row.names(yield)
+  P1$name = row.names(P1)
+  Preds = merge(P1, yield)
+  Preds = cbind(Preds,(splm_lag$model[[1]] - splm_lag$residuals))
 
+  
+  
+  
+  
+  
+  
+  
+  
 forecast.jk.out = function(dataoutsmp,formula,results, constant){
   form1 = as.character(formula)                                        #extract formula used
   form = paste(form1[2],form1[1],form1[3], " + nbHuD4",sep=" ")      #append nb density
@@ -662,24 +692,6 @@ forecast.jk.out = function(dataoutsmp,formula,results, constant){
   Preds$E1 = Preds$HuDac4-Preds$P1
 }
 
-splm_lag PCA_formula_regression
-### EXTRACT RELEVANT DATA AND APPLY COEFFICIENTS
-  form = as.character(PCA_formula_regression)                     #extract formula used
-  form = paste(form[2],form[1],form[3], " + nbHuD4",sep=" ")      #append nb density
-  Xs  = model.matrix( as.formula(form) , panel.data4)             # get all relevant data
-  Bs  = as.vector(c(b$coefficients, b$arcoef))                    # get coefficients + spatial coef
-  XBs = sweep(Xs,MARGIN=2,Bs,`*`)                                 # apply coefficients to Xs
-  P1  = rowSums(XBs)                                              # non-spatial yhat
-  # results = summary(b)                                          # use to extract t-values, p-values, R2 or other stats
-
-  ###  COMPARE PREDS
-  den = subset(panel.data4, select=c(SUM090,time,id,HuDac4))
-  Preds = merge(P1, den, by="row.names")
-  Preds$E1 = Preds$HuDac4-Preds$x
-
-  ### DISPLAY RESIDS
-  hist(Preds$E1[Preds$E1<4 & Preds$E1> -4 ], breaks=30)
-  hist(Preds$HuDac4[Preds$HuDac4<20], breaks=30)
 ```
 
   
@@ -1084,6 +1096,21 @@ References {#references .unnumbered}
   # 
   # ggplot(data= data.frame(Prc_Error=abs(fixed_pca$residuals/fixed_pca$model[[1]]*100)),aes(x=Prc_Error)) + stat_ecdf(geom = "step",size=1)+xlab('Absolute value of % error')+ylab('Cumulative Density')
 
+
+# 
+# mean_neighbors_panel <- function(values,id,years_in,sweights){
+#         # function calculates the mean value of neighbors values by using sweights e.g. Wneigh = nb2mat(out, style='W')
+#         # ( data must be sorted by year, id )
+#      
+#         mean_values=list()  # place to store outputs
+#         for(i in unique(years_in)){
+#             value = subset(values, years_in == i) # limit to year
+#             for(row in 1:(length(values)/length(unique(years_in)))   ){
+#                 mean_values=c(mean_values,weighted.mean(value,w = sweights[row,])) #calc neighbor values
+#             }
+#         }
+#         return(as.numeric(mean_values))
+# }
 ```
 
 
@@ -1102,4 +1129,5 @@ References {#references .unnumbered}
 <!--   print(paste(round(R2,2),round(R2adj,2),round(R2,2))) -->
 
 <!-- ``` -->
+
 

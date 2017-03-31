@@ -384,7 +384,7 @@ ggsave(paste("./F",c234,"_Morans_Pvalue.pdf",sep=''))
   #pander(hausman)
 ```
 
-Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled OLS (p <= `r sprintf("%11.2e",test_pool2$p.value)`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of the fixed effects and random effects models. The hausman test checks for exogeniety of the unobserved error component, if the null hypothesis is rejected, the random effects model is inconsistent, and the fixed effects model will be preferred. If individual effects are exogenous both fixed and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. We reject the null hypothesis  (p <= `r sprintf("%11.2e",test_hausman_fixed_random$p.value) `) and choose to use the fixed effects estimator as it will be more efficient.  
+Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled Ordinary Least Squares (OLS) (p <= `r sprintf("%11.2e",test_pool2$p.value)`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of the fixed effects and random effects models. The hausman test checks for exogeniety of the unobserved error component, if the null hypothesis is rejected, the random effects model is inconsistent, and the fixed effects model will be preferred. If individual effects are exogenous both fixed and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. We reject the null hypothesis  (p <= `r sprintf("%11.2e",test_hausman_fixed_random$p.value) `) and choose to use the fixed effects estimator as it will be more efficient.  
  
 ####Multicolinearity & Principal Components Analysis Transform
 Multicolinearity, high correlations between independent variables, can increase estimates of a variable's estimated variance. This can have the adverse effect of creating models in which the $\ R^2$ is high and no variables are statistically significant. Multicolinearity can also produce coefficients of the 'wrong sign' and of unreasonable magnitude [@o2007caution; @greeneh]. Here we use a variance inflation factor (VIF) to quantify how much the variance is inflated for each coefficient[^1]. VIF values over 4 for any variable are generally considered problematic and require further examination [@greeneh]. Here we present summary statistics for VIFs on a ordinary least squares estimation of all model variable in Table (`r paste(Table_number)`) below:
@@ -438,6 +438,8 @@ To avoid problems with multicolinearity between independent variables we apply a
   #stargazer(fixed_pca, type="text")
   summary(lm1)
    
+ 
+  
   # predict lm to all dates
   lm_pred = predict(lm1,newdata = pca_pred,se.fit=T)
    
@@ -486,9 +488,9 @@ Spatial autocorrelation is a special case of cross-sectional dependence caused b
 For these reasons a spatially lagged fixed effect panel model is developed where spatial dependence is controlled for using a spatially weighted dependent variable, in the following form in `r F4=Formula_number` `r paste(F4)`: `r Formula_number=Formula_number+1`
 
 (`r paste(F4)`)                
-$\ Y_{it}=...+\lambda\sum_{j=2}^{J}W_{ij}Y_{it}+...+ \gamma_{t} +\epsilon_{it}$
+$\ Y_{it}=...+\lambda\sum_{j=2}^{J}W_{ij}Y_{jt}+...+ \gamma_{t} +\epsilon_{it}$
 
-Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\lambda\sum_{j=2}^{J}W_{ij}Y_{it}$ where $\lambda$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polygon continuity**. 
+Formula `r Formula_number-1` augments the specification in `r Formula_number-1`. The primary difference is the inclusion of $\lambda\sum_{j=2}^{J}W_{ij}Y_{jt}$ where $\lambda$ is called the spatial autoregressive coefficient, $W_{ij}$ is a row standardized weights matrix based for each individual *i* for its neighbors *j* on **polygon continuity**. These weighted values can be considered the mean values of 'neighboring' districts.  
 
 ##Cross Validation
 In predictive applications is it also extremely important to provide relevant measures of predictive performance. In particular for this application we are interested in the ability of the model to estimate a wheat yields based on a new growing season's data or for an unknown value within the sample. First to validate the accuracy of our model we complete a Leave-P-Out Cross Validation (LPOCV), where each of the models `r paste(F2,F4,sep='-')` are reestimated, withholding a single year of observations, and storing the residuals. This process is repeated *p* times until all years have been evaluated. We then calculate the Root Mean Squared Error (RMSE) of the retained residuals, providing an estimate of the predictive accuracy of our models. RMSE is defined by `r F5=Formula_number` `r paste(F5)`: `r Formula_number=Formula_number+1`
@@ -758,13 +760,13 @@ Here we present the results of measurements of predictive accuracy outlined in t
   
   # present results
 
-  RMSE_table = data.frame(`RMSE`=c(RMSE_lm,RMSE_fixed,RMSE_SPLM_FE),`Within R2`=c(Witin_R2_pool,Witin_R2_FE,Witin_R2_splm))
+  RMSE_table = data.frame(`Within Sample RMSE`=c(RMSE_lm1,RMSE_pca,RMSE_lag),`Out of Sample RMSE`=c(RMSE_lm,RMSE_fixed,RMSE_SPLM_FE),`Within R2`=c(Witin_R2_pool,Witin_R2_FE,Witin_R2_splm))
   row.names(RMSE_table) = c('Pool Fit','FE Fit','Spatial Fit')
   RMSE_table = as.data.frame(apply(RMSE_table,2,FUN=function(x){round(x,2)}))
   panderOptions('table.split.table', Inf)
   panderOptions('big.mark', ",")
   panderOptions('keep.trailing.zeros', F)
-  pander(RMSE_table, justify = c('left', 'center','center'))
+  pander(RMSE_table, justify = c('left', 'center','center','center'))
      
 ```
 #Discussion
@@ -774,7 +776,13 @@ A broad suite of algorithms for crop modeling using the open-source language R a
 Due to the idosyncratic and heterogenous nature of crop production in many developing countries these statistics are calculated independently for each area of interest and time-period. Therefore, metrics can accurately reflect spatial and temporal variability due to differnces in management practicies, climatic zone, weather, and edaphic properties. Importantly, the spatio-temporal characteristics of the data are maintained for use in panel econometic applications (looking at individual AOIs over time).
 
 ##Spatio-Temporal Crop Prediction
-Metrics for wheat yeild prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')` 
+Metrics for wheat yeild prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')` and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI.  The improvements in within and out of sample accuracy from leveraging the spatio-temporal properties of panel data is apparent with predictive accurancy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained through integration of spatially lagged values of yeilds ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. Note however that this particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
+
+These differences are clearly exhibited in Figure `r paste(c62)` where the fixed effect and spatial lag models clearly out perform the pooled OLS methodology. This is particularly true during years exhibiting high variance such as 2005 and 2011 where unusually low and high values are prevalent across the sample. This characteristic of panel data reflects the underlying principal of the methodology which is able to model both the time-series properities of a single district, as well as the cross-sectional (spatial) properties of a particular year.   
+
+
+DISCUSS FIUGRE `r c83`
+
 
 lm1
 fixed_pca

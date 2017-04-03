@@ -270,7 +270,7 @@ ggsave(paste("./F",b7839,"_ExtractBenchmark.pdf",sep=''))
   PCA_output_formula_dataframe = yield_tn_ha~PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15+district+years 
 ```
 ###Principal Component Loadings 
-Next we can evaluate how each variable contributes to the principal component used in later in this study. Large loadings indicate that a variable has a large effect on a principal component, this can be either in the possitive or negative direction. We can see in Figure `r paste(Figure_number)` below for principal component one (PC!),  a large and possitive loading for *Kharif_95th_diff_mn*, a difference between  mean NDVI for year *i*  and the 95th percentile of historical values. This is relative to the large and possitive loadings of a variety of variables largely relating to upper percentiles of the Kharif and Rabi seasons such as *Rabi_max & Kharif_max* and *Kharif_95th_prct*, a measure of the 95th percentile for that season. The second principal component (PC2) is primarily possitve loadings of the lower percentiles of the distribution for both growing seasons including *Kharif* and *Rabi_min*. PC3 has strong loadings for variables relating to planting and harvest dates including *Kharif_harvest_dates*, *Rabi_plant_dates* and *Rabi_season_length*. 
+Next we can evaluate how each variable contributes to the principal component used in later in this study. Large loadings indicate that a variable has a large effect on a principal component, this can be either in the positive or negative direction. We can see in Figure `r paste(Figure_number)` below for principal component one (PC1), a large and positive loading for *Kharif_95th_diff_mn*, a difference between  mean NDVI for year *i*  and the 95th percentile of historical values. This is relative to the large and positive loadings of a variety of variables largely relating to upper percentiles of the Kharif and Rabi seasons such as *Rabi_max & Kharif_max* and *Kharif_95th_prct*, a measure of the 95th percentile for that season. Combined this component emphasizes the variability between Kharif and Rabi growing seasons. The second principal component (PC2) is primarily positve loadings of the lower percentiles of the distribution for both growing seasons including *Kharif* and *Rabi_min*. PC3 has strong loadings for variables relating to planting and harvest dates including *Kharif_harvest_dates*, *Rabi_plant_dates* and *Rabi_season_length*. 
 
 *Figure `r paste(Figure_number)`: Principal Component Analysis Loadings`r aa=Figure_number` `r Figure_number =Figure_number+1 `*
 
@@ -422,11 +422,7 @@ To avoid problems with multicolinearity between independent variables we apply a
 
 ```{r LM for prediction, message=FALSE, warning=FALSE, include=FALSE}
   # formulas
-  #PCA_formula_regression =yield_tn_ha~   rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19 +PC20+PC21
-  
-  #PCA_formula_regression_dataframe = yield_tn_ha~rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+PC5+PC6+PC7+PC8+PC9+PC10+PC11+PC12+PC13+PC14+PC15+PC16+PC17+PC18+PC19+PC20+PC21 +district+years   
- 
-  
+
   PCA_formula_regression =yield_tn_ha~   rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4) 
   
   PCA_formula_regression_dataframe = yield_tn_ha~rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+district+years   
@@ -511,6 +507,35 @@ In this section we compare the results of three panel regression estimation tech
 ###Pooled OLS
 Estimates of equation (`r paste(F2)`) are provide below:
 
+
+```{r Choosing Spline min RMSE, echo=FALSE,include=F}
+
+  # search for min RMSE (must have 0 or greater than 3 knots) within sample
+  knot = expand.grid(c(0,3,4,5),c(0,3,4,5),c(0,3,4,5),c(0,3,4,5)) # create all unique combinations
+  knot$AdjR = NA
+  for(i in 1:dim(knot)[1]){
+    spline.fm = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[i,1],') + rcs(PC2, ',knot[i,2],') + rcs(PC3, ',knot[i,3],') + rcs(PC4,',knot[i,4],')'  ))
+    lmi = lm(spline.fm,data = pca_pred)
+    knot$AdjR[i] = summary(lmi)$adj.r.squared
+  
+  }
+  
+  min_RMSE_row = which.max(knot$AdjR)
+  PCA_formula_regression = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],')'  ))
+  PCA_formula_regression_dataframe = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],'+district+years )'  ))
+
+  
+  # estimate lm
+  lm1 <- lm(PCA_formula_regression, data=pca_pred)
+ 
+  #stargazer(fixed_pca, type="text")
+  summary(lm1)
+   
+```
+
+
+
+
 ```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
 
 summary(lm1)
@@ -532,6 +557,23 @@ Estimates of equation (`r paste(F3)`) are provide below:
 
   # add a time lag  or dif
   pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
+
+# search for min RMSE (must have 0 or greater than 3 knots) within sample
+  knot = expand.grid(c(0,3,4,5),c(0,3,4,5),c(0,3,4,5),c(0,3,4,5)) # create all unique combinations
+  knot$AdjR = NA
+  for(i in 1:dim(knot)[1]){
+    spline.fm = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[i,1],') + rcs(PC2, ',knot[i,2],') + rcs(PC3, ',knot[i,3],') + rcs(PC4,',knot[i,4],')'  ))
+    fixed_pca_i <- plm(spline.fm, data=pca_pred, index=c("district", "years"), model="within")
+    knot$AdjR[i] =  summary(fixed_pca_i)$r.squared[2] # adj r2 
+  }
+  
+  min_RMSE_row = which.max(knot$AdjR)
+  PCA_formula_regression = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],')'  ))
+  PCA_formula_regression_dataframe = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],'+district+years )'  ))
+
+  # IMPORTANT: Convert these by hand. rcs(,0) doesn't work with model frame, switch to linear 
+  PCA_formula_regression =yield_tn_ha ~ PC1 + rcs(PC2, 4) + rcs(PC3, 5) + PC4
+  PCA_formula_regression_dataframe =yield_tn_ha ~ PC1 + rcs(PC2, 4) + rcs(PC3, 5) + PC4+district+years
 
   # estimate plm
   fixed_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
@@ -783,6 +825,14 @@ These differences are clearly exhibited in Figure `r paste(c62)` where the fixed
 
 DISCUSS FIUGRE `r c83`
 
+
+
+As for Kharif, this is for the Kharif season preceding the wheat harvest.  It makes sense that a great degree of the variability in the dataset is differences between the Kharif and Rabi seasons. Hence the strong emphasis in PC1.  I included them initially just as an experiment but found that they were reasonably good predictors of rabi season performance. (although note coefficient size in regression pasted below)
+
+I think the explanation is pretty logical. First water availability is a critical component of plant growth and yields. That much is obvious. What isn't generally considered is the fact that water availability from soils is a longer term integrative process (look up CWD), which is some f(rain, temp, solar, soil properties[sandy, loamy, clays]). Lots of rain on sandy soils and hot temps doesn't really help plants as the water runs off or evaporates immediately. (This point was critical in my wildfire work also). Rainfall, esp in rich soils, in the months leading up to a growing season will be important for maintaining soil moisture across the growing season. 
+So spillovers from the proceeding season might be missed, especially early season water availability for germination when things are not 'green' yet but water availability is still critical. 
+
+Looking at figure 6 we can see that effects of a failed monsoon in 2004-2005, despite the use of irrigation deficits in soil moisture will be difficult to make up for. 
 
 lm1
 fixed_pca

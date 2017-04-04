@@ -423,9 +423,9 @@ To avoid problems with multicolinearity between independent variables we apply a
 ```{r LM for prediction, message=FALSE, warning=FALSE, include=FALSE}
   # formulas
 
-  PCA_formula_regression =yield_tn_ha~   rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4) 
+  PCA_formula_regression =yield_tn_ha~   PC1+PC2+PC3+PC4 
   
-  PCA_formula_regression_dataframe = yield_tn_ha~rcs(PC1,4)+rcs(PC2,4)+rcs(PC3,4)+rcs(PC4,4)+district+years   
+  PCA_formula_regression_dataframe = yield_tn_ha~PC1+PC2+PC3+PC4+district+years   
   
   
   # estimate lm
@@ -508,33 +508,6 @@ In this section we compare the results of three panel regression estimation tech
 Estimates of equation (`r paste(F2)`) are provide below:
 
 
-```{r Choosing Spline min RMSE, echo=FALSE,include=F}
-
-  # search for min RMSE (must have 0 or greater than 3 knots) within sample
-  knot = expand.grid(c(0,3,4,5),c(0,3,4,5),c(0,3,4,5),c(0,3,4,5)) # create all unique combinations
-  knot$AdjR = NA
-  for(i in 1:dim(knot)[1]){
-    spline.fm = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[i,1],') + rcs(PC2, ',knot[i,2],') + rcs(PC3, ',knot[i,3],') + rcs(PC4,',knot[i,4],')'  ))
-    lmi = lm(spline.fm,data = pca_pred)
-    knot$AdjR[i] = summary(lmi)$adj.r.squared
-  
-  }
-  
-  min_RMSE_row = which.max(knot$AdjR)
-  PCA_formula_regression = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],')'  ))
-  PCA_formula_regression_dataframe = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],'+district+years )'  ))
-
-  
-  # estimate lm
-  lm1 <- lm(PCA_formula_regression, data=pca_pred)
- 
-  #stargazer(fixed_pca, type="text")
-  summary(lm1)
-   
-```
-
-
-
 
 ```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
 
@@ -555,25 +528,10 @@ Estimates of equation (`r paste(F3)`) are provide below:
 *District level random effects estimation of wheat yields in tons per hectare*
 ```{r Panel FE: Fitted vs actual PCA estimate, echo=FALSE}
 
-  # add a time lag  or dif
-  pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
-
-# search for min RMSE (must have 0 or greater than 3 knots) within sample
-  knot = expand.grid(c(0,3,4,5),c(0,3,4,5),c(0,3,4,5),c(0,3,4,5)) # create all unique combinations
-  knot$AdjR = NA
-  for(i in 1:dim(knot)[1]){
-    spline.fm = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[i,1],') + rcs(PC2, ',knot[i,2],') + rcs(PC3, ',knot[i,3],') + rcs(PC4,',knot[i,4],')'  ))
-    fixed_pca_i <- plm(spline.fm, data=pca_pred, index=c("district", "years"), model="within")
-    knot$AdjR[i] =  summary(fixed_pca_i)$r.squared[2] # adj r2 
-  }
   
-  min_RMSE_row = which.max(knot$AdjR)
-  PCA_formula_regression = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],')'  ))
-  PCA_formula_regression_dataframe = as.formula(paste( 'yield_tn_ha ~ rcs(PC1,',knot[min_RMSE_row,1],') + rcs(PC2, ',knot[min_RMSE_row,2],') + rcs(PC3, ',knot[min_RMSE_row,3],') + rcs(PC4,',knot[min_RMSE_row,4],'+district+years )'  ))
-
   # IMPORTANT: Convert these by hand. rcs(,0) doesn't work with model frame, switch to linear 
-  PCA_formula_regression =yield_tn_ha ~ PC1 + rcs(PC2, 4) + rcs(PC3, 5) + PC4
-  PCA_formula_regression_dataframe =yield_tn_ha ~ PC1 + rcs(PC2, 4) + rcs(PC3, 5) + PC4+district+years
+  PCA_formula_regression =yield_tn_ha ~ PC1+PC2+PC3+PC4
+  PCA_formula_regression_dataframe =yield_tn_ha ~ PC1+PC2+PC3+PC4+district+years
 
   # estimate plm
   fixed_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
@@ -665,10 +623,10 @@ Estimates of equation (`r paste(F4)`) are provide below:
 
 ```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL, fig.width=10, fig.height=6, echo=FALSE}
 # Set up color pallete 
-red = '#e41a1c'
-blue = '#377eb8'
-green = '#4daf4a'
-purple = '#984ea3'
+  red = '#e41a1c'
+  blue = '#377eb8'
+  green = '#4daf4a'
+  purple = '#984ea3'
 
 # Plot temporal and spatial fit  ------------------------------------------
 
@@ -684,6 +642,9 @@ purple = '#984ea3'
   ggsave(paste("./F",c62,"_In_Sample_Yield_Estimates.pdf",sep=''))
 
   
+  # PROBLEM WITH model_data_pca wrong values.... 
+  cbind(model_data_lm[  model_data_lm$district=='AMBALA'& model_data_lm$variable=='yield_tn_ha',],  model_data_pca[  model_data_pca$district=='AMBALA'& model_data_pca$variable=='yield_tn_ha',],model_pca_splm_lag[  model_pca_splm_lag$district=='AMBALA'& model_pca_splm_lag$variable=='yield_tn_ha',])
+
 ```  
   
 *Figure `r paste(Figure_number)`: Residuals from District Wheat Yield Estimates  (2003-2012) `r c83=Figure_number` `r Figure_number =Figure_number+1 `*

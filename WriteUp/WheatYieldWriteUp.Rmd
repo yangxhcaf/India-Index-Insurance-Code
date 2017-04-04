@@ -529,9 +529,8 @@ Estimates of equation (`r paste(F3)`) are provide below:
 ```{r Panel FE: Fitted vs actual PCA estimate, echo=FALSE}
 
   
-  # IMPORTANT: Convert these by hand. rcs(,0) doesn't work with model frame, switch to linear 
-  PCA_formula_regression =yield_tn_ha ~ PC1+PC2+PC3+PC4
-  PCA_formula_regression_dataframe =yield_tn_ha ~ PC1+PC2+PC3+PC4+district+years
+  # add a time lag  or dif
+  pca_pred <- pdata.frame(pca_pred, index = c("district", "years"))
 
   # estimate plm
   fixed_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
@@ -556,6 +555,7 @@ Estimates of equation (`r paste(F3)`) are provide below:
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
   model_data_pca = melt(model_data_pca,id = c('years_id','district'))
+  
   
 ```
 

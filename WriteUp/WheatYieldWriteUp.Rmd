@@ -269,17 +269,7 @@ ggsave(paste("./F",b7839,"_ExtractBenchmark.pdf",sep=''))
   PCA_output_formula =yield_tn_ha~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15
   PCA_output_formula_dataframe = yield_tn_ha~PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15+district+years 
 ```
-###Principal Component Loadings 
-Next we can evaluate how each variable contributes to the principal component used in later in this study. Large loadings indicate that a variable has a large effect on a principal component, this can be either in the positive or negative direction. We can see in Figure `r paste(Figure_number)` below for principal component one (PC1), a large and positive loading for *Kharif_95th_diff_mn*, a difference between  mean NDVI for year *i*  and the 95th percentile of historical values. This is relative to the large and positive loadings of a variety of variables largely relating to upper percentiles of the Kharif and Rabi seasons such as *Rabi_max & Kharif_max* and *Kharif_95th_prct*, a measure of the 95th percentile for that season. Combined this component emphasizes the variability between Kharif and Rabi growing seasons. The second principal component (PC2) is primarily positve loadings of the lower percentiles of the distribution for both growing seasons including *Kharif* and *Rabi_min*. PC3 has strong loadings for variables relating to planting and harvest dates including *Kharif_harvest_dates*, *Rabi_plant_dates* and *Rabi_season_length*. 
 
-*Figure `r paste(Figure_number)`: Principal Component Analysis Loadings`r aa=Figure_number` `r Figure_number =Figure_number+1 `*
-
-```{r, echo=FALSE,warning=F,fig.width=8, fig.height=5}
-
-  source('H:/Scripts/visualize_pca_rotations.R')
-  visualize_pca_rotations(pca, r=4, low='#76448A', mid ='#f7f7f7' , high='#1E8449' )
-
-```
  
  
 ```{r Panel: Spatial autocorrelation, message=FALSE, warning=FALSE, include=FALSE}
@@ -319,8 +309,6 @@ Next we can evaluate how each variable contributes to the principal component us
   #Baltagi, Song and Koh LM2 marginal test
    knn6 = (knn2nb(knearneigh(centroids, k = 6), row.names = districts_lm$NAME_2 ))
    
-  
-    
   # find all districts with 10 years
   bskdata = data.frame(district=pca_pred$district,years=pca_pred$years,as.data.frame(pca_pred))
 
@@ -354,7 +342,7 @@ $\ Y_{it}=\alpha+\sum_{a=1}^{k}\beta_{k}X_{it}+ \mu_{it}$
 
 Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*), for each district *i* for each year *t*, $\ \alpha$ is an intercept term, $\ \beta_k$ is a vector of *k* coefficients, $\ X_{it}$ corresponds to the *k* independent variables describing NDVI, and $\ \mu_{it}$ is pooled error term.
 
-Because a better implementation of the Moran's I for panel regression residuals is not available, tests for spatial autocorrelation are run on the mean regression residuals $\overline{\mu_{i}}$ for each district (*i*)  [@Cliff1981]. Tests were carried out for seven potential neighborhood definitions including six different measures of K-nearest Neighbor, and a queen's polygon continuity (Figure `r paste(Figure_number)`). Moran's I test statistics are less than `r round(mean(Moran_results$Test_stat),2)`, and fail to reject (p =`r round(min(Moran_results$pvalue),2)`) the null hypothesis of spatial independence. 
+Because a better implementation of the Moran's I for panel regression residuals is not available, tests for spatial autocorrelation are run on the mean regression residuals $\overline{\mu_{i}}$ for each district (*i*)  [@Cliff1981]. Tests were carried out for seven potential neighborhood definitions including six different measures of K-nearest Neighbor, and a queen's polygon continuity (Figure `r paste(Figure_number)`). Moran's I test statistics are less than `r round(mean(Moran_results$Test_stat),2)`, and fail to reject (p =`r round(min(Moran_results$pvalue),2)`) the null hypothesis of spatial independence. This would be expected however since $\overline{\mu_{i}}$ is by definition pulled towards the mean, and thus masking any spatial variability. Instead of relying on tests for spatial autocorrelation we will instead evaluate the ability of spatial models to impact model accuracy. 
   
 *Figure `r paste(Figure_number)`: Statistical significance of Moran's I on pooled regression residuals`r c234=Figure_number` `r Figure_number =Figure_number+1 `*
 ```{r Panel: Spatial autocorrelation plot, echo=FALSE, message=FALSE, warning=FALSE}
@@ -362,6 +350,62 @@ Because a better implementation of the Moran's I for panel regression residuals 
 ggplot(data=Moran_results,aes(y=pvalue,x=factor(Neighborhood),group=Neighborhood,fill=Neighborhood))+ geom_bar(stat = "identity")+geom_hline(yintercept = 0.05,colour='grey',size=1.5,linetype=5)+ scale_y_continuous(breaks=c(0,0.05,.1,.2,.4,.6))+ theme(legend.position="none",axis.text.x  = element_text(angle=90, vjust=0.5))+labs(x = 'Neighborhood Type', y='P-Value')
 ggsave(paste("./F",c234,"_Morans_Pvalue.pdf",sep=''))
 ``` 
+
+
+
+```{r Panel: Spatial autocorrelation on balanced panel, message=FALSE, warning=FALSE, include=FALSE}
+  # #distrct boundaries BALANCED
+  # districts_lm2 = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
+  # districts_lm2 = spTransform(districts_lm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
+  # districts_lm2$NAME_2 = toupper(as.character(districts_lm2$NAME_2)) 
+  # districts_lm2 = districts_lm2[districts_lm2$NAME_2 %in% balanced_panel,]
+  #   
+  # # Create spatial weights  Remove all districts not in yield_ndvi
+  # districts_lm2 = districts_lm2[as.character(districts_lm2@data$NAME_2) %in% as.character(unique(yield_ndvi[,'district'])),]
+  # districts_polyNB_lm2 = poly2nb(districts_lm2,row.names = row.names(districts_lm2)) # polygon continuity$GEOID10
+  # Wneigh_lm2 = nb2mat(districts_polyNB_lm2, style='W')
+  # queen2 = nb2listw(districts_polyNB_lm2) 
+  # # k nearest weights 
+  # centroids2 = coordinates(districts_lm2)
+  # knn12 = nb2listw(knn2nb(knearneigh(centroids2, k = 1), row.names = districts_lm2$NAME_2 ))
+  # knn22 = nb2listw(knn2nb(knearneigh(centroids2, k = 2), row.names = districts_lm2$NAME_2 ))
+  # knn32 = nb2listw(knn2nb(knearneigh(centroids2, k = 3), row.names = districts_lm2$NAME_2 ))
+  # knn42 = nb2listw(knn2nb(knearneigh(centroids2, k = 4), row.names = districts_lm2$NAME_2 ))
+  # knn52 = nb2listw(knn2nb(knearneigh(centroids2, k = 5), row.names = districts_lm2$NAME_2 ))
+  # knn62 = nb2listw(knn2nb(knearneigh(centroids2, k = 6), row.names = districts_lm2$NAME_2 ))
+  # 
+  # # create balance panel for ols
+  # balanced_panel = as.character(as.data.frame(table(pca_pred$district))$Var1[as.data.frame(table(pca_pred$district))$Freq ==10])
+  # table(pca_pred$years[pca_pred$district %in% balanced_panel])
+  # ols_balanced = pca_pred[pca_pred$district %in% balanced_panel,]
+  # ols_balanced = model.frame(PCA_output_formula_dataframe,ols_balanced)
+  # 
+  # # run for all years seperately
+  # holder_mor = data.frame(test = NA, p.value = NA )  
+  # for(year in seq(2003,2012)){    
+  #   OLS = lm(PCA_output_formula, data=ols_balanced[ols_balanced$years==year,])
+  #   OLS_resid = OLS$residuals
+  #   moran_queen = moran.test(OLS_resid ,queen2)
+  #   moran_knn1  = moran.test(OLS_resid,knn1)
+  #   moran_knn2  = moran.test(OLS_resid$residuals,knn2)
+  #   moran_knn3  = moran.test(OLS_resid$residuals,knn3)
+  #   moran_knn4  = moran.test(OLS_resid$residuals,knn4)
+  #   moran_knn5  = moran.test(OLS_resid$residuals,knn5)
+  #   moran_knn6  = moran.test(OLS_resid$residuals,knn6)
+  #   
+  #   
+  # }
+  # 
+  # Moran_results = data.frame(pvalue = c(moran_queen$p.value,moran_knn1$p.value,moran_knn2$p.value,moran_knn3$p.value,moran_knn4$p.value,moran_knn5$p.value,moran_knn6$p.value),Neighborhood =c('Polygon Continuity',paste('KNN',1:6,sep=' ')), Test_stat =c(moran_queen$statistic[[1]],moran_knn1$statistic[[1]],moran_knn2$statistic[[1]],moran_knn3$statistic[[1]],moran_knn4$statistic[[1]],moran_knn5$statistic[[1]],moran_knn6$statistic[[1]]) )
+  # 
+  #  
+  # 
+```  
+
+
+
+
+
 
 ####Tests: Pooled, Fixed or Random  
 ```{r Panel: Hausman test, echo=FALSE, message=FALSE, warning=FALSE}
@@ -501,16 +545,24 @@ The following results section will outline the results from OLS, Panel, and Spat
 #Results
 ##Focus Group Interviews
  
+##Principal Component Loadings 
+Next we can evaluate how each variable contributes to the principal component used in later in this study. Large loadings indicate that a variable has a large effect on a principal component, this can be either in the positive or negative direction. We can see in Figure `r paste(Figure_number)` below for principal component one (PC1), a large and positive loading for *Kharif_95th_diff_mn*, a difference between  mean NDVI for year *i*  and the 95th percentile of historical values. This is relative to the large and positive loadings of a variety of variables largely relating to upper percentiles of the Kharif and Rabi seasons such as *Rabi_max & Kharif_max* and *Kharif_95th_prct*, a measure of the 95th percentile for that season. Combined this component emphasizes the variability between Kharif and Rabi growing seasons. The second principal component (PC2) is primarily positve loadings of the lower percentiles of the distribution for both growing seasons including *Kharif* and *Rabi_min*. PC3 has strong loadings for variables relating to planting and harvest dates including *Kharif_harvest_dates*, *Rabi_plant_dates* and *Rabi_season_length*. 
+
+*Figure `r paste(Figure_number)`: Principal Component Analysis Loadings`r aa=Figure_number` `r Figure_number =Figure_number+1 `*
+
+```{r, echo=FALSE,warning=F,fig.width=8, fig.height=5}
+
+  source('H:/Scripts/visualize_pca_rotations.R')
+  visualize_pca_rotations(pca, r=4, low='#76448A', mid ='#f7f7f7' , high='#1E8449' )
+
+```
 
 ##Panel Regression
 In this section we compare the results of three panel regression estimation techniques: pooled, fixed effects and spatially lagged fixed effects. In particular we are interested in the adjusted $R^{2}$ which controls for the loss of degrees of freedom, and the 'within' $R^{2}$ which evaluates the goodness of fit beyond what can be explained by fixed effects intercepts $\alpha_{i}$ (or transform), (see "Assessing goodness of fit" in [@Stata2016]). This 'within' $R^{2}$ is of particular interest because it is our best estimate of performance of the model in estimating year to year variations in crop yields. Since the objective of this study is to make predictions of wheat yields per hectare, it is also important to look at the accuracy of our estimation in these units. For this reason we also report the Root Mean Square Error (RMSE).
 ###Pooled OLS
 Estimates of equation (`r paste(F2)`) are provide below:
 
-
-
 ```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
-
 summary(lm1)
 SSR_FULL = sum(lm1$residuals^2)
 SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
@@ -518,7 +570,6 @@ Witin_R2_pool =  1 - (SSR_FULL/SSR_FE)
 print(paste('Within R2',round(Witin_R2_pool,2)))
 RMSE_lm1 = sqrt(sum((unlist(lm1$residuals))^2)/length(lm1$residuals))
 print(paste('RMSE',round(RMSE_lm1,2)))
-
 ```
 
 ### Fixed Effects Panel
@@ -555,8 +606,6 @@ Estimates of equation (`r paste(F3)`) are provide below:
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
   model_data_pca = melt(model_data_pca,id = c('years_id','district'))
-  
-  
 ```
 
 
@@ -640,10 +689,6 @@ Estimates of equation (`r paste(F4)`) are provide below:
   geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons/Hectare')+ scale_colour_discrete(name = "Legend")+
   theme(axis.text.x  = element_text(angle=0, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010,2015))
   ggsave(paste("./F",c62,"_In_Sample_Yield_Estimates.pdf",sep=''))
-
-  
-  # PROBLEM WITH model_data_pca wrong values.... 
-  cbind(model_data_lm[  model_data_lm$district=='AMBALA'& model_data_lm$variable=='yield_tn_ha',],  model_data_pca[  model_data_pca$district=='AMBALA'& model_data_pca$variable=='yield_tn_ha',],model_pca_splm_lag[  model_pca_splm_lag$district=='AMBALA'& model_pca_splm_lag$variable=='yield_tn_ha',])
 
 ```  
   
@@ -778,22 +823,22 @@ A broad suite of algorithms for crop modeling using the open-source language R a
 
 Due to the idosyncratic and heterogenous nature of crop production in many developing countries these statistics are calculated independently for each area of interest and time-period. Therefore, metrics can accurately reflect spatial and temporal variability due to differnces in management practicies, climatic zone, weather, and edaphic properties. Importantly, the spatio-temporal characteristics of the data are maintained for use in panel econometic applications (looking at individual AOIs over time).
 
+##Principal Component Loadings
+Here we use principal components to avoid issues of multicolinearity across NDVI metrics for both the Rabi and Kharif seasons. An unusual feature of this study is the explicit integration of Kharif season (typically rice) for Rabi Wheat estimation. These variables were included because nutrient and water availability, although rarely modeled as such, is part of a longer-term integrative process. This process is a function of not only water availability during growing season but an integrative function of rainfall, temperatures, windspeeds, and edaphic properties, closer related to metrics such as climatic water deficit [@mann2016incorporating]. For instance, loamy soils will retain greater quantities of moisture over longer time-periods. 
+
+Considering the longer-term nature of moisture availability, we also must consider the inability of Rabi NDVI to capture all meaninful characteristics of the season. Rainfall, especially in rich soils, in the months leading up to a growing season will be important for maintaining soil moisture across the growing season, but is particularly important during the germination process, when the NDVI signal is minimal. Looking at Figure `r paste(c62)` we can see that effects of a failed monsoon in 2004-2005, despite the extensive use of irrigation in Pubjab and Haryana, deficits in soil moisture will be difficult to make up for. 
+
 ##Spatio-Temporal Crop Prediction
 Metrics for wheat yeild prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')` and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI.  The improvements in within and out of sample accuracy from leveraging the spatio-temporal properties of panel data is apparent with predictive accurancy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained through integration of spatially lagged values of yeilds ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. Note however that this particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
 
-These differences are clearly exhibited in Figure `r paste(c62)` where the fixed effect and spatial lag models clearly out perform the pooled OLS methodology. This is particularly true during years exhibiting high variance such as 2005 and 2011 where unusually low and high values are prevalent across the sample. This characteristic of panel data reflects the underlying principal of the methodology which is able to model both the time-series properities of a single district, as well as the cross-sectional (spatial) properties of a particular year.   
+These differences are clearly exhibited in Figure `r paste(c62)` where the fixed effect and spatial lag models clearly out perform the pooled OLS methodology. This is particularly true during years exhibiting high variance such as 2005 and 2011 where unusually low and high values are prevalent across the sample. This characteristic of panel data reflects the underlying principal of the methodology which is able to model both the time-series properities of a single district, as well as the cross-sectional (spatial) properties of a particular year. These improvements are also expressed in the distribution of residuals presented in Figure `r paste(c83)`.   
 
 
 DISCUSS FIUGRE `r c83`
 
 
 
-As for Kharif, this is for the Kharif season preceding the wheat harvest.  It makes sense that a great degree of the variability in the dataset is differences between the Kharif and Rabi seasons. Hence the strong emphasis in PC1.  I included them initially just as an experiment but found that they were reasonably good predictors of rabi season performance. (although note coefficient size in regression pasted below)
 
-I think the explanation is pretty logical. First water availability is a critical component of plant growth and yields. That much is obvious. What isn't generally considered is the fact that water availability from soils is a longer term integrative process (look up CWD), which is some f(rain, temp, solar, soil properties[sandy, loamy, clays]). Lots of rain on sandy soils and hot temps doesn't really help plants as the water runs off or evaporates immediately. (This point was critical in my wildfire work also). Rainfall, esp in rich soils, in the months leading up to a growing season will be important for maintaining soil moisture across the growing season. 
-So spillovers from the proceeding season might be missed, especially early season water availability for germination when things are not 'green' yet but water availability is still critical. 
-
-Looking at figure 6 we can see that effects of a failed monsoon in 2004-2005, despite the use of irrigation deficits in soil moisture will be difficult to make up for. 
 
 lm1
 fixed_pca

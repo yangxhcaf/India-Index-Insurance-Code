@@ -141,7 +141,7 @@ In addition to cloud cover, MODIS data products suffer from four additional sour
         annotate("text", x =(PlantHarvest$planting[9]-60), y = 0, label = "italic(Plant)",angle = 90,colour='darkgreen',parse = T)+
         annotate("text", x =(PlantHarvest$planting[9]+133), y = .02, label = "italic(Harvest)",angle = 90,colour='purple',parse = T)+
         coord_cartesian(xlim = (as.Date(c("2010-02-01", "2015-02-25"))))
- ggsave(paste("./F",aa,"_NDVI time signature.pdf",sep=''))
+# ggsave(paste("./F",aa,"_NDVI time signature.pdf",sep=''))
  #windows() used in presentation
   #ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf), alpha = 0.4)+geom_line(data= plotdata[plotdata$Legend=='NDVI',], aes(x=Dates,y=NDVI,group=Legend),size=2)+coord_cartesian(xlim = (as.Date(c("2013-01-01", "2015-04-01"))))
  
@@ -192,7 +192,7 @@ bench_extract_time = bench[1,2] # remove text data
 bench = bench[2:dim(bench)[1],]
 bench$cores = as.numeric(bench$cores)
 ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(yintercept=bench_extract_time,colour='red',size=1)+xlab('Cores')+ylab('User Time')+ annotate("text", x = 7, y = 150, label = "extract_value_point_polygon")+ annotate("text", x = 7, y = 287, label = "raster::extract", col='red')
-ggsave(paste("./F",b7839,"_ExtractBenchmark.pdf",sep=''))
+#ggsave(paste("./F",b7839,"_ExtractBenchmark.pdf",sep=''))
 
 ```
 
@@ -311,9 +311,6 @@ ggsave(paste("./F",b7839,"_ExtractBenchmark.pdf",sep=''))
    
   # find all districts with 10 years
   bskdata = data.frame(district=pca_pred$district,years=pca_pred$years,as.data.frame(pca_pred))
-
-  # bsktest(x=PCA_output_formula, data=bskdata, listq=queen,test='CLMlambda')
-
   balanced_panel = as.character(as.data.frame(table(bskdata$district))$Var1[as.data.frame(table(bskdata$district))$Freq ==10])
   table(bskdata$years[bskdata$district %in% balanced_panel])
   bskdata_balanced = bskdata[bskdata$district %in% balanced_panel,]
@@ -348,63 +345,8 @@ Because a better implementation of the Moran's I for panel regression residuals 
 ```{r Panel: Spatial autocorrelation plot, echo=FALSE, message=FALSE, warning=FALSE}
 
 ggplot(data=Moran_results,aes(y=pvalue,x=factor(Neighborhood),group=Neighborhood,fill=Neighborhood))+ geom_bar(stat = "identity")+geom_hline(yintercept = 0.05,colour='grey',size=1.5,linetype=5)+ scale_y_continuous(breaks=c(0,0.05,.1,.2,.4,.6))+ theme(legend.position="none",axis.text.x  = element_text(angle=90, vjust=0.5))+labs(x = 'Neighborhood Type', y='P-Value')
-ggsave(paste("./F",c234,"_Morans_Pvalue.pdf",sep=''))
+#ggsave(paste("./F",c234,"_Morans_Pvalue.pdf",sep=''))
 ``` 
-
-
-
-```{r Panel: Spatial autocorrelation on balanced panel, message=FALSE, warning=FALSE, include=FALSE}
-  # #distrct boundaries BALANCED
-  # districts_lm2 = readOGR('H:/Projects/India_Index_Insurance/Data/Admin Boundaries','PunjabHaryanaDistricts')
-  # districts_lm2 = spTransform(districts_lm, CRS('+proj=sinu +a=6371007.181 +b=6371007.181 +units=m'))
-  # districts_lm2$NAME_2 = toupper(as.character(districts_lm2$NAME_2)) 
-  # districts_lm2 = districts_lm2[districts_lm2$NAME_2 %in% balanced_panel,]
-  #   
-  # # Create spatial weights  Remove all districts not in yield_ndvi
-  # districts_lm2 = districts_lm2[as.character(districts_lm2@data$NAME_2) %in% as.character(unique(yield_ndvi[,'district'])),]
-  # districts_polyNB_lm2 = poly2nb(districts_lm2,row.names = row.names(districts_lm2)) # polygon continuity$GEOID10
-  # Wneigh_lm2 = nb2mat(districts_polyNB_lm2, style='W')
-  # queen2 = nb2listw(districts_polyNB_lm2) 
-  # # k nearest weights 
-  # centroids2 = coordinates(districts_lm2)
-  # knn12 = nb2listw(knn2nb(knearneigh(centroids2, k = 1), row.names = districts_lm2$NAME_2 ))
-  # knn22 = nb2listw(knn2nb(knearneigh(centroids2, k = 2), row.names = districts_lm2$NAME_2 ))
-  # knn32 = nb2listw(knn2nb(knearneigh(centroids2, k = 3), row.names = districts_lm2$NAME_2 ))
-  # knn42 = nb2listw(knn2nb(knearneigh(centroids2, k = 4), row.names = districts_lm2$NAME_2 ))
-  # knn52 = nb2listw(knn2nb(knearneigh(centroids2, k = 5), row.names = districts_lm2$NAME_2 ))
-  # knn62 = nb2listw(knn2nb(knearneigh(centroids2, k = 6), row.names = districts_lm2$NAME_2 ))
-  # 
-  # # create balance panel for ols
-  # balanced_panel = as.character(as.data.frame(table(pca_pred$district))$Var1[as.data.frame(table(pca_pred$district))$Freq ==10])
-  # table(pca_pred$years[pca_pred$district %in% balanced_panel])
-  # ols_balanced = pca_pred[pca_pred$district %in% balanced_panel,]
-  # ols_balanced = model.frame(PCA_output_formula_dataframe,ols_balanced)
-  # 
-  # # run for all years seperately
-  # holder_mor = data.frame(test = NA, p.value = NA )  
-  # for(year in seq(2003,2012)){    
-  #   OLS = lm(PCA_output_formula, data=ols_balanced[ols_balanced$years==year,])
-  #   OLS_resid = OLS$residuals
-  #   moran_queen = moran.test(OLS_resid ,queen2)
-  #   moran_knn1  = moran.test(OLS_resid,knn1)
-  #   moran_knn2  = moran.test(OLS_resid$residuals,knn2)
-  #   moran_knn3  = moran.test(OLS_resid$residuals,knn3)
-  #   moran_knn4  = moran.test(OLS_resid$residuals,knn4)
-  #   moran_knn5  = moran.test(OLS_resid$residuals,knn5)
-  #   moran_knn6  = moran.test(OLS_resid$residuals,knn6)
-  #   
-  #   
-  # }
-  # 
-  # Moran_results = data.frame(pvalue = c(moran_queen$p.value,moran_knn1$p.value,moran_knn2$p.value,moran_knn3$p.value,moran_knn4$p.value,moran_knn5$p.value,moran_knn6$p.value),Neighborhood =c('Polygon Continuity',paste('KNN',1:6,sep=' ')), Test_stat =c(moran_queen$statistic[[1]],moran_knn1$statistic[[1]],moran_knn2$statistic[[1]],moran_knn3$statistic[[1]],moran_knn4$statistic[[1]],moran_knn5$statistic[[1]],moran_knn6$statistic[[1]]) )
-  # 
-  #  
-  # 
-```  
-
-
-
-
 
 
 ####Tests: Pooled, Fixed or Random  
@@ -428,7 +370,7 @@ ggsave(paste("./F",c234,"_Morans_Pvalue.pdf",sep=''))
   #pander(hausman)
 ```
 
-Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled Ordinary Least Squares (OLS) (p <= `r sprintf("%11.2e",test_pool2$p.value)`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of the fixed effects and random effects models. The hausman test checks for exogeniety of the unobserved error component, if the null hypothesis is rejected, the random effects model is inconsistent, and the fixed effects model will be preferred. If individual effects are exogenous both fixed and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. We reject the null hypothesis  (p <= `r sprintf("%11.2e",test_hausman_fixed_random$p.value) `) and choose to use the fixed effects estimator as it will be more efficient.  
+Testing is required to choose the proper estimation method for panel regression. We must choose between pooled, fixed effect (FE), and random effect (RE) models. First we can test for poolability of our model. Pooled regression assumes a constant intercept and slopes between different districts and time periods. We can test if variance across districts is equal to zero using an F-test. Here we reject the use of pooled Ordinary Least Squares (OLS) (p <= `r sprintf("%11.2e",test_pool2$p.value)`) in favor of a fixed effects model with unique intercepts for each district. We can then compare the use of the fixed effects and random effects models. The hausman test checks for exogeniety of the unobserved error component, if the null hypothesis is rejected, the random effects model is inconsistent, and the fixed effects model will be preferred. If individual effects are exogenous both fixed and random effects are asymptotically equivalent. Here we test if $\ H_{0}:\hat{\beta}_{RE}=\hat{\beta}_{RE}$, where $\hat{\beta}_{RE}$ are coefficient vectors of time-varying explanitory variables. We reject the null hypothesis  (p <= `r sprintf("%11.2e",test_hausman_fixed_random$p.value) `) and choose to use the fixed effects estimator as it will be the only consistent estimator.  
  
 ####Multicolinearity & Principal Components Analysis Transform
 Multicolinearity, high correlations between independent variables, can increase estimates of a variable's estimated variance. This can have the adverse effect of creating models in which the $\ R^2$ is high and no variables are statistically significant. Multicolinearity can also produce coefficients of the 'wrong sign' and of unreasonable magnitude [@o2007caution; @greeneh]. Here we use a variance inflation factor (VIF) to quantify how much the variance is inflated for each coefficient[^1]. VIF values over 4 for any variable are generally considered problematic and require further examination [@greeneh]. Here we present summary statistics for VIFs on a ordinary least squares estimation of all model variable in Table (`r paste(Table_number)`) below:
@@ -507,7 +449,7 @@ Pooled OLS estimation assumes that intercepts and slopes are fixed between indiv
 (`r paste(F2)`)                
 $\ Y_{i}=\alpha+\sum_{k=1}^{K}\beta_{k}PC(k)_{i}+\epsilon_{i}$
 
-Where $\ Y_{i}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each observation *i* which includes all districts across all years, $\ \alpha$ is an intercept term, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{i}$ corresponding to the *K* principal components, and $\ \epsilon_{i}$ is the residual. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline] [^2]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
+Where $\ Y_{i}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each observation *i* which includes all districts across all years, $\ \alpha$ is an intercept term, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{i}$ corresponding to the *K* principal components, and $\ \epsilon_{i}$ is the residual.  
 
 ###Panel Regression Estimation
 
@@ -518,7 +460,7 @@ For a fixed effect panel, we estimate equation `r F3=Formula_number` `r paste(F3
 (`r paste(F3)`)                
 $\ Y_{it}=\alpha_{i}+\sum_{k=1}^{K}\beta_{k}PC(k)_{it}+ \mu_{it} +\epsilon_{it}$
  
-Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term. To capture non-linear effects here we apply natural cubic splines to the first `r english(length(grep('rcs', strsplit(as.character(PCA_formula_regression)[3],'+',fixed = T)[[1]])))` principal components [@devlin1986spline]. Natural cubic splines use cubic terms in the center of the data and restrict the ends to straight lines, preventing distortion at extreme values. When reported splines are noted with rcs(variable_name, number_of_knots) with order noted by quotes ' and ''.
+Where $\ Y_{it}$ is a vector of our dependent variable, district yields in tons per hectare (*yield_tn_ha*) for each district *i* for each year *t*, $\ \alpha_{i}$ are n-1 intercept terms and control for unobserved characteristics of each district *i*, $\ \beta_k$ is a vector of *K* coefficients, $\ X_{it}$ corresponding to the *K* principal components, $\ \mu_{it}$ is the between entity error term, and $\ \epsilon_{it}$ is the within entity error term.  
 
 [^2]: The first four principal components in this PCA comprises `r paste(round(summary(pca)$importance[3,4]*100))` % of total variance in $\mathbf{X}$
 
@@ -562,6 +504,9 @@ In this section we compare the results of three panel regression estimation tech
 ###Pooled OLS
 Estimates of equation (`r paste(F2)`) are provide below:
 
+Table `r paste(Table_number)`: *District level pooled estimation of wheat yields in tons per hectare*`r t543 =Table_number ` `r Table_number =Table_number+1 `
+
+
 ```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
 summary(lm1)
 SSR_FULL = sum(lm1$residuals^2)
@@ -576,7 +521,9 @@ print(paste('RMSE',round(RMSE_lm1,2)))
 
 Estimates of equation (`r paste(F3)`) are provide below:
 
-*District level random effects estimation of wheat yields in tons per hectare*
+Table `r paste(Table_number)`: *District level fixed effects estimation of wheat yields in tons per hectare*`r t632 =Table_number ` `r Table_number =Table_number+1 `
+
+
 ```{r Panel FE: Fitted vs actual PCA estimate, echo=FALSE}
 
   
@@ -612,7 +559,7 @@ Estimates of equation (`r paste(F3)`) are provide below:
 ##Spatial Panel Regression
 
 Estimates of equation (`r paste(F4)`) are provide below:
- 
+Table `r paste(Table_number)`: *District level spatial lag fixed effects estimation of wheat yields in tons per hectare*`r t098 =Table_number ` `r Table_number =Table_number+1 `
 ```{r Panel: Spatial Panel Estimation, fig.width=10, fig.height=6, echo=FALSE}
   #yeild and evi data
   pca_pred_splm = as.data.frame(pca_pred)
@@ -688,7 +635,7 @@ Estimates of equation (`r paste(F4)`) are provide below:
   ggplot()+geom_line(data=space_time_fit[space_time_fit$variable=='Actual Yields',],aes(x=years_id,y=value,colour=variable),size=1.2)+  
   geom_point(data=space_time_fit[space_time_fit$variable!='Actual Yields',],aes(x= years_id,y=value,colour=variable),alpha=0.6,size=2)+ facet_wrap( ~ district,scales = 'free' )+xlab('Year')+ylab('Wheat Tons/Hectare')+ scale_colour_discrete(name = "Legend")+
   theme(axis.text.x  = element_text(angle=0, vjust=0.5))+ scale_x_continuous(breaks=c(2005,2010,2015))
-  ggsave(paste("./F",c62,"_In_Sample_Yield_Estimates.pdf",sep=''))
+#  ggsave(paste("./F",c62,"_In_Sample_Yield_Estimates.pdf",sep=''))
 
 ```  
   
@@ -704,25 +651,25 @@ Estimates of equation (`r paste(F4)`) are provide below:
   # ggplot(data=residual_dist,aes(x=value,group=variable))+ geom_histogram(aes(y = ..density..,fill=variable), alpha=.3, position="identity") + geom_density(aes(colour=variable),size=1.5)  
   
    ggplot(data=residual_dist,aes(x=value,group=variable))+  geom_density(aes(colour=variable,fill=variable),size=1.5,alpha=.3)+xlab('Residuals (Wheat Tons/Hectare)')+ylab('Density')+scale_color_manual('',values=c('Pool'=blue,'FE'=green,'Spatial'=purple))+scale_fill_manual('',values=c('Pool'=blue,'FE'=green,'Spatial'=purple))  
-  ggsave(paste("./F",c83,"_In_Sample_Yield_Estimates.pdf",sep=''))
+ # ggsave(paste("./F",c83,"_In_Sample_Yield_Estimates.pdf",sep=''))
 
 ```  
   
 ##Out-Of-Sample Cross Validation
 Here we present the results of measurements of predictive accuracy outlined in the methods section. 
 
-*Table `r paste(Table_number)`: Root Mean Squared Error (RMSE) for Out-Of-Sample Prediction (Tons/Hectare) `r Table_number =Table_number+1 `*
+*Table `r paste(Table_number)`: Root Mean Squared Error (RMSE) for Out-Of-Sample Prediction (Tons/Hectare) `r t12321 =Table_number ` `r Table_number =Table_number+1 `*
 ```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
 
   #save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
-  load("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
+ #NOT NEEDED #load("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
   
 
   ####################################
   # predict to FE from SPLM
  
   # Calculate FE with dummy variables to forecast error estimations
-  DM_formula_regression = yield_tn_ha ~ 0+factor(district)+ rcs(PC1, 4) + rcs(PC2, 4) + rcs(PC3, 4) + rcs(PC4, 4) 
+  DM_formula_regression = yield_tn_ha ~ 0+factor(district)+ PC1 + PC2 + PC3 + PC4 
   
   splm_lag_DM <- spml(DM_formula_regression, data = pca_pred, index = c("district", "years"),
                      listw = districts_polyListw, model = "pooling", lag = T, spatial.error = "none") # must use pooling with dummy variables
@@ -828,21 +775,22 @@ Here we use principal components to avoid issues of multicolinearity across NDVI
 
 Considering the longer-term nature of moisture availability, we also must consider the inability of Rabi NDVI to capture all meaninful characteristics of the season. Rainfall, especially in rich soils, in the months leading up to a growing season will be important for maintaining soil moisture across the growing season, but is particularly important during the germination process, when the NDVI signal is minimal. Looking at Figure `r paste(c62)` we can see that effects of a failed monsoon in 2004-2005, despite the extensive use of irrigation in Pubjab and Haryana, deficits in soil moisture will be difficult to make up for. 
 
-##Spatio-Temporal Crop Prediction
-Metrics for wheat yeild prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')` and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI.  The improvements in within and out of sample accuracy from leveraging the spatio-temporal properties of panel data is apparent with predictive accurancy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained through integration of spatially lagged values of yeilds ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. Note however that this particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
+##Regression Results
+Preliminary tests from preliminary tests rule out the use of pooled OLS in favor of fixed effects methods. Looking at Table `r paste(t632)` results, PC1 which largely comprises comparisons of the current years mean value and the historic 95th percentile, we can see that low current values relative to the upper percentiles is significantly correlated with reductions in Rabi wheat yeilds (p<`r paste(round(summary(fixed_pca)[1]$coefficients[1,4],6))`). For PC2 we see that increases in the minimum values of NDVI correspond to significantly higher wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[2,4],8))`). For PC3 we see that increases in season length correspond (although with a relatively small response) to significantly higher yields .  (p<`r paste(round(summary(fixed_pca)[1]$coefficients[3,4],3))`). For PC4, which also largely compares current year metrics (largely AUC values) to upper parts of the observed distribution, we see similar to PC1 significant decreases in yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[4,4],3))`). The spatial lag model follows a similar pattern of sign and significance, however the relative size of the coefficients are smaller due to the influence of $\lambda$, the spatial autoregressive coefficient (Table `r paste(t098)`). Here the large and possitive coefficient indicates strong spatial spillover effects, with uncontroled factors affecting yield not easily captured by NDVI (e.g. pest, disease, management) influencing their neighboring district.   
+
+##Spatio-Temporal Model Accuracy 
+Metrics for wheat yeild prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')` and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI (Table `r paste(t12321)`).  The improvements in within and out of sample accuracy from leveraging the spatio-temporal properties of panel data is apparent with predictive accurancy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained through integration of spatially lagged values of yeilds ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. Note however that this particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
 
 These differences are clearly exhibited in Figure `r paste(c62)` where the fixed effect and spatial lag models clearly out perform the pooled OLS methodology. This is particularly true during years exhibiting high variance such as 2005 and 2011 where unusually low and high values are prevalent across the sample. This characteristic of panel data reflects the underlying principal of the methodology which is able to model both the time-series properities of a single district, as well as the cross-sectional (spatial) properties of a particular year. These improvements are also expressed in the distribution of residuals presented in Figure `r paste(c83)`.   
 
-
-DISCUSS FIUGRE `r c83`
-
+ 
 
 
 
 
 lm1
-fixed_pca
-splm_lag
+summary(fixed_pca)
+summary(splm_lag)
 
 #Conclusions
 

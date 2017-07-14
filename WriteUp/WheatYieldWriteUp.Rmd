@@ -2,6 +2,7 @@
 title: "Modeling Wheat Yields in India: Describing & Exploiting spatiotemporal Variability with Panel Regression"
 bibliography: MyCollection.bib
 output: word_document
+ 
 ---
 
 ```{r setup, include=FALSE}
@@ -78,7 +79,7 @@ output: word_document
   names(yield_ndvi) 
 ```  
 #Abstract 
-The use of remote sensing for modeling and prediction of yields in developed countries has seen substantial academic and commercial interest. Here we aim to provide an open-source suite of algorithms to rapidly capture and summarize relevant portions of the phenological process relevant to crop modeling while maintaining spatiotemporal structure for use in panel econometric models. Here we demonstrate the predictive power of both these algorithms for summarizing remotely sensed data, and that of panel econometric methods to estimate wheat yields at the district level in Punjab and Haryana India. Critically, we find that panel econometric methods can accurately predict yields both across districts, and within any given district over time, even during periods of drought. 
+The use of remote sensing for modeling and prediction of yields in developed countries has seen substantial academic and commercial interest. Here we aim to provide an open-source suite of algorithms to rapidly capture and summarize portions of the phenological process relevant to crop modeling while maintaining spatiotemporal structure for use in panel econometric models. Here we demonstrate the predictive power of both these algorithms for summarizing remotely sensed data, and that of panel econometric methods to estimate wheat yields at the district level in Punjab and Haryana India. Critically, we find that our algorithms coupled with panel econometric methods can accurately predict yields both across districts, and within any given district over time, even during periods of drought ($\ R^2$>0.8). 
 
 #Introduction
 The ability to monitor and predict crop yields in developing countries is critical to the successful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Although much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide  avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments common to many developing countries [@Mann2015]. 
@@ -108,7 +109,7 @@ The full model is comprised of `r paste(length(multi_grep_character(c('VEG','dat
 To help better characterize the physical properties and identify challenges, field visits and focus group interviews were conducted in the winter of 2015. These interviews were conducted in 12 villages with 71 participants in Haryana and Punjab  states, in person with International Food Policy Research Institute (IFPRI) staff.  Questions focused on farm characteristics, adopted technologies, Rabi crop calendar dates, and identifying the timing of risks to crops. 
 
 ###Remote Sensing Data
-Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres with a range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of acquisition these products are treated as partially overlapping windows representing 8 day periods [@doraiswamy2007crop]. We find that the combination of these two products provides a stable and informative time series . 
+Considering the relatively small scale of agriculture in this region (median plot sizes of `r paste(mean(13.5,10))` acres with a range of 2 to 17.2 acres) reported during focus groups [@Robles2015], we utilized 250m vegetation products from the MODIS satellites. Vegetation indices are obtained from two 16 days MODIS products (MOD13Q1, MYD13Q1) from the Aqua and Terra satellites [@Didan2006]. Due to the staggered nature of acquisition these products are treated as partially overlapping windows representing 8 day periods [@doraiswamy2007crop]. We find that the combination of these two products provides a stable and informative time series. 
 
 In particular, we examine the predictive power of the Normalized Difference Vegetation Index (NDVI) using panel econometric techniques. NDVI is sensitive to the amount of chlorophyll in any given pixel and is commonly used to estimate plant productivity and health in agricultural applications [@Mann2015, @funk2009phenologically, @becker2010generalized, @becker2010monitoring, @mkhabela2011crop]. After removal of snow, cloud and other flagged low quality cells, we remove all non-agricultural cells through the use of the 500m MODIS land cover product (MCD12Q1) for the appropriate year [@Friedl2010]. The difference in resolutions is expected to have a minimal effect in this case because the extent of rural agriculture in these areas is extremely large. Therefore any cells include or excluded by omission or commission as agriculture should have a minimal effect at the district level. Moreover agricultural patterns are generally uniform over broad areas of Punjab and Haryana. This would likely no hold true in other areas of India. 
  
@@ -148,9 +149,8 @@ In addition to cloud cover, MODIS data products suffer from four additional sour
   #ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf), alpha = 0.4)+geom_line(data= plotdata[plotdata$Legend=='NDVI',], aes(x=Dates,y=NDVI,group=Legend),size=2)+coord_cartesian(xlim = (as.Date(c("2013-01-01", "2015-04-01"))))
  
 ```
-*Time series of NDVI unsmoothed (red) and smoothed with outlier removal (blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey. Date of estimated Rabi season maximum (red vertical line), estimated greenness onset (green vertical line), estimated harvest date (purple vertical line).*
 
-<!-- **To test for model improvements obtained through time series using cubic smoothing, we iteratively run a regression where the models described below (estimating wheat yields) with varying degrees of smoothing of inputs. For each iteration the degree of smoothing is increased and the adjusted $\ R^2$ and root mean squared error divided by mean yields is reported.** -->
+*Time series of NDVI unsmoothed (red) and smoothed with outlier removal (blue) for both crop seasons of 2002 to 2016. Wheat growing season highlighted in dark grey, rice growing season in light grey. Date of estimated Rabi season maximum (red vertical line), estimated greenness onset (green vertical line), estimated harvest date (purple vertical line).*
 
 ###Agricultural Survey Data
 Agricultural survey data at the district level was obtained from the Government of India [@IndiaDistrictYields]. Yields are measured in tons per hectare. As described later, we limit the sample to the 2003-2012 period in order to obtain a balanced panel.
@@ -185,18 +185,6 @@ pander(definitions, justify = c('left', 'left'))
 ##Summarizing Space & Time: Extraction and Aggregation of Remotely Sensed Data
 One major hurdle for this study was the rapid extraction of raster values bases on vector data while maintaining meaningful spatial and temporal components. In response, we developed the function *extract_value_point_polygon* (see formula `r J=Appendix_Function_number` `r paste(J)` `r Appendix_Function_number=Appendix_Function_number+1` in the appendix) to enhance the performance of the the default raster::extract() function. User processing times were better that 1/6000th that of extract() with the use of a 16-core Linux server. Additionally the function can take a list of adjacent raster stacks to perform data extraction, thereby properly handling vector datasets that span more than the extent of one raster. 
  
-*Figure `r paste(Figure_number)`: Benchmark test comparing raster::extract() and the new parallelized extract functions `r b7839=Figure_number` `r Figure_number =Figure_number+1`*
-
-```{r, echo=FALSE}
-bench = read.csv('FigureTableData/benchmark_extract.csv',stringsAsFactors = F)
-bench_extract_time = bench[1,2] # remove text data
-bench = bench[2:dim(bench)[1],]
-bench$cores = as.numeric(bench$cores)
-#ggplot(data=bench,aes(x=cores,y=times,group=NULL))+geom_line(size=1)+geom_hline(yintercept=bench_extract_time,colour='red',size=1)+xlab('Cores')+ylab('User Time')+ annotate("text", x = 7, y = 150, label = "extract_value_point_polygon")+ annotate("text", x = 7, y = 287, label = "raster::extract", col='red')
-#ggsave(paste("./F",b7839,"_ExtractBenchmark.pdf",sep=''))
-
-```
-
 ```{r, echo=FALSE}
 # not sure we include this one 
  Neighborhood_quantile=function(extr_values,PlantHarvestTable,Quant_percentile=0.05,num_workers=5,spline_spar = 0){
@@ -225,22 +213,8 @@ bench$cores = as.numeric(bench$cores)
  }
 ```
 
-##Exploiting Time: (Spatial) Panel Regression Methods and Models
-<!-- ###Input Data -->
-<!-- A summary table of the value of the dependent variable and all independent variables can be found below: -->
-
-<!-- *Table `r paste(Table_number)`: Variable summary statistics and descriptions `r Table_number =Table_number+1 `* -->
-
-<!-- ```{r Input variable summary table, echo=FALSE} -->
-<!--   panderOptions('table.split.table', Inf) -->
-<!--   panderOptions('big.mark', ",") -->
-<!--   panderOptions('keep.trailing.zeros', F) -->
-<!--   table.yield_ndvi = yield_ndvi[,10:dim(yield_ndvi)[2]] -->
-<!--   table.yield_ndvi.out = data.frame(Mean = sapply(table.yield_ndvi, mean, na.rm=T),SD=sapply(table.yield_ndvi, sd, na.rm=T) ) -->
-<!--   pander(table.yield_ndvi.out, justify = c('left', 'center', 'center')) -->
-<!-- ``` -->
-
-##Regression Methods and Diagnostic results
+##Spatial & Panel Regression Methods and Models
+###Regression Methods and Diagnostic results
 ```{r SETUP: Calculate PCA, echo=FALSE, message=FALSE, warning=FALSE}
   
   PCA_input_formula =    yield_tn_ha  ~   Rabi_plant_dates + Rabi_harvest_dates + Rabi_season_length + Rabi_max_date + Rabi_mean + Rabi_min + Rabi_max + Rabi_AUC + Rabi_95th_prct + Rabi_max_95th_prct + Rabi_AUC_95th_prct + Rabi_AUC_v2 + Rabi_AUC_leading + Rabi_AUC_trailing + Rabi_AUC_diff_mn + Rabi_AUC_diff_90th + Rabi_sd + Kharif_plant_dates + Kharif_harvest_dates + R_mx_dates + Kharif_mean + Kharif_min + Kharif_max + Kharif_AUC + Kharif_95th_prct + Kharif_max_95th_prct + Kharif_AUC_95th_prct + Kharif_AUC_v2 + Kharif_AUC_leading + Kharif_AUC_trailing + Kharif_95th_diff_mn + Kharif_AUC_diff_mn + Rabi_95th_diff_mn + Rabi_95th_diff_mx + Rabi_95th_diff_AUC + All_95th_prct  
@@ -383,9 +357,8 @@ To avoid overstating the statistical significance of regression coefficients, we
 ```{r Panel: Spatial autocorrelation table, echo=FALSE, message=FALSE, warning=FALSE}
 
   names(Moran_results) = c('Neighborhood','P-Value','Test Stat')
-  panderOptions('table.split.table', Inf)
-  panderOptions('big.mark', ",")
-  panderOptions('keep.trailing.zeros', F)
+   panderOptions('big.mark', ",")
+  panderOptions('keep.trailing.zeros', T)
   pander(Moran_results, justify = c('left', 'center','center'))
      
 ``` 
@@ -424,7 +397,7 @@ Multicolinearity, high correlations between independent variables, can increase 
   #https://onlinecourses.science.psu.edu/stat501/node/347
   fit =lm(PCA_input_formula,data=yield_ndvi)
   fit = as.data.frame(vif(fit))
-  stargazer(fit,type = 'text')
+  pander( data.frame(Mean = mean(fit$`vif(fit)`), SD = sd(fit$`vif(fit)`), Min=min(fit$`vif(fit)`),Max=max(fit$`vif(fit)`),row.names = 'VIF'), justify = rep('left',5))
 ```
 
 To avoid problems with multicolinearity between independent variables we apply a principal components analysis transformation (PCA) to a centered and scaled matrix of all independent variables $\ X$. PCA allows for the replacement of $\ X$ with a new matrix whos variables are orthogonal to each other but span the multidimensional space of $\ X$ [@GELADI19861]. In this case, we generate `r paste(dim(pca$rotation)[1])` principal components for inclusion in a random effects panel regression. A table of PCA component imporance can be found in the appendix, Table(A`r AT1=Appendix_Table_number``r paste(AT1)``r Appendix_Table_number=Appendix_Table_number+1`).
@@ -480,7 +453,7 @@ We can evaluate how each variable contributes to the principal component used in
 
 ```{r, echo=FALSE,warning=F,fig.width=8, fig.height=5}
 
-  source('H:/Scripts/visualize_pca_rotations.R')
+  source('H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/visualize_pca_rotations.R')
   visualize_pca_rotations(pca, r=4, low='#76448A', mid ='#f7f7f7' , high='#1E8449' )
 
 ```
@@ -493,15 +466,26 @@ Estimates of equation (`r paste(F2)`) are provide below:
 
 Table `r paste(Table_number)`: *District level pooled estimation of wheat yields in tons per hectare*`r t543 =Table_number ` `r Table_number =Table_number+1 `
 
-
 ```{r Panel POOLED: Fitted vs actual PCA estimate, echo=FALSE}
-summary(lm1)
 SSR_FULL = sum(lm1$residuals^2)
 SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
 Witin_R2_pool =  1 - (SSR_FULL/SSR_FE)  
-print(paste('Within R2',round(Witin_R2_pool,2)))
 RMSE_lm1 = sqrt(sum((unlist(lm1$residuals))^2)/length(lm1$residuals))
-print(paste('RMSE',round(RMSE_lm1,2)))
+
+
+lm_sum = summary(lm1)
+coef_table = coefficients(lm_sum)
+row.names(coef_table)[6]='Years'
+#attributes(lm_sum)
+  options(digits=3)
+
+pander(coef_table,caption = paste( '\r','Residuals: ',
+                                   '\r','Min   1st Qu. Median    Mean    3rd Qu.  Max','\r',
+paste(summary(residuals(lm_sum)),collapse="  "),'\r',
+  'RMSE: ',signif(RMSE_lm1,3),' on ',lm_sum$df[2],' degrees of freedom \r', 'Multiple R2: ',signif(lm_sum$r.squared,3),', Adjusted R2: ',signif(lm_sum$adj.r.squared,3),', Within R2:',signif(Witin_R2_pool,3), 
+'\r','F-statistic: ',signif(lm_sum$fstatistic[1],3),' on ',signif(lm_sum$fstatistic[2],1 ),' and ',signif(lm_sum$fstatistic[3],1),' DF',sep = ''))
+ 
+
 ```
 
 ### Fixed Effects Panel
@@ -520,18 +504,16 @@ Table `r paste(Table_number)`: *District level fixed effects estimation of wheat
   fixed_pca <- plm(PCA_formula_regression, data=pca_pred, index=c("district", "years"), model="within")
  
   #stargazer(fixed_pca, type="text")
-  summary(fixed_pca)
- 
-    
-    
+  #summary(fixed_pca)
+
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
   SSR_FULL = sum(fixed_pca$residuals^2)
-  SSR_FE = sum( plm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input, index=c("district", "years"), model="pooling")$residuals^2)
+  SSR_FE = sum( lm(yield_tn_ha ~ 1 +as.factor(district) , data=pca_input)$residuals^2)
   Witin_R2_FE =  1 - (SSR_FULL/SSR_FE)  
-  print(paste('Within R2',round(Witin_R2_FE,2)))
+  #print(paste('Within R2',round(Witin_R2_FE,2)))
   
   RMSE_pca = sqrt(sum((unlist(fixed_pca$residuals))^2)/length(fixed_pca$residuals))
-  print(paste('RMSE',round(RMSE_pca,2)))
+  #print(paste('RMSE',round(RMSE_pca,2)))
 
   # get prediction and and model.frame  from FE PCA
   fitted_pca = data.frame(PCA_Fit = fixed_pca$model[[1]] - fixed_pca$residuals)
@@ -541,14 +523,26 @@ Table `r paste(Table_number)`: *District level fixed effects estimation of wheat
   model_data_pca$years_id = as.numeric(substr(model_data_pca$year,1,4))
   model_data_pca = model_data_pca[,c('district','years_id','yield_tn_ha','PCA_Fit')]
   model_data_pca = melt(model_data_pca,id = c('years_id','district'))
-
-   
+  
+     
+  lm_sum =  summary(fixed_pca)
+  coef_table = coefficients(lm_sum)
+  row.names(coef_table)[5]='Years'
+  #attributes(lm_sum)
+  options(digits=3)
+  pander(coef_table,digits =3,caption = paste( '\n','Residuals: ',
+                                     '\n',' Min   1st Qu.  Median    Mean    3rd Qu.  Max','\n',
+  paste(summary(as.vector(residuals(lm_sum)) ) ,collapse="  "),'\n',
+    'RMSE: ',signif(RMSE_pca,3),' on ',lm_sum$df[2],' degrees of freedom \n', 'Multiple R2: ',signif(lm_sum$r.squared[1],3),', Adjusted R2: ',signif(lm_sum$r.squared[2],3),', Within R2: ',signif(Witin_R2_FE,3), 
+  '\n','F-statistic: ',signif(lm_sum$fstatistic$statistic[1],3),' on ',signif(lm_sum$fstatistic$parameter[1],1 ),' and ',signif(lm_sum$fstatistic$parameter[2],1),' DF',sep = ''))
 ```
 
 ##Spatial Panel Regression
 Estimates of equation (`r paste(F4)`) are provide below:
 Table `r paste(Table_number)`: *District level spatial lag fixed effects estimation of wheat yields in tons per hectare*`r t098 =Table_number ` `r Table_number =Table_number+1 `
-```{r Panel: Spatial Panel Estimation, fig.width=10, fig.height=6, echo=FALSE}
+
+```{r Panel: Spatial Panel Estimation, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, include=FALSE}
+  
   #yeild and evi data
   pca_pred_splm = as.data.frame(pca_pred)
 
@@ -574,18 +568,18 @@ Table `r paste(Table_number)`: *District level spatial lag fixed effects estimat
    
   splm_lag <- spml(PCA_formula_regression, data = pca_pred, index = c("district", "years"),
                      listw = districts_polyListw, model = "within", lag = T, spatial.error = "none")
-  summary(splm_lag)
+  #summary(splm_lag)
   
-  paste('R2=',round(summary(splm_lag)$rsqr,2))
+  #paste('R2=',round(summary(splm_lag)$rsqr,2))
   
   # calculate within R2 http://forums.eviews.com/viewtopic.php?t=4709
   SSR_FULL = sum(splm_lag$residuals^2)
-  SSR_FE = sum( spml(yield_tn_ha~1 +as.factor(district), data = pca_pred, index = c("district", "years"),
-                     listw = districts_polyListw, model = "pooling", lag = F, spatial.error = "b")$residuals^2)
+  SSR_FE = sum( lm(yield_tn_ha~1 +as.factor(district), data = pca_pred)$residuals^2)
+  
   Witin_R2_splm =  1 - (SSR_FULL/SSR_FE)    
-  paste('Within R2=',round(Witin_R2_splm,2))
+  #paste('Within R2=',round(Witin_R2_splm,2))
   RMSE_lag = sqrt(sum((unlist(splm_lag$residuals))^2)/length(splm_lag$residuals))
-  print(paste('RMSE',round(RMSE_lag,2)))
+  #print(paste('RMSE',round(RMSE_lag,2)))
   
   pca_pred=pca_pred[with(pca_pred, order(years, district )), ]  # must do to do prediction 
   # plot spatial lag panel regression 
@@ -599,15 +593,23 @@ Table `r paste(Table_number)`: *District level spatial lag fixed effects estimat
   model_pca_splm_lag = melt(model_pca_splm_lag,id = c('years_id','district'))
   model_pca_splm_lag$variable= as.character(model_pca_splm_lag$variable)
   model_pca_splm_lag$variable[model_pca_splm_lag$variable=='fitted']='Fitted Spatial'
-   
-    
-  # smry <- summary(splm_lag)
-  # pander(data.frame(R.Square = smry$rsqr))
-  # pander(smry$CoefTable)
+``` 
+
+```{r Panel: Spatial Panel print, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+
+  lm_sum =  summary(splm_lag)
+  coef_table = lm_sum$CoefTable
+  row.names(coef_table)[6]='Years'
+  options(digits=3)
+  pander(coef_table,digits =3,caption = paste( '\n','Residuals: ',
+                                     '\n',' Min   1st Qu.  Median    Mean    3rd Qu.  Max','\n',
+  paste(summary(as.vector(residuals(lm_sum)) ) ,collapse="  "),'\n',
+    'RMSE: ',signif(RMSE_lag,3),' on ',nrow(lm_sum$model)-length(coef(lm_sum)) ,' degrees of freedom \n', 'Multiple R2: ',signif(lm_sum$rsqr[1],3),', Within R2: ',signif(Witin_R2_splm,3),sep = ''))
     
 ```
 
 *Figure `r paste(Figure_number)`: District Wheat Yield Estimates  (2003-2012) `r c62=Figure_number` `r Figure_number =Figure_number+1 `*
+
 ```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL, fig.width=10, fig.height=6, echo=FALSE}
 # Set up color pallete 
   red = '#e41a1c'
@@ -631,7 +633,8 @@ Table `r paste(Table_number)`: *District level spatial lag fixed effects estimat
 ```  
   
 *Figure `r paste(Figure_number)`: Residuals from District Wheat Yield Estimates  (2003-2012) `r c83=Figure_number` `r Figure_number =Figure_number+1 `*
-```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL HISTOGRAM, fig.width=10, fig.height=6, echo=FALSE}
+
+```{r Panel: OLS VS TEMPORAL PANEL VS SPATIAL PANEL HISTOGRAM, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
 
 # Plot temporal and spatial fit  ------------------------------------------
 
@@ -647,9 +650,9 @@ Table `r paste(Table_number)`: *District level spatial lag fixed effects estimat
 ```  
   
 ##Out-Of-Sample Cross Validation
-Here we present the results of measurements of predictive accuracy outlined in the methods section. Within-sample refers to the RMSE associated with a single regression estimation, and out-of-sample refers to the Leave-P-Out Cross Validation (LPOCV) described in the *Methods* section. 
+Here we present the results of measurements of predictive accuracy outlined in the methods section. Within-sample refers to the RMSE associated with a single regression estimation, and out-of-sample refers to the Leave-P-Out Cross Validation (LPOCV) described in the *Methods* section, and the within-$R^{2}$ evaluates the goodness of fit beyond what can be explained by fixed effects intercepts $\alpha_{i}$. 
 
-*Table `r paste(Table_number)`: Root Mean Squared Error (RMSE) for Within- and Out-Of-Sample Prediction (Tons/Hectare) `r t12321 =Table_number ` `r Table_number =Table_number+1 `*
+*Table `r paste(Table_number)`: LPOCV Performance Metrics for Within and Out Of Sample Prediction`r t12321 =Table_number ` `r Table_number =Table_number+1 `*
 ```{r Out-of-Sample Estimation, fig.width=10, fig.height=6, echo=FALSE}
 
   #save.image("H:/Projects/India_Index_Insurance/India_Index_Insurance_Code/WriteUp/dataimage.RData")
@@ -750,10 +753,7 @@ Here we present the results of measurements of predictive accuracy outlined in t
   names(RMSE_table) = c('Within Sample RMSE','Out of Sample RMSE','Within R2')
   row.names(RMSE_table) = c('Pool Fit','FE Fit','Spatial Fit')
   RMSE_table = as.data.frame(apply(RMSE_table,2,FUN=function(x){round(x,2)}))
-  panderOptions('table.split.table', Inf)
-  panderOptions('big.mark', ",")
-  panderOptions('keep.trailing.zeros', F)
-  pander(RMSE_table, justify = c('left', 'center','center','center'))
+  pander(RMSE_table, justify = c('left', 'center','center','center'),digits =3)
      
 ```
 #Discussion
@@ -768,7 +768,7 @@ Here we use principal components to avoid issues of multicolinearity across NDVI
 Considering the longer-term nature of moisture availability, we also must consider the inability of Rabi NDVI to capture all meaningful characteristics of the season. Rainfall, especially in rich soils, in the months leading up to a growing season will be important for maintaining soil moisture across the growing season, but is particularly important during the germination process, when the NDVI signal is minimal. Plant health in the preceding season is therefore a good indicator of current growing conditions, especially in the early parts of the season. Looking at Figure `r paste(c62)` we can see that effects of a failed monsoon in 2004-2005 on yeilds. Despite the extensive use of irrigation in Punjab and Haryana, deficits in soil moisture proved difficult to make up for. 
 
 ##Regression Results
-Preliminary tests rule out the use of pooled OLS in favor of fixed effects methods. Looking at Table `r paste(t632)` results for PC1, which largely comprises comparisons of the current years mean value and the historic 95th percentile in the Kharif season, we can see that low current values relative to the upper percentiles are significantly correlated with reductions in Rabi wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[1,4],6))`). For PC2, we see that increases in the minimum values of NDVI correspond to significantly higher wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[2,4],8))`). For PC3, we see that increases in season length correspond (although with a relatively small response) to significantly higher yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[3,4],3))`). For PC4, we see significantly lower yields corresponding to greater differences between the current year AUC values and the upper percentiles of the observed record (p<`r paste(round(summary(fixed_pca)[1]$coefficients[4,4],3))`). The spatial lag model from `r paste(F4)` follows a similar pattern of sign and significance, however the relative size of the coefficients are smaller due to the influence of $\lambda$, the spatial autoregressive coefficient (Table `r paste(t098)`). Here the large and positive coefficient indicates strong spatial spillover effects, with uncontrolled  factors affecting yield not easily captured by NDVI (e.g. pest, disease, management) influencing their neighboring district.   
+Preliminary tests rule out the use of pooled OLS in favor of fixed effects methods. Looking at Table `r paste(t632)` results for PC1, which largely comprises comparisons of the current years mean value and the historic 95th percentile in the Kharif season, we can see that low current values relative to the upper percentiles are significantly correlated with reductions in Rabi wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[1,4],3))`). For PC2, we see that increases in the minimum values of NDVI correspond to significantly higher wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[2,4],3))`). For PC3, we see that increases in season length correspond (although with a relatively small response) to significantly higher yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[3,4],3))`). For PC4, we see significantly lower yields corresponding to greater differences between the current year AUC values and the upper percentiles of the observed record (p<`r paste(round(summary(fixed_pca)[1]$coefficients[4,4],3))`). The spatial lag model from `r paste(F4)` follows a similar pattern of sign and significance, however the relative size of the coefficients are smaller due to the influence of $\lambda$, the spatial autoregressive coefficient (Table `r paste(t098)`). Here the large and positive coefficient indicates strong spatial spillover effects, with uncontrolled  factors affecting yield not easily captured by NDVI (e.g. pest, disease, management) influencing their neighboring district.   
 
 ##Spatiotemporal Model Accuracy 
 Metrics for wheat yield prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')`[^3] and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI (Table `r paste(t12321)`).  The improvements in accuracy from leveraging the spatiotemporal properties of panel data is apparent with predictive accuracy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained when spatially lagged values of yields ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. Note however that this particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
@@ -791,20 +791,20 @@ Here we demonstrate and provide open access to a new suite of algorithms designe
 #Appendix A
 ##Yield Data
 *Table A`r paste(Appendix_Table_number)`: Rabi Season Wheat Yields Metric Tons per Hectare by State `r Appendix_Table_number =Appendix_Table_number+1 `*
-```{r, include=T,echo=F,warning=F}
+```{r, echo=F, message=FALSE, warning=F, include=T}
 panderOptions('table.split.table', Inf)
 panderOptions('big.mark', ",")
 panderOptions('keep.trailing.zeros', F)
 state_yeilds = ddply(yield_ndvi,~state+district,summarise,Min=min(yield_tn_ha,na.rm=T),Mean=mean(yield_tn_ha,na.rm=T),Max=max(yield_tn_ha,na.rm=T))
 names(state_yeilds)[1]="State"
-pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'))
+pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'),digits =3)
 ```
 
 ##Principal Components Analysis
 *Table A`r paste(AT1)`: Importance of PCA components*
 
 ```{r Panel:  PCA output  , echo=FALSE}
-   summary(pca) 
+   pander(summary(pca),split.table=90,digits =3) 
 ```
 
 

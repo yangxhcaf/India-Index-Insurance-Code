@@ -87,17 +87,20 @@ csl: applied-geography.csl
 
 The use of remote sensing for modeling and prediction of yields in developed countries has seen substantial academic and commercial interest. Here we aim to provide an open-source suite of algorithms to rapidly capture and summarize portions of the phenological process relevant to crop modeling while maintaining spatiotemporal structure for use in panel econometric models. Here we demonstrate the predictive power of both these algorithms for summarizing remotely sensed data, and that of panel econometric methods to estimate wheat yields at the district level in Punjab and Haryana India. We find that our algorithms coupled with panel econometric methods can accurately predict yields both across districts, and within any given district over time, even during periods of drought($\ R^2$>0.8). 
 
-Michael L. Mann$\ ^a$, Berber Kramer$\ ^b$, Francisco Ceballos$\ ^b$, Miguel Robles$\ ^c$, Josh Gray$\ ^d$
+Michael L. Mann$\ ^a$, Berber Kramer$\ ^b$, Francisco Ceballos$\ ^b$, Miguel Robles$\ ^c$, Josh Gray$\ ^e$, Eli Melaas$\ ^d$
  
 
 
-a: Department of Geography, The George Washington University, Washington DC 
+$\ ^a$ Department of Geography, The George Washington University, Washington DC 
 
-b: Markets, Trade and Institutions Division, International Food Policy Research Institute, Washington DC 
+$\ ^b$ Markets, Trade and Institutions Division, International Food Policy Research Institute, Washington DC 
 
-b: The World Bank, Washington DC
+$\ ^c$ The World Bank, Washington DC
 
-d: Department of Forestry and Environmental Resources, North Carolina State University, Raleigh, NC
+$\ ^d$ Department of Forestry and Environmental Resources, North Carolina State University, Raleigh NC
+
+$\ ^e$ Department of Earth and Environment, Boston University, Boston MA
+
 
 
 

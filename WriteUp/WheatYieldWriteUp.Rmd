@@ -2,7 +2,8 @@
 title: "Modeling Wheat Yields in India: Describing & Exploiting spatiotemporal Variability with Panel Regression"
 bibliography: MyCollection.bib
 output: word_document
- 
+csl: applied-geography.csl
+
 ---
 
 ```{r setup, include=FALSE}
@@ -79,7 +80,7 @@ output: word_document
   names(yield_ndvi) 
 ```  
 #Abstract 
-The use of remote sensing for modeling and prediction of yields in developed countries has seen substantial academic and commercial interest. Here we aim to provide an open-source suite of algorithms to rapidly capture and summarize portions of the phenological process relevant to crop modeling while maintaining spatiotemporal structure for use in panel econometric models. Here we demonstrate the predictive power of both these algorithms for summarizing remotely sensed data, and that of panel econometric methods to estimate wheat yields at the district level in Punjab and Haryana India. Critically, we find that our algorithms coupled with panel econometric methods can accurately predict yields both across districts, and within any given district over time, even during periods of drought ($\ R^2$>0.8). 
+The use of remote sensing for modeling and prediction of yields in developed countries has seen substantial academic and commercial interest. Here we aim to provide an open-source suite of algorithms to rapidly capture and summarize portions of the phenological process relevant to crop modeling while maintaining spatiotemporal structure for use in panel econometric models. Here we demonstrate the predictive power of both these algorithms for summarizing remotely sensed data, and that of panel econometric methods to estimate wheat yields at the district level in Punjab and Haryana India. We find that our algorithms coupled with panel econometric methods can accurately predict yields both across districts, and within any given district over time, even during periods of drought ($\ R^2$>0.8). 
 
 #Introduction
 The ability to monitor and predict crop yields in developing countries is critical to the successful adaptation to changes in our climate. Increased temperatures and variability has already been linked to losses in maize and wheat yields (-3.8 and 5.5% respectively)and crop prices globally [@Lobell616]. Although much effort has been placed on modeling the spatial distribution of these shifts, less effort has been placed on how yields vary across space and time [@Ray2015]. Advances in remote sensing provide  avenues to monitor agricultural crop health at high spatial and temporal resolution. However, our ability to monitor changes in plant productivity is still limited in the more complex environments common to many developing countries [@Mann2015]. 
@@ -144,7 +145,7 @@ In addition to cloud cover, MODIS data products suffer from four additional sour
         annotate("text", x =(PlantHarvest$planting[9]-60), y = 0, label = "italic(Plant)",angle = 90,colour='darkgreen',parse = T)+
         annotate("text", x =(PlantHarvest$planting[9]+133), y = .02, label = "italic(Harvest)",angle = 90,colour='purple',parse = T)+
         coord_cartesian(xlim = (as.Date(c("2010-02-01", "2015-02-25"))))
-# ggsave(paste("./F",aa,"_NDVI time signature.pdf",sep=''))
+#ggsave(paste("./F",aa,"_NDVI time signature.pdf",sep=''),over)
  #windows() used in presentation
   #ggplot()+geom_rect(data = rects, aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf), alpha = 0.4)+geom_line(data= plotdata[plotdata$Legend=='NDVI',], aes(x=Dates,y=NDVI,group=Legend),size=2)+coord_cartesian(xlim = (as.Date(c("2013-01-01", "2015-04-01"))))
  
@@ -345,7 +346,7 @@ One major hurdle for this study was the rapid extraction of raster values bases 
   
 ```  
 
-Traditional ordinary least squares (OLS) approaches look at cross-sectional or time-series data, exploiting variance in one dimension. However most social and physical  processes occur over both space and time. For this reason we focus on the use of panel data sets which increases the amount of observed heterogeneity by including information about individuals *i* over time *t*. Critically, despite its widespread use in the field Geography (e.g. [@Mann2010a]), cross-sectional analysis should generally *not* be used for forecasting, or for modeling of phenomenon with strong temporal components. 
+Traditional ordinary least squares (OLS) approaches look at cross-sectional or time-series data, exploiting variance in one dimension. However most social and physical  processes occur over both space and time. For this reason we focus on the use of panel data sets which increases the amount of observed heterogeneity by including information about individuals *i* over time *t*. Critically, despite its widespread use in the field Geography (e.g. @Mann2010a), cross-sectional analysis should generally *not* be used for forecasting, or for modeling of phenomenon with strong temporal components. 
 
 Compared to cross-sectional approaches, panel analysis substantially increases the degree of observed variance over both space and time. When pooled together, the integration of two statewide data sets provides (n = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district'])))`) over the `r paste(range(as.numeric(as.character(pca_pred$years)), na.rm=T),collapse='-')` sample period (t = `r paste(length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years'])))`) provides (N=`r  length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'years']))*length(unique(model.frame(PCA_formula_regression_dataframe,pca_pred)[,'district']))`) observations. Due to issues with estimating spatial panel models, the input data must be balanced (no missing observations). As such the number of districts for this regression is limited to 14 out of 36 total. This loss however is compensated by the fact that we can now compare a variety of estimation strategies on an even playing ground. Future work will aim to avoid this complication. 
 
@@ -357,6 +358,7 @@ To avoid overstating the statistical significance of regression coefficients, we
 ```{r Panel: Spatial autocorrelation table, echo=FALSE, message=FALSE, warning=FALSE}
 
   names(Moran_results) = c('Neighborhood','P-Value','Test Stat')
+  Moran_results= Moran_results[,c('Neighborhood','Test Stat','P-Value')]
    panderOptions('big.mark', ",")
   panderOptions('keep.trailing.zeros', T)
   pander(Moran_results, justify = c('left', 'center','center'))
@@ -479,11 +481,12 @@ row.names(coef_table)[6]='Years'
 #attributes(lm_sum)
   options(digits=3)
 
-pander(coef_table,caption = paste( '\r','Residuals: ',
+pander(coef_table)
+pander(paste( '\r','Residuals: ',
                                    '\r','Min   1st Qu. Median    Mean    3rd Qu.  Max','\r',
 paste(summary(residuals(lm_sum)),collapse="  "),'\r',
-  'RMSE: ',signif(RMSE_lm1,3),' on ',lm_sum$df[2],' degrees of freedom \r', 'Multiple R2: ',signif(lm_sum$r.squared,3),', Adjusted R2: ',signif(lm_sum$adj.r.squared,3),', Within R2:',signif(Witin_R2_pool,3), 
-'\r','F-statistic: ',signif(lm_sum$fstatistic[1],3),' on ',signif(lm_sum$fstatistic[2],1 ),' and ',signif(lm_sum$fstatistic[3],1),' DF',sep = ''))
+  'RMSE: ',signif(RMSE_lm1,3),' on ',lm_sum$df[2],' degrees of freedom \n', 'Multiple R2: ',signif(lm_sum$r.squared,3),', Adjusted R2: ',signif(lm_sum$adj.r.squared,3),', Within R2:',signif(Witin_R2_pool,3), 
+'\n','F-statistic: ',signif(lm_sum$fstatistic[1],3),' on ',signif(lm_sum$fstatistic[2],1 ),' and ',signif(lm_sum$fstatistic[3],1),' DF',sep = ''))
  
 
 ```
@@ -530,7 +533,8 @@ Table `r paste(Table_number)`: *District level fixed effects estimation of wheat
   row.names(coef_table)[5]='Years'
   #attributes(lm_sum)
   options(digits=3)
-  pander(coef_table,digits =3,caption = paste( '\n','Residuals: ',
+  pander(coef_table,digits =3)
+  pander(paste( '\n','Residuals: ',
                                      '\n',' Min   1st Qu.  Median    Mean    3rd Qu.  Max','\n',
   paste(summary(as.vector(residuals(lm_sum)) ) ,collapse="  "),'\n',
     'RMSE: ',signif(RMSE_pca,3),' on ',lm_sum$df[2],' degrees of freedom \n', 'Multiple R2: ',signif(lm_sum$r.squared[1],3),', Adjusted R2: ',signif(lm_sum$r.squared[2],3),', Within R2: ',signif(Witin_R2_FE,3), 
@@ -601,7 +605,8 @@ Table `r paste(Table_number)`: *District level spatial lag fixed effects estimat
   coef_table = lm_sum$CoefTable
   row.names(coef_table)[6]='Years'
   options(digits=3)
-  pander(coef_table,digits =3,caption = paste( '\n','Residuals: ',
+  pander(coef_table,digits =3)
+  pander(paste( '\n','Residuals: ',
                                      '\n',' Min   1st Qu.  Median    Mean    3rd Qu.  Max','\n',
   paste(summary(as.vector(residuals(lm_sum)) ) ,collapse="  "),'\n',
     'RMSE: ',signif(RMSE_lag,3),' on ',nrow(lm_sum$model)-length(coef(lm_sum)) ,' degrees of freedom \n', 'Multiple R2: ',signif(lm_sum$rsqr[1],3),', Within R2: ',signif(Witin_R2_splm,3),sep = ''))
@@ -758,40 +763,40 @@ Here we present the results of measurements of predictive accuracy outlined in t
 ```
 #Discussion
 ##Algorithms
-A broad suite of algorithms for crop modeling using the open-source language R are provided in the *Functions* section of Appendix **A**, and were used to create variables described in Table `r paste(VarTableNum)`. These functions have been designed to capture phenologically relevant components of the a growing season. They are designed to be flexibly applied to a wide set of geographic areas and crop seasons. For instance, similar or better results to those presented here were created for rice production in Punjab and Haryana. The functions are also able to reasonably estimate critical management indicators such as planting and harvest dates by mixing expert opinion with optimization routines. 
+A broad suite of algorithms for crop modeling using the open-source language R are provided in the *Functions* section of Appendix A as well as in an open github repository [here](https://github.com/mmann1123/India-Index-Insurance-Code), and were used to create variables described in Table `r paste(VarTableNum)`. These functions have been designed to capture phenologically relevant components of the a growing season. They are designed to be flexibly applied to a wide set of geographic areas and crop seasons. For instance, similar or better results to those presented here were created for rice production in Punjab and Haryana. The functions are also able to reasonably estimate critical management indicators such as planting and harvest dates by mixing expert opinion with optimization routines. 
 
 Due to the idiosyncratic and heterogeneous nature of crop production in many developing countries these statistics are calculated independently for each area of interest and time-period. Therefore, metrics can accurately reflect spatial and temporal variability due to differences in management practices, climatic zone, weather, and edaphic properties. Importantly, the spatiotemporal characteristics of the data are maintained for use in panel econometric applications. 
 
 ##Principal Component Loadings
-Here we use principal components to avoid issues of multicolinearity across NDVI metrics for both the Rabi and Kharif seasons. An unusual feature of this study is the explicit integration of Kharif season (typically rice) statistics for Rabi wheat estimation. These variables were included because nutrients and water availability, although rarely modeled as such, are part of longer-term integrative processes. Water availability during a growing season is a function of rainfall, temperatures, wind speeds, and edaphic properties more closely related to metrics such as climatic water deficit [@mann2016incorporating]. As such, the inclusion of Kharif season statistics allow us to control for spillovers from the preceding growing season.
+Here we use principal components to avoid issues of multicolinearity across NDVI metrics for both the Rabi and Kharif seasons. An unusual feature of this study is the explicit integration of statistics from the preceeding Kharif season (typically rice) for Rabi wheat estimation. These variables were included because nutrients and water availability, although rarely modeled as such, are part of longer-term integrative processes. Water availability during a growing season is a function of rainfall, temperatures, wind speeds, and edaphic properties more closely related to metrics such as climatic water deficit [@mann2016incorporating]. As such, the inclusion of Kharif season statistics allow us to control for spillovers from the preceding growing season.
 
-Considering the longer-term nature of moisture availability, we also must consider the inability of Rabi NDVI to capture all meaningful characteristics of the season. Rainfall, especially in rich soils, in the months leading up to a growing season will be important for maintaining soil moisture across the growing season, but is particularly important during the germination process, when the NDVI signal is minimal. Plant health in the preceding season is therefore a good indicator of current growing conditions, especially in the early parts of the season. Looking at Figure `r paste(c62)` we can see that effects of a failed monsoon in 2004-2005 on yeilds. Despite the extensive use of irrigation in Punjab and Haryana, deficits in soil moisture proved difficult to make up for. 
+Considering the longer-term nature of moisture availability, we also must consider the inability of Rabi NDVI to capture all meaningful characteristics of the season. Rainfall in the months leading up to a growing season will be important for maintaining soil moisture across the growing season, but is particularly important during the germination process, when the NDVI signal for the Rabi season is minimal. Plant health in the preceding season is therefore a good indicator of current growing conditions, especially in the early parts of the season. Looking at Figure `r paste(c62)` we can see that effects of a failed monsoon in 2004-2005 on yeilds. Despite the extensive use of irrigation in Punjab and Haryana, deficits in soil moisture proved difficult to make up for. For more details on this please see the later section on droughts. 
 
 ##Regression Results
-Preliminary tests rule out the use of pooled OLS in favor of fixed effects methods. Looking at Table `r paste(t632)` results for PC1, which largely comprises comparisons of the current years mean value and the historic 95th percentile in the Kharif season, we can see that low current values relative to the upper percentiles are significantly correlated with reductions in Rabi wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[1,4],3))`). For PC2, we see that increases in the minimum values of NDVI correspond to significantly higher wheat yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[2,4],3))`). For PC3, we see that increases in season length correspond (although with a relatively small response) to significantly higher yields (p<`r paste(round(summary(fixed_pca)[1]$coefficients[3,4],3))`). For PC4, we see significantly lower yields corresponding to greater differences between the current year AUC values and the upper percentiles of the observed record (p<`r paste(round(summary(fixed_pca)[1]$coefficients[4,4],3))`). The spatial lag model from `r paste(F4)` follows a similar pattern of sign and significance, however the relative size of the coefficients are smaller due to the influence of $\lambda$, the spatial autoregressive coefficient (Table `r paste(t098)`). Here the large and positive coefficient indicates strong spatial spillover effects, with uncontrolled  factors affecting yield not easily captured by NDVI (e.g. pest, disease, management) influencing their neighboring district.   
+Preliminary tests rule out the use of pooled OLS in favor of fixed effects methods. Looking at Table `r paste(t632)` results for PC1, which largely comprises comparisons of the current years mean value and the historic 95th percentile in the Kharif season, we can see that low current values relative to the upper percentiles are significantly correlated with reductions in Rabi wheat yields (p<`r paste(signif(summary(fixed_pca)[1]$coefficients[1,4],3))`). For PC2, we see that increases in the minimum values of NDVI correspond to significantly higher wheat yields (p<`r paste(signif((summary(fixed_pca)[1]$coefficients[2,4]),3))`). For PC3, we see that increases in season length correspond (although with a relatively small response) to significantly higher yields (p<`r paste(signif(summary(fixed_pca)[1]$coefficients[3,4],3))`). For PC4, we see significantly lower yields corresponding to greater differences between the current year AUC values and the upper percentiles of the observed record (p<`r paste(signif(summary(fixed_pca)[1]$coefficients[4,4],3))`). The spatial lag model from eq. `r paste(F4)` follows a similar pattern of sign and significance, however the relative size of the coefficients are smaller due to the influence of $\lambda$, the spatial autoregressive coefficient (Table `r paste(t098)`). Here the large and positive coefficient indicates strong spatial spillover effects, with uncontrolled  factors affecting yield not easily captured by NDVI (e.g. pest, disease, management, ground water availability) influencing their neighboring district.   
 
 ##Spatiotemporal Model Accuracy 
-Metrics for wheat yield prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')`[^3] and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI (Table `r paste(t12321)`).  The improvements in accuracy from leveraging the spatiotemporal properties of panel data is apparent with predictive accuracy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained when spatially lagged values of yields ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. Note however that this particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
+Metrics for wheat yield prediction at the district level are promising, with within-$R^{2}$ `r paste(range(round(Witin_R2_pool,2),round(Witin_R2_FE,2),round(Witin_R2_splm,2)), collapse=' to ')`[^3] and out of sample RMSEs as low as `r paste(min(round(RMSE_lm,2),round(RMSE_fixed,2),round(RMSE_SPLM_FE,2)), collapse=' to ')` metric tons per hectare using only information extracted from NDVI (Table `r paste(t12321)`).  The improvements in accuracy from leveraging the spatiotemporal properties of panel data is apparent with predictive accuracy increasing nearly `r round(RMSE_lm/RMSE_SPLM_FE,0)` fold relative to traditional OLS approaches. We can also see the improvements of accuracy obtained when spatially lagged values of yields ($W_{ij}Y_{jt}$) are included in the regression. Note however that the inclusion of $Y_{jt}$ on the right side of the equation precludes true forecasting applications because it requires contemporaneous information on yields in neighboring districts. This particular issue could be at least partially addressed by integrated spatially and lagged values of Y for neighbors *j* ($Y_{jt-1}$), which require no contemporaneous information. 
 
 [^3]: The within-$R^{2}$ evaluates the goodness of fit beyond what can be explained by fixed effects intercepts $\alpha_{i}$
 
 These differences are clearly exhibited in Figure `r paste(c62)` where the fixed effect and spatial lag models clearly out-perform the pooled OLS methodology. This is particularly true during years exhibiting high variance such as 2005 and 2011 where unusually low and high values are prevalent across the sample. This characteristic of panel data reflects the underlying principal of the methodology which is able to model both the time-series properties of a single district, as well as the cross-sectional (spatial) properties of a particular year and or district. These improvements are also expressed in the distribution of residuals presented in Figure `r paste(c83)`.   
 
 ##Observations of Drought
-Much of western India has experience regular and often intense droughts over the past decades. In Punjab prior to 2010, annual rainfall had declined nearly 450 mm, and experienced drought conditions in 1987, 1997, 2002, 2007 and 2009 [@sidhu2012risk]. These declines coupled with increasing temperatures has made both Punjab and Haryana increasingly dependebt on irrigation to maintain yields, with over 95% of arable land irrigated [@sidhu2012risk, @ambika2016remotely]. Declining precipitation and increasing temperatures has necessitated the ever increasing use of groundwater, calling into question the economic and environmental sustainability of the practice. For instance in 2009 alone, the water table in the central valley of Punjab declined by more than one meter [@sidhu2012risk]. Rapid declines in the water table substantially increases the costs of irrigation by necessitating the deepening of wells, and increasing the costs of pumping water to the surface. Because the government nearly fully subsidies the fuel and electricity costs of groundwater extraction, it seems broadly perceived that "yield levels are seldom affected by even a significant fall in rainfall" [@sidhu2012risk]. 
+Much of western India has experience regular and often intense droughts over the past decades. In Punjab prior to 2010, annual rainfall had declined nearly 450 mm, and experienced drought conditions in 1987, 1997, 2002, 2007 and 2009 [@sidhu2012risk]. These declines, coupled with increasing temperatures, has made both Punjab and Haryana increasingly dependent on irrigation to maintain yields, with over 95% of arable land irrigated [@sidhu2012risk, @ambika2016remotely]. Declining precipitation and increasing temperatures has necessitated the ever increasing use of groundwater, calling into question the economic and environmental sustainability of the practice. For instance in 2009 alone, the water table in the central valley of Punjab declined by more than one meter [@sidhu2012risk]. Rapid declines in the water table substantially increases the costs of irrigation by necessitating the deepening of wells, and increasing the costs of pumping water to the surface. Because the government nearly fully subsidies the fuel and electricity costs of groundwater extraction, it seems broadly perceived that "yield levels are seldom affected by even a significant fall in rainfall" [@sidhu2012risk]. 
 
-Our time series of wheat yields shows strong resilience to drought but still demonstrates declines during periods of extended drought (Figure `r paste(c62)`). For instance, yields declined up to 1/2 a ton during 2009. These declines, and other years like it, may be caused by the lag between observations of drought and investment in wells. Supporting this, a recent remotely sensed study of irrigated land reports significant portions both states coming into and out of irrigated production during times of drought [@ambika2016remotely]. Regardless of access to irrigation water, proper timing of irrigation and management can be difficult during periods of drought especially in areas with sandy soils or even those with compacted soils [@utt_2017, @Kumar_2017]. 
+Our time series of wheat yields shows strong resilience to drought but still demonstrates declines during periods of extended drought (Figure `r paste(c62)`). For instance, yields declined up to 1/2 a ton per hectare during 2009. These declines, and other years like it, may be caused by the lag between observations of drought and investment in wells. Supporting this, a recent remotely sensed study of irrigated land reports significant portions both states coming into and out of irrigated production during times of drought [@ambika2016remotely]. Regardless of access to irrigation water, proper timing of irrigation and management can be difficult during periods of drought especially in areas with sandy soils or even those with compacted soils [@utt_2017, @Kumar_2017]. 
 
 From Figure `r paste(c62)` we can see that the variables derived from NDVI as estimated by fixed effects and spatial panel can realistically track these shifts. Meanwhile the pooled regression approach, which ignores the spatiotemporal nature of the data, is largely insensitive the shifts in NDVI caused by drought. This finding reinforces the critical importance of panel regression to predictive modeling, especially in studies with spatiotemporal components. 
 
 #Conclusions
-Here we demonstrate and provide open access to a new suite of algorithms designed to rapidly extract and summarize remotely sensed data for use in panel regression. We then demonstrate the desireability of panel regression techniques above traditional crossectional and pooled approaches. Traditional cross sectional and pooled regression approaches mistreat or underutilize the spatiotemporal variation they with to explain.  All code use to estimate these models and to write this text is provided [online](https://github.com/mmann1123/India-Index-Insurance-Code/blob/master/WriteUp/WheatYieldWriteUp.Rmd) through github. 
+In this study we demonstrate and provide open access to a new suite of algorithms designed to rapidly extract and summarize remotely sensed data for use in panel regression. We then demonstrate the desireability of panel regression techniques above traditional crossectional or pooled approaches. Traditional cross sectional and pooled regression approaches mistreat or underutilize the spatiotemporal variation they wish to explain.  All code use to estimate these models and to write this text is provided [online](https://github.com/mmann1123/India-Index-Insurance-Code/blob/master/WriteUp/WheatYieldWriteUp.Rmd) through github. 
 
 \newpage
 #Appendix A
 ##Yield Data
 *Table A`r paste(Appendix_Table_number)`: Rabi Season Wheat Yields Metric Tons per Hectare by State `r Appendix_Table_number =Appendix_Table_number+1 `*
-```{r, echo=F, message=FALSE, warning=F, include=T}
+```{r, echo=FALSE, message=FALSE, warning=F}
 panderOptions('table.split.table', Inf)
 panderOptions('big.mark', ",")
 panderOptions('keep.trailing.zeros', F)
@@ -804,7 +809,7 @@ pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'),di
 *Table A`r paste(AT1)`: Importance of PCA components*
 
 ```{r Panel:  PCA output  , echo=FALSE}
-   pander(summary(pca),split.table=90,digits =3) 
+   pander(summary(pca)$importance,split.table=80,digits =3) 
 ```
 
 
@@ -813,7 +818,7 @@ pander(state_yeilds, justify = c('left', 'left', 'center','center', 'center'),di
 All functions used in the creation of this paper above are provided in the section below. Additionally, all [algorithms](https://github.com/mmann1123/India-Index-Insurance-Code/blob/master/SummaryFunctions.R) as well as [the code](https://github.com/mmann1123/India-Index-Insurance-Code/blob/master/WriteUp/WheatYieldWriteUp.Rmd) used to generate the findings from this study are provided through a github repository [here](https://github.com/mmann1123/India-Index-Insurance-Code).
 
 *Functions `r paste(A)`: Planting/Harvest date functions*
-```{r, include=T,echo=T,warning=F}
+```{r, include=T,echo=T,warning=F, tidy=T}
 PlantHarvestDates = function(start_date,end_date,PlantingMonth,PlantingDay,HarvestMonth,HarvestDay){
     # this function takes in date range and returns planting and harvest date for time series as a data.frame 
     # for all years of interest. Handles growing periods overlaping a new year properly.

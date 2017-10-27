@@ -11,11 +11,14 @@
 # Run the following in bash before starting R
  module load proj.4/4.8.0
  module load gdal/gcc/1.11
- module load R
+ module load R/3.1.1
  #module use /home/mmann1123/local/modulefiles 
  #module load R/3.2.2
  module load gcc/4.9.0
  R
+
+
+
 
 
 
@@ -553,7 +556,8 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
 	'VEG_growing_AUC_95th_prct','VEG_growing_AUC_v2','VEG_growing_AUC_leading','VEG_growing_AUC_trailing',
         'VEG_growing_AUC_diff_mn','VEG_growing_AUC_diff_90th','VEG_all_growing_95th_prct','VEG_growing_sd','Whe_Yeild_kgha','yield_tn_ha_dual',
 	"rice_plant_dates","rice_harvest_dates","R_mx_dates",'rice_growing_mean','rice_growing_min','rice_growing_max','rice_growing_AUC',
-	'rice_growing_95th_prct','rice_growing_max_95th_prct','rice_growing_AUC_95th_prct','rice_growing_AUC_v2','rice_growing_AUC_leading','rice_growing_AUC_trailing'
+	'rice_growing_95th_prct','rice_growing_max_95th_prct','rice_growing_AUC_95th_prct','rice_growing_AUC_v2','rice_growing_AUC_leading',
+	'rice_growing_AUC_trailing'
 	)
   
   # evi or ndvi determined by original extracted data 
@@ -582,9 +586,10 @@ lapply(1:length(functions_in), function(x){cmpfun(get(functions_in[[x]]))})  # b
   coord_equal() +
   scale_fill_gradient2('Yields (tons per hectare)', low = 'red',mid='orange',high = 'green', midpoint=4250)
 
+  y_plot = ggplot() +  geom_polygon(data=districts.df2[districts.df2$hole==F,],color='white',aes(long,lat,fill= yield_tn_ha,group=as.factor(id))) +
+  coord_equal() +scale_fill_gradient2('Yields \n(T/ha)', low = 'grey10',mid='grey50',high = 'white',midpoint=3.75)
 
-
-  #ggsave(file="../../India-Index-Insurance-Code/WriteUp/Yield_tn_ha.png")
+  ggsave(y_plot,file="../../India-Index-Insurance-Code/WriteUp/Yield_tn_ha_bw.png")
 
 
 ################################################ 
